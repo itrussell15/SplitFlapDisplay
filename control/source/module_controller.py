@@ -14,6 +14,7 @@ class ModuleController:
 
     def __init__(self, module_id: int) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}({module_id})")
+        self.logger.debug(f"Module {module_id} created")
         self._module_id = module_id
         self._command_queue = None
 
@@ -56,6 +57,9 @@ class ModuleController:
 
     def get_speed(self) -> None:
         return self._create_packet(ModuleCommand.GET_SPEED)
+
+    def update(self, message: IncomingMessage) -> None:
+        self.logger.info(f"Updating based on {message}")
 
     def _create_packet(self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True) -> OutgoingMessage:
         message = OutgoingMessage(module_id=self.module_id, command=command, data_value=value)
