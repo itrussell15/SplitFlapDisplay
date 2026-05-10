@@ -1,7 +1,11 @@
 import logging
 import serial
 import time
+import threading
+from queue import Queue
 from typing import Optional
+from abc import ABC, abstractmethod
+
 
 class SerialControl:
     def __init__(self, port: str, baudrate: int=9600, timeout: int=1):
@@ -61,7 +65,6 @@ class SerialControl:
         while not timed_out:
             if self.connection.in_waiting >= size:
                 data = self.connection.read()
-                self.logger.info(f"Data: {data}")
                 if data == start_value:
                     break
             time_delta = time.time() - start_time
@@ -97,12 +100,46 @@ class SerialControl:
             raise ConnectionError(f"{self.port} not connected")
         return self.connection.in_waiting > 0
 
-# Functions
-def create_logger(level = logging.DEBUG, spacing: int = 15):
-    logging.basicConfig(
-        level=level,
-        format=f'[%(levelname)-8s][%(name)-{spacing}s] %(message)s',
-        datefmt='%H:%M:%S'
-    )
 
+class SerialProcessor(ABC, SerialControl): 
 
+    def __init__(self, port: str, baudrate: int=9600, timeout: int=1, max_queue_size: int = 64) -> None:
+        SerialControl.__init__(self, port, baudrate, timeout)
+        self.queue = Queue(maxsize=max_queue_size)
+        self.processor = self.create_queue_processor()
+
+    def worker(self):
+        while True:
+            try:
+                item = self.queue.get()
+                self.logger.info(f"Processing: {item}")
+                self._send_serial_command(item.encode())
+                response = self._read_serial_response()
+                self.logger.info(f"Response: {response}")
+                self._handle_response(response, item)
+                self.queue.task_done()
+            except Exception as e:
+                self.logger.error(str(e))
+
+    def create_queue_processor(self) -> threading.Thread:
+        return threading.Thread(target=self.worker, daemon=True)
+
+    def _send_serial_command(self, command: bytes) -> bool:
+        self.logger.debug(f"Raw packet being sent {command}")
+        self.send(command)
+
+    @abstractmethod
+    def _read_serial_response(self) -> BaseMessage:
+        pass
+
+    @abstractmethod
+    def _handle_response(self, incoming: BaseMessage, outgoing: BaseMessage) -> None:
+        pass
+
+    def close(self) -> None:
+        if not self.queue.empty():
+            self.logger.info(f"Waiting for {self.queue.qsize()} commands to complete before closing")
+        while not self.queue.empty():
+            time.sleep(0.1)
+        self.logger.info("Closing serial connection")
+        super().close()

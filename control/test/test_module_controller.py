@@ -14,10 +14,16 @@ from source.dataclasses_ import OutgoingMessage, ModuleCommand
 class TestModuleController(unittest.TestCase):
 
     def setUp(self):
-        self.module_id = 0
+        self.module_id = 1
         self.controller = ModuleController(self.module_id)
         queue = Queue()
         self.controller.register_command_queue(queue)
+    
+    def test_bad_id(self):
+        with self.assertRaises(ValueError):
+            controller = ModuleController(0)
+        with self.assertRaises(ValueError):
+            controller = ModuleController(300)
 
     def test_index(self):
         self.assertEqual(self.controller.module_id, self.module_id)

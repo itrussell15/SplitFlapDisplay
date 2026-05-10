@@ -1,6 +1,7 @@
 import unittest
 import sys
 import time
+import threading
 import logging
 from queue import Queue
 from pathlib import Path
@@ -14,29 +15,42 @@ from source.module_controller import (
 from source.bus_controller import BusController
 from source.dataclasses_ import OutgoingMessage, ModuleCommand
 from source.utils import create_logger
+from test.mock_components.mock_module_firmware import MockFirmware
+
+MODULE_IDS = [1, 2, 3, 4, 5]
+
 
 class TestModuleController(unittest.TestCase):
 
     def setUp(self):
         create_logger(level=logging.DEBUG, spacing=23)
         self.module_id = 0
-        # self.controllers = {i: ModuleController(i) for i in range(0, 5)}
-        self.bus = BusController("/tmp/vcom_module", 0)
+        
+        self.modules = {i: ModuleController(i) for i in MODULE_IDS}
+        self.bus = BusController("/tmp/vcom_module", 0, modules=self.modules)
+        
+        self.firmware = MockFirmware(port="/tmp/vcom_host", module_ids=MODULE_IDS)
+        self.firmware_listening = threading.Thread(target=self.firmware.listen, daemon=True)
 
+        self.bus.processor.start()
+        self.firmware_listening.start()
+        
     def tearDown(self):
+        # Let processor stop working
+        self.firmware.stop_event.set()
+        self.firmware_listening.join(timeout=1)
+        
+        self.firmware.close()
         self.bus.close()
 
-    def test_single_command(self) -> None:    
-        # self.controllers[1].move(100)
-        # print("HERE")
-        self.bus.processor.start()
+    def test_discover(self) -> None:    
         self.bus.discover()
+        self.assertEqual(len(MODULE_IDS), len(self.bus.modules))
 
-    # def test_command_queue_draining(self) -> None:
-    #     for controller in self.controllers.values():
-    #         controller.move(100)
-    #     self.assertEqual(len(self.controllers), self.bus.commands.qsize())
-    #     self.bus.processor.start()
-    #     while not self.bus.commands.empty():
-    #         time.sleep(0.1)
-    #     self.assertEqual(0, self.bus.commands.qsize())
+    def test_command_queue_draining(self) -> None:
+        self.assertEqual(0, self.bus.queue.qsize())
+        for controller in self.modules.values():
+            controller.move(100)
+        while not self.bus.queue.empty():
+            time.sleep(0.1)
+        self.assertEqual(0, self.bus.queue.qsize())

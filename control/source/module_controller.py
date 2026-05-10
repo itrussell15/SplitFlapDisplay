@@ -16,8 +16,13 @@ class ModuleController:
     def __init__(self, module_id: int) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}({module_id})")
         self.logger.debug(f"Module {module_id} created")
+
+        if module_id <= 0 or module_id > 255:
+            raise ValueError(f"Module ID {module_id} not allowed. Must be 1 <= x <= 255")
+
         self._module_id = module_id
         self._command_queue = None
+        self._is_homed: bool = False
 
     def register_command_queue(self, queue: Queue) -> None:
         if not isinstance(queue, Queue):
@@ -45,7 +50,9 @@ class ModuleController:
 
     def home(self) -> None:
         self.logger.info(f"Homing")
-        return self._create_packet(ModuleCommand.HOME)
+        output = self._create_packet(ModuleCommand.HOME)
+        self.is_homed = True
+        return output
 
     def stop(self) -> None:
         return self._create_packet(ModuleCommand.STOP)
