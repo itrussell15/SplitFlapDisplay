@@ -8,6 +8,7 @@ from typing import Any, Optional
 
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
+MAX_MODULE_ID = 256
 
 
 class ModuleController:

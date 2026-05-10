@@ -8,9 +8,20 @@ class SerialControl:
         self.logger = logging.getLogger(f"{self.__class__.__name__}({port}")
         self.port = port
         self.baudrate = baudrate
+        self._timeout = timeout
         self.timeout = timeout
         self.connection = None
         self.buffer = []
+
+    @property
+    def timeout(self) -> float:
+        return self._timeout
+
+    @timeout.setter
+    def timeout(self, value: float) -> None:
+        if value < 0:
+            raise ValueError("Value must be non-negative")
+        self._timeout = value
 
     def connect(self):
         """Attempts to open the serial port."""
@@ -62,11 +73,13 @@ class SerialControl:
         start_time = time.time()
         timed_out = False
         while not timed_out:
-            if self.connection.in_waiting > size:
+            if self.connection.in_waiting >= size:
                 data = self.connection.read()
+                self.logger.info(f"Data: {data}")
                 if data == start_value:
                     break
-            timed_out = time.time() - start_time > self.timeout
+            time_delta = time.time() - start_time
+            timed_out = time_delta > self.timeout
         
         if timed_out:
             raise TimeoutError(f"Device on {self.port} failed to respond within {self.timeout}s")
@@ -93,6 +106,8 @@ class SerialControl:
 
     @property
     def is_data_waiting(self) -> bool:
+        if not self.connection:
+            raise ConnectionError(f"{self.port} not connected")
         return self.connection.in_waiting > 0
 
 # Functions

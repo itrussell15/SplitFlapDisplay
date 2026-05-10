@@ -20,16 +20,17 @@ class TestModuleController(unittest.TestCase):
     def setUp(self):
         create_logger(level=logging.DEBUG, spacing=23)
         self.module_id = 0
-        self.controllers = {i: ModuleController(i) for i in range(0, 5)}
-        self.bus = BusController("/tmp/vcom_module", 0, self.controllers)
+        # self.controllers = {i: ModuleController(i) for i in range(0, 5)}
+        self.bus = BusController("/tmp/vcom_module", 0)
 
     def tearDown(self):
         self.bus.close()
 
     def test_single_command(self) -> None:    
-        self.controllers[0].move(100)
+        # self.controllers[1].move(100)
+        # print("HERE")
         self.bus.processor.start()
-        time.sleep(5)
+        self.bus.discover()
 
     # def test_command_queue_draining(self) -> None:
     #     for controller in self.controllers.values():
