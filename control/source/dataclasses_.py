@@ -1,4 +1,6 @@
-import enum
+from __future__ import annotations
+
+import enum 
 import struct
 import logging
 from abc import ABC, abstractmethod
@@ -118,7 +120,7 @@ class IncomingMessage(BaseMessage):
         data_value = data[4]
         status = data[3]
 
-        assert data[5] == cls._checksum(data_value, command_value, module_id, status)
+        assert data[5] == cls._checksum(data_value, command_value, module_id, status), f"Checksum failed"
         return cls(
             module_id=module_id,
             command=ModuleCommand(command_value),

@@ -65,6 +65,7 @@ class SerialControl:
         while not timed_out:
             if self.connection.in_waiting >= size:
                 data = self.connection.read()
+                self.logger.debug(f"Data: {data}")
                 if data == start_value:
                     break
             time_delta = time.time() - start_time
@@ -75,13 +76,16 @@ class SerialControl:
 
         buffer += data
         for _ in range(size-2):
-            buffer += self.connection.read()
+            byte_read = self.connection.read()
+            self.logger.debug(f"Read byte: {byte_read}")
+            buffer += byte_read
 
         data = self.connection.read()
+        self.logger.debug(f"Read end byte: {data} (looking for {end_value})")
         if data != end_value:
-            self.logger.warning(f"Malformed Packet: {buffer}")
-            self.bad_packets.append(buffer)
-            return None
+            self.logger.warning(f"Malformed Packet: {buffer} + {data}")
+            self.bad_packets.append(buffer + data)
+            return buffer + data
         else:
             buffer += data
         
@@ -111,6 +115,7 @@ class SerialProcessor(ABC, SerialControl):
     def worker(self):
         while True:
             try:
+                start_time = time.time()
                 item = self.queue.get()
                 self.logger.info(f"Processing: {item}")
                 self._send_serial_command(item.encode())
@@ -118,6 +123,7 @@ class SerialProcessor(ABC, SerialControl):
                 self.logger.info(f"Response: {response}")
                 self._handle_response(response, item)
                 self.queue.task_done()
+                self.logger.info(f"Processing Time: {time.time() - start_time}")
             except Exception as e:
                 self.logger.error(str(e))
 

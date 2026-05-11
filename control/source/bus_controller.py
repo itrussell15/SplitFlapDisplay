@@ -16,8 +16,15 @@ EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
     command = ModuleCommand.HOME
 )
 
-class BusController(SerialProcessor):
+EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(
+    module_id = 0,
+    command = ModuleCommand.HOME
+)
 
+class BusController(SerialProcessor):
+    """
+    Talks to a group of modules that are on a shared bus
+    """
     def __init__(
         self,
         bus_port: str,
@@ -25,12 +32,15 @@ class BusController(SerialProcessor):
         modules: Optional[Dict[int, ModuleController]] = None,
         max_queue_size: int = 64,
         baudrate: int = 9600,
-        timeout: int = 1
+        timeout: int = 2
     ) -> None:
         super().__init__(bus_port, baudrate, timeout)
         self.id = bus_id
         self.modules = {} if modules is None else modules
         self.connect()
+        
+        # Arduino resets when serial port opens - wait for bootloader to finish
+        time.sleep(2)
 
         # Register all modules
         if modules is not None:
@@ -60,29 +70,50 @@ class BusController(SerialProcessor):
         self.logger.info(f"{len(self.modules)} modules found!")
 
     def _read_serial_response(self) -> IncomingMessage:
+        # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
+        # Poll for data instead of waiting a fixed time
+        max_wait = 1.5
+        start_time = time.time()
+        
+        while time.time() - start_time < max_wait:
+            if self.connection.in_waiting > 0:
+                # Data arrived, start reading immediately
+                break
+            time.sleep(0.05)  # Check every 50ms
+        
         incoming_packet = self.read_packet(
             start_value = struct.pack("B", EXAMPLE_INCOMING_MESSAGE.start_value),
             end_value = struct.pack("B", EXAMPLE_INCOMING_MESSAGE.end_value),
             size = EXAMPLE_INCOMING_MESSAGE.packet_size,
         )
         if not incoming_packet:
-            self.logger.warning("No message response")
-        self.logger.debug(f"Incoming Packet: {incoming_packet}")
-        return IncomingMessage.decode(incoming_packet)
+            self.logger.warning("No response")
+            return None
+        return incoming_packet
 
     def _handle_response(self, incoming: IncomingMessage, outgoing: OutgoingMessage) -> None:
-        if not incoming.status:
-            self.logger.warning(f"Response to {outgoing} returned bad status")
-            raise ValueError(f"Module response was bad: {incoming}")
+        # incoming is the echo packet (bytes) from the Arduino
+        if not incoming:
+            self.logger.warning(f"No response to {outgoing}")
+            return
         
-        match incoming.command:
-            case ModuleCommand.PING:
-                self.logger.debug(f"Module {incoming.module_id} found!")
-                if incoming.module_id not in self.modules:
-                    self.logger.debug(f"Adding module {incoming.module_id}")
-                    self.modules[incoming.module_id] = ModuleController(incoming.module_id)
-            case _:
-                print("Everything else!")
+        try:
+            print(incoming)
+            self.logger.info(struct.unpack('<BBB?HBB', incoming))
+            response = IncomingMessage.decode(incoming)
+            self.logger.debug(f"Incoming Message: {response}")
+            
+            # Log successful command handling
+            match echo.command:
+                case ModuleCommand.PING:
+                    self.logger.debug(f"Module {echo.module_id} found!")
+                    if echo.module_id not in self.modules:
+                        self.logger.debug(f"Adding module {echo.module_id}")
+                        self.modules[echo.module_id] = ModuleController(echo.module_id)
+                case _:
+                    self.logger.debug(f"Command {echo.command} executed on module {echo.module_id}")
+        except Exception as e:
+            self.logger.error(f"Failed to decode echo response: {e}")
 
 
     @property

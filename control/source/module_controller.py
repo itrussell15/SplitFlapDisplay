@@ -12,7 +12,9 @@ MAX_MODULE_ID = 256
 
 
 class ModuleController:
-
+    """
+    Generates commands and tracks the state of a given module.
+    """
     def __init__(self, module_id: int) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}({module_id})")
         self.logger.debug(f"Module {module_id} created")
