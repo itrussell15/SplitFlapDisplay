@@ -6,19 +6,47 @@
 $fn=180; // Quality of render
 layers = 3;
 layerheight = 0.16;
-font = "Consolas:style=bold";
 fontsize = 28;
 
-chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!@#$&()-+=;:%'\u20AC\"\u2191\u2193\u20BF\u00b0\u263A_   []";
-charSizeOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-charYposOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,0,9,0,0,0,9,0,-12,0,0,0,0,0];
+// USE [F6] to render the flaps
 
+// Make the individual color layer
+//MakeFlaps(0);
 
-// Make the flaps 
-MakeFlaps(1);
+// Show Preview of all the flaps - NOT FOR PRINTING
+PreviewFlaps();
 
-// Make the letter inlays
-MakeFlaps(2);
+// Fonts to use
+fonts = ["Consolas:style=bold", "Arial:style=Narrow Bold"];
+charFont = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+
+// 64 Characters you want to use
+chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!@#$&()-+=;:%'\u20AC\"\u2191\u2193\u20BF\u00b0\u263A_.♥[] ";
+
+// Flap Color layer, to generate as individual colors for each flap background
+flapColor = [0,1,2,3,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1];
+
+// Color layer, to generate as individual colors
+charColorLayer = [1,2,3,4,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1,2,1,3,1,3,1,1,1,3,3,2];
+
+// Per Character Font Size overwrite
+charSizeOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,0];
+
+// Per Character Y Position overwrite -> default is centered
+charYposOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-3.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,0,9,0,0,0,9,1.5,-12,-12,0,0,0,0];
+
+colors = ["black", "white", "red", "green", "yellow"];
+
+module PreviewFlaps(){
+    for ( y = [0 : 7] ){
+        for ( x = [0 : 7] ){
+            char = (y*8)+x;
+            translate([34+(x*34),22+(y*43),0])
+            flapPreview(char); 
+        }
+    }
+    
+}
 
 module MakeFlaps(part){
     for ( y = [0 : 5] ){
@@ -39,41 +67,103 @@ module MakeFlaps(part){
     }
 }
 
+module flapPreview(c1){
+     difference(){ 
+         union(){
+         color(colors[flapColor[c1]])
+         linear_extrude(h=(layers*layerheight))
+         import("flap.dxf");
+         
+         color(colors[flapColor[c1]])
+         linear_extrude(h=(layers*layerheight))
+         rotate([0,0,180])
+         import("flap.dxf");
+         }
+         charPreview(c1);
+     }
+    charPreview(c1); 
+}
+
 module flap(c1,c2,c3, part){
     //print flaps with character cutout
-    if (part==1){
+    
      difference(){ 
      union(){
-     color("black")
-     linear_extrude(h=(layers*layerheight))
-     import("flap.dxf");
+     if (flapColor[c3]==part) {
+         color(colors[flapColor[c3]])
+         linear_extrude(h=(layerheight))
+         import("flap.dxf");
+     }
      
-     color("black")
-     linear_extrude(h=(layers*layerheight))
-     rotate([0,0,180])
-     import("flap.dxf");
+     if (part==0){  // Always generate middle layer black
+      color(colors[0])
+      translate([0,0,layerheight])
+      linear_extrude(h=(layerheight))
+      import("flap.dxf");
+     }
+     
+     if (flapColor[c2]==part) {
+         color(colors[flapColor[c2]])
+         translate([0,0,layerheight*2])
+         linear_extrude(h=(layerheight))
+         import("flap.dxf");
+     }
+     
+     if (flapColor[c1]==part) {
+         color(colors[flapColor[c1]])
+         linear_extrude(h=(layerheight))
+         rotate([0,0,180])
+         import("flap.dxf");
+     }
+         
+     if (part==0){
+      color(colors[0])
+      translate([0,0,layerheight])
+      linear_extrude(h=(layerheight))
+      rotate([0,0,180])
+      import("flap.dxf");
+     }
+     
+     if (flapColor[c2]==part) {
+         color(colors[flapColor[c2]])
+         translate([0,0,layerheight*2])
+         linear_extrude(h=(layerheight))
+         rotate([0,0,180])
+         import("flap.dxf");
+     }
      }
      char1(c1);
      char2(c2);
      char3(c3);
      }
-    }
+    
 
     //print just the characters
-    if (part==2){
-     char1(c1);
-     char2(c2);
-     char3(c3);
-    }
+    if (charColorLayer[c1] == part) { char1(c1); }
+    if (charColorLayer[c2] == part) { char2(c2); }
+    if (charColorLayer[c3] == part) { char3(c3); }
+
+}
+
+module charPreview(c){
+difference(){
+     color(colors[charColorLayer[c]])
+     translate([0,charYposOffset[c],layerheight*(layers-1)])
+     linear_extrude(h=layerheight)
+     text(chars[c], size=fontsize+charSizeOffset[c], font=fonts[charFont[c]], halign="center", valign="center");
+     
+     translate([-20,-0.25,layerheight*(layers-1)])
+     cube([50,0.5,layerheight]);
+}
 }
 
 module char1(c){
  difference(){
-     color("white")
+     color(colors[charColorLayer[c]])
      translate([0,-charYposOffset[c],0])
      linear_extrude(h=layerheight)
      rotate([180,0,0])
-     text(chars[c], size=fontsize+charSizeOffset[c], font=font, halign="center", valign="center");
+     text(chars[c], size=fontsize+charSizeOffset[c], font=fonts[charFont[c]], halign="center", valign="center");
      
      translate([-20,-0.25,0])
      cube([50,20,layerheight]);
@@ -82,10 +172,10 @@ module char1(c){
 
 module char2(c){
 difference(){
-     color("white")
+     color(colors[charColorLayer[c]])
      translate([0,charYposOffset[c],layerheight*(layers-1)])
      linear_extrude(h=layerheight)
-     text(chars[c], size=fontsize+charSizeOffset[c], font=font, halign="center", valign="center");
+     text(chars[c], size=fontsize+charSizeOffset[c], font=fonts[charFont[c]], halign="center", valign="center");
      
      translate([-20,-0.25,layerheight*(layers-1)])
      cube([50,0.5,layerheight]);
@@ -95,11 +185,11 @@ difference(){
 
 module char3(c){
  difference(){
-     color("white")
+     color(colors[charColorLayer[c]])
      translate([0,-charYposOffset[c],0])
      linear_extrude(h=layerheight)
      rotate([180,0,0])
-     text(chars[c], size=fontsize+charSizeOffset[c], font=font, halign="center", valign="center");
+     text(chars[c], size=fontsize+charSizeOffset[c], font=fonts[charFont[c]], halign="center", valign="center");
      
      translate([-20,-20+0.25,0])
      cube([50,20,layerheight]);
