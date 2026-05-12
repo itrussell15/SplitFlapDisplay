@@ -43,7 +43,7 @@ class ModuleController:
         return queue
     
     def move_to_step(self, step: int) -> None:
-        self.logger.info(f"Moving to {position}")
+        self.logger.info(f"Moving to {step}")
         if not self.is_valid_step(step):
             raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
         return self._create_packet(ModuleCommand.MOVE_TO_STEP, step)

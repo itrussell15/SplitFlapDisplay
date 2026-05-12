@@ -46,7 +46,7 @@ class TestModuleController(unittest.TestCase):
 
     def test_single_command(self) -> None:
         self.bus.timeout = 2
-        self.modules[1].get_speed()
+        self.modules[1].move_to_step(3005)
         time.sleep(4)
 
     # def test_bad_command(self) -> None:
