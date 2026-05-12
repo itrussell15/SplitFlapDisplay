@@ -28,7 +28,7 @@ class TestModuleController(unittest.TestCase):
         self.module_id = 0
         
         self.modules = {i: ModuleController(i) for i in MODULE_IDS}
-        self.bus = BusController(PORT, 0, modules=self.modules)
+        self.bus = BusController(port=PORT, modules=self.modules)
         
         # self.firmware = MockFirmware(port="/tmp/vcom_host", module_ids=MODULE_IDS)
         # self.firmware_listening = threading.Thread(target=self.firmware.listen, daemon=True)
@@ -48,6 +48,12 @@ class TestModuleController(unittest.TestCase):
         self.bus.timeout = 2
         self.modules[1].get_speed()
         time.sleep(4)
+
+    # def test_bad_command(self) -> None:
+    #     self.bus.timeout = 2
+    #     packet = b'\x02\x01\x04\xff\x00\xff\x03'
+    #     self.bus.queue.put(packet)
+    #     time.sleep(2)
 
     # def test_discover(self) -> None:    
     #     self.bus.discover()

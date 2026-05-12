@@ -6,6 +6,7 @@ from queue import Queue
 from typing import Optional
 from abc import ABC, abstractmethod
 
+from .dataclasses_ import BaseMessage
 
 class SerialControl:
     def __init__(self, port: str, baudrate: int=9600, timeout: int=1):
@@ -118,7 +119,11 @@ class SerialProcessor(ABC, SerialControl):
                 start_time = time.time()
                 item = self.queue.get()
                 self.logger.info(f"Processing: {item}")
-                self._send_serial_command(item.encode())
+                if isinstance(item, BaseMessage):
+                    self._send_serial_command(item.encode())
+                else:
+                    self.logger.info(f"Packet doesn't need encoding: {item}")
+                    self._send_serial_command(item)
                 response = self._read_serial_response()
                 self.logger.info(f"Response: {response}")
                 self._handle_response(response, item)

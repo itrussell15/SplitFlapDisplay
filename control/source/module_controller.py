@@ -9,6 +9,7 @@ from typing import Any, Optional
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
 MAX_MODULE_ID = 256
+NUM_POSITIONS = 64
 
 
 class ModuleController:
@@ -41,14 +42,26 @@ class ModuleController:
         self.logger.info(f"Command queue unregistered")
         return queue
     
-    def move(self, position: int) -> None:
+    def move_to_step(self, step: int) -> None:
         self.logger.info(f"Moving to {position}")
-        if position > MOTOR_RESOLUTION or position < 0:
-            raise ValueError(f"Positional value: {position} must be between 0-{MOTOR_RESOLUTION}")
-        return self._create_packet(ModuleCommand.MOVE_TO_POSITION, position)
+        if not self.is_valid_step(step):
+            raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
+        return self._create_packet(ModuleCommand.MOVE_TO_STEP, step)
 
-    def get_position(self) -> None:
-        return self._create_packet(ModuleCommand.GET_POSITION)
+    def get_steps(self) -> None:
+        return self._create_packet(ModuleCommand.GET_STEPS)
+
+    def move_to_position(self, position: int) -> None:
+        # Move to a stored EEPROM position
+        if not self.is_valid_position(position):
+            raise ValueError(f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}")
+        return self._create_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
+
+    def set_position(self, position: int) -> None:
+        # Update the motors steps in EEPROM position to current location
+        if not self.is_valid_position(position):
+            raise ValueError(f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}")
+        return self._create_packet(ModuleCommand.SET_POSITION, value=position)
 
     def home(self) -> None:
         self.logger.info(f"Homing")
@@ -61,7 +74,7 @@ class ModuleController:
 
     def set_speed(self, value: int) -> None:
         self.logger.info(f"Setting speed to {value}")
-        if value < 0 or value > MAX_SPEED:
+        if not self.is_valid_speed(value):
             raise ValueError(f"Speed value: {value} must be between 0-{MAX_SPEED}")
         return self._create_packet(ModuleCommand.SET_SPEED, value=value)
 
@@ -79,6 +92,15 @@ class ModuleController:
                 raise RuntimeError("No command queue registered")
             self._command_queue.put(message)
         return message
+
+    def is_valid_position(self, position_id: int) -> bool:
+        return position_id >= 0 and position_id <= NUM_POSITIONS
+    
+    def is_valid_step(self, step: int) -> bool:
+        return step >= 0 and step <= MOTOR_RESOLUTION
+
+    def is_valid_speed(self, speed: int) -> bool:
+        return speed > 0 and speed <= MAX_SPEED
 
     @property
     def is_command_queue_registered(self) -> int:

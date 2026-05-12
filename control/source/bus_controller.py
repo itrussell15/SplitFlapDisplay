@@ -27,15 +27,13 @@ class BusController(SerialProcessor):
     """
     def __init__(
         self,
-        bus_port: str,
-        bus_id: int,
+        port: str,
         modules: Optional[Dict[int, ModuleController]] = None,
         max_queue_size: int = 64,
         baudrate: int = 9600,
         timeout: int = 2
     ) -> None:
-        super().__init__(bus_port, baudrate, timeout)
-        self.id = bus_id
+        super().__init__(port, baudrate, timeout, max_queue_size)
         self.modules = {} if modules is None else modules
         self.connect()
         
@@ -50,7 +48,7 @@ class BusController(SerialProcessor):
                 checksum += 1 if mod.is_command_queue_registered else 0
             assert checksum == len(self.modules)
     
-    def discover(self, timeout: float = 0.01) -> List[int]:
+    def discover(self, timeout: float = 0.01) -> None:
         tmp = self.timeout
         self.timeout = timeout
 
@@ -60,7 +58,7 @@ class BusController(SerialProcessor):
             command = OutgoingMessage(
                 module_id=i,
                 command=ModuleCommand.PING
-            )
+            )   
             self.queue.put(command)
         
         self.logger.debug("Waiting for command queue to clear")
@@ -69,7 +67,7 @@ class BusController(SerialProcessor):
         self.timeout = tmp
         self.logger.info(f"{len(self.modules)} modules found!")
 
-    def _read_serial_response(self) -> IncomingMessage:
+    def _read_serial_response(self) -> bytes:
         # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
         # Poll for data instead of waiting a fixed time
         max_wait = 1.5
@@ -91,29 +89,37 @@ class BusController(SerialProcessor):
             return None
         return incoming_packet
 
-    def _handle_response(self, incoming: IncomingMessage, outgoing: OutgoingMessage) -> None:
+    def _handle_response(self, incoming: bytes, outgoing: OutgoingMessage) -> None:
         # incoming is the echo packet (bytes) from the Arduino
         if not incoming:
             self.logger.warning(f"No response to {outgoing}")
             return
         
         try:
-            print(incoming)
-            self.logger.info(struct.unpack('<BBB?HBB', incoming))
+            self.logger.info(struct.unpack('<BBBH?BB', incoming))
             response = IncomingMessage.decode(incoming)
             self.logger.debug(f"Incoming Message: {response}")
+
+            checksum = IncomingMessage.checksum(
+                response.data_value,
+                response.command.value,
+                response.module_id,
+                response.status
+            )
+            self.logger.debug(f"Received Checksum: {response}")
+            self.logger.debug(f"Calculated Checksum: {checksum}")
             
             # Log successful command handling
-            match echo.command:
+            match response.command:
                 case ModuleCommand.PING:
-                    self.logger.debug(f"Module {echo.module_id} found!")
-                    if echo.module_id not in self.modules:
-                        self.logger.debug(f"Adding module {echo.module_id}")
-                        self.modules[echo.module_id] = ModuleController(echo.module_id)
+                    self.logger.debug(f"Module {response.module_id} found!")
+                    if response.module_id not in self.modules:
+                        self.logger.debug(f"Adding module {response.module_id}")
+                        self.modules[response.module_id] = ModuleController(response.module_id)
                 case _:
-                    self.logger.debug(f"Command {echo.command} executed on module {echo.module_id}")
+                    self.logger.debug(f"Command {response.command} executed on module {response.module_id}")
         except Exception as e:
-            self.logger.error(f"Failed to decode echo response: {e}")
+            self.logger.error(f"Failed to decode incoming response: {e}")
 
 
     @property
