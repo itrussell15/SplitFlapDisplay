@@ -1,12 +1,24 @@
-int INCOMING_SIZE = 7;
-byte INCOMING_START_BYTE = 2;
-byte INCOMING_END_BYTE = 3;
+#include <EEPROM.h>
 
-int OUTGOING_SIZE = 8; 
-byte OUTGOING_START_BYTE = 4;
-byte OUTGOING_END_BYTE = 5;
+// ##### PIN DEFINITIONS #####
+const int RS485_RX = 3;
+const int RS485_TX = 1;
+const int RS485_DE = 2;
 
-int MODULE_ID = 1;
+const int HALL_PIN = 4;
+const int IN4 = 6;
+const int IN3 = 7;
+const int IN2 = 8;
+const int IN1 = 9;
+// ##########################
+
+const int INCOMING_SIZE = 7;
+const byte INCOMING_START_BYTE = 2;
+const byte INCOMING_END_BYTE = 3;
+
+const int OUTGOING_SIZE = 8; 
+const byte OUTGOING_START_BYTE = 4;
+const byte OUTGOING_END_BYTE = 5;
 
 struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  start_val;  // 1
@@ -36,11 +48,26 @@ enum Command {
   CMD_MOVE_TO_STEP = 9
 };
 
+const int MODULE_ID = 1;
+const int BAUDRATE = 9600;
+
 int motorSteps = 0;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(BAUDRATE);
+
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(HALL_PIN, INPUT_PULLUP);
+
+  // MOTOR DRIVER PINS
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT); 
+  pinMode(IN4, OUTPUT);
+
+  // Init Serial Comms
+  pinMode(RS485_DE, OUTPUT);
+  digitalWrite(RS485_DE, LOW); 
 }
 
 void loop() {
@@ -74,7 +101,6 @@ void loop() {
 }
 
 void SendSerialResponse(OutgoingMessage message) {
-  // TODO: Calculate checksum for outgoing message
   message.start_val = OUTGOING_START_BYTE;
   message.checksum = calculateOutgoingChecksum(message);
   message.end_val = OUTGOING_END_BYTE;
@@ -92,10 +118,6 @@ bool validateChecksum(byte* buffer) {
 }
 
 int calculateIncomingChecksum(uint8_t module_id, uint8_t command_id, uint16_t data_value) {
-  // Python Code
-  // low_byte = data_value & 0xFF
-  // high_byte = (data_value >> 8) & 0xFF
-  // return module_id ^ command_value ^ low_byte ^ high_byte
   uint8_t low_byte = data_value & 0xFF;
   uint8_t high_byte = (data_value >> 8) & 0xFF;
   return module_id ^ command_id ^ low_byte ^ high_byte;
@@ -162,6 +184,5 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = false;
       break;
   }
-
   return message;
 }

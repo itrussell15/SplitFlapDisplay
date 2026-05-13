@@ -52,38 +52,38 @@ class TestModuleController(unittest.TestCase):
 
         self.bus.close()
 
-    # def test_single_command(self) -> None:
-    #     self.modules[1].move_to_step(1)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.processed_commands, 1)
+    def test_single_command(self) -> None:
+        self.modules[1].move_to_step(1)
+        time.sleep(SLEEP_TIME_S)
+        self.assertEqual(self.bus.processed_commands, 1)
 
-    # def test_bad_checksum(self) -> None:
-    #     packet = b'\x02\x01\x06\xff\x00\xff\x03'
-    #     self.bus.queue.put(packet)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.error_queue.qsize(), 1)
+    def test_bad_checksum(self) -> None:
+        packet = b'\x02\x01\x06\xff\x00\xff\x03'
+        self.bus.queue.put(packet)
+        time.sleep(SLEEP_TIME_S)
+        self.assertEqual(self.bus.error_queue.qsize(), 1)
         
-    #     bad_packet = self.bus.error_queue.get()
-    #     self.assertIsInstance(bad_packet, IncomingMessage)
-    #     self.assertFalse(bad_packet.status)
-    #     self.assertEqual(bad_packet.data_value, 1)
+        bad_packet = self.bus.error_queue.get()
+        self.assertIsInstance(bad_packet, IncomingMessage)
+        self.assertFalse(bad_packet.status)
+        self.assertEqual(bad_packet.data_value, 1)
 
-    # def test_bad_command_id(self) -> None:
-    #     # Sends command ID of 100
-    #     packet = b'\x02\x01\x64\x00\x00\x65\x03'
-    #     self.bus.queue.put(packet)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.error_queue.qsize(), 1)
+    def test_bad_command_id(self) -> None:
+        # Sends command ID of 100
+        packet = b'\x02\x01\x64\x00\x00\x65\x03'
+        self.bus.queue.put(packet)
+        time.sleep(SLEEP_TIME_S)
+        self.assertEqual(self.bus.error_queue.qsize(), 1)
 
-    #     bad_packet = self.bus.error_queue.get()
-    #     self.assertIsInstance(bad_packet, bytes)
-    #     self.assertEqual(bad_packet[3], 2)
+        bad_packet = self.bus.error_queue.get()
+        self.assertIsInstance(bad_packet, bytes)
+        self.assertEqual(bad_packet[3], 2)
         
-    # def test_discover(self) -> None:    
-    #     self.bus.discover()
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.processed_commands, 1)
-    #     self.assertEqual(len(self.bus.modules), 1)
+    def test_discover(self) -> None:    
+        self.bus.discover(0.05)
+        time.sleep(SLEEP_TIME_S)
+        self.assertEqual(self.bus.processed_commands, 1)
+        self.assertEqual(len(self.bus.modules), 1)
 
     def test_single_command(self) -> None:
         self.modules[1].move_to_step(110)
