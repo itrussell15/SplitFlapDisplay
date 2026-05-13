@@ -4,6 +4,7 @@
 const int RS485_RX = 3;
 const int RS485_TX = 1;
 const int RS485_DE = 2;
+const int SERIAL_DELAY_MS = 50;
 
 const int HALL_PIN = 4;
 const int IN4 = 6;
@@ -20,6 +21,7 @@ const int OUTGOING_SIZE = 8;
 const byte OUTGOING_START_BYTE = 4;
 const byte OUTGOING_END_BYTE = 5;
 
+// TODO: Add sequence number for more robust comms
 struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  start_val;  // 1
   uint8_t  module_id;  // 1
@@ -51,11 +53,20 @@ enum Command {
 const int MODULE_ID = 1;
 const int BAUDRATE = 9600;
 
+// ##### MOTOR VALUES #####
+const int NUM_POSITIONS = 64;
 int motorSteps = 0;
+// ########################
 
 void setup() {
+
+  // TODO: Convert to RS485
   Serial.begin(BAUDRATE);
 
+  // TODO: Pull ID from EEPROM
+  // const int MODULE_ID = getModuleId();
+  const int MODULE_ID = 1;
+  
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(HALL_PIN, INPUT_PULLUP);
 
@@ -65,7 +76,7 @@ void setup() {
   pinMode(IN3, OUTPUT); 
   pinMode(IN4, OUTPUT);
 
-  // Init Serial Comms
+  // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
   digitalWrite(RS485_DE, LOW); 
 }
@@ -101,10 +112,14 @@ void loop() {
 }
 
 void SendSerialResponse(OutgoingMessage message) {
+  digitalWrite(RS485_DE, HIGH); // Start transmission
   message.start_val = OUTGOING_START_BYTE;
   message.checksum = calculateOutgoingChecksum(message);
   message.end_val = OUTGOING_END_BYTE;
   Serial.write((byte*)&message, sizeof(message));
+  Serial.flush();
+  delay(SERIAL_DELAY_MS);
+  digitalWrite(RS485_DE, LOW); // End transmission
 }
 
 bool validateChecksum(byte* buffer) {
@@ -185,4 +200,35 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       break;
   }
   return message;
+}
+
+uint8_t getModuleId() {
+  // Pulls the module ID from EEPROM address 0. 
+  // Should be between 0-255
+  int id;
+  EEPROM.get(0, id);
+  return id;
+}
+
+// Save a position (0-4096) to a specific index (0-63)
+void saveStepperPosition(int index, uint16_t stepValue) {
+  // Shift 1 to reserve 0 for "Module ID"
+  index += 1;
+  index = constrain(index, 0, NUM_POSITIONS - 1);
+  if (index >= 0 && index < NUM_POSITIONS) {
+      int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
+      EEPROM.update(address, stepValue); 
+  }
+}
+
+// Retrieve a position from EEPROM
+uint16_t getStepperPosition(int index) {
+  // Shift 1 to reserve 0 for "Module ID"
+  index += 1;
+  if (index >= 0 && index < NUM_POSITIONS) {
+      uint16_t stepValue;
+      EEPROM.get(index * sizeof(uint16_t), stepValue);
+      return stepValue;
+  }
+  return 0; // Return 0 if index is out of bounds
 }
