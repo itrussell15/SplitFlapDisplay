@@ -35,10 +35,12 @@ class BusController(SerialProcessor):
     ) -> None:
         super().__init__(port, baudrate, timeout, max_queue_size)
         self.modules = {} if modules is None else modules
+        self.error_queue = Queue()
+        self._processed_commands = 0
         self.connect()
         
         # Arduino resets when serial port opens - wait for bootloader to finish
-        time.sleep(2)
+        time.sleep(1.0)
 
         # Register all modules
         if modules is not None:
@@ -99,28 +101,52 @@ class BusController(SerialProcessor):
             self.logger.info(struct.unpack('<BBBH?BB', incoming))
             response = IncomingMessage.decode(incoming)
             self.logger.debug(f"Incoming Message: {response}")
+        except Exception as e:
+            self.logger.error(f"Unable to decode incoming message {incoming}")
+            self.error_queue.put(incoming)
+            return
 
-            checksum = IncomingMessage.checksum(
-                response.data_value,
-                response.command.value,
-                response.module_id,
-                response.status
-            )
-            self.logger.debug(f"Received Checksum: {response}")
-            self.logger.debug(f"Calculated Checksum: {checksum}")
-            
-            # Log successful command handling
+        checksum = IncomingMessage.checksum(
+            response.data_value,
+            response.command.value,
+            response.module_id,
+            response.status
+        )
+        self.logger.debug(f"Calculated Checksum: {checksum}")
+
+        if not response.status:
+            self.logger.warning(f"Response failed with error code {response.data_value}")
+            self.error_queue.put(response)
+            return
+        
+        if response.module_id not in self.module_ids:
+            self.logger.warning(f"Module Recieved - {response.module_id} is a not known module for this bus")
+            self.error_queue.put(response)
+            return
+        
+        try:
             match response.command:
                 case ModuleCommand.PING:
                     self.logger.debug(f"Module {response.module_id} found!")
                     if response.module_id not in self.modules:
                         self.logger.debug(f"Adding module {response.module_id}")
                         self.modules[response.module_id] = ModuleController(response.module_id)
+                case ModuleCommand.GET_STEPS:
+                    self.modules[response.module_id].update(response)
+                case ModuleCommand.GET_SPEED:
+                    self.modules[response.module_id].update(response)
+                case ModuleCommand.GET_POSITION:
+                    self.modules[response.module_id].update(response)
                 case _:
                     self.logger.debug(f"Command {response.command} executed on module {response.module_id}")
+            self._processed_commands += 1
         except Exception as e:
+            self.error_queue.put(response)
             self.logger.error(f"Failed to decode incoming response: {e}")
 
+    @property
+    def processed_commands(self) -> int:
+        return self._processed_commands
 
     @property
     def module_ids(self) -> List[int]:

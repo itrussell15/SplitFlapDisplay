@@ -83,6 +83,7 @@ class ModuleController:
 
     def update(self, message: IncomingMessage) -> None:
         self.logger.info(f"Updating based on {message}")
+        # TODO Handle updating
 
     def _create_packet(self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True) -> OutgoingMessage:
         message = OutgoingMessage(module_id=self.module_id, command=command, data_value=value)

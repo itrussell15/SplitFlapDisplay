@@ -31,12 +31,14 @@ class BaseMessage(ABC):
 
     def __post_init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
+        checksum = self._create_checksum()
+        self.logger.debug(f"Checksum Value: {checksum}")
         self._data_packet = [
             self.start_value,
             self.module_id,
             self.command.value,
             self.data_value,
-            self._create_checksum(),
+            checksum,
             self.end_value
         ]
 

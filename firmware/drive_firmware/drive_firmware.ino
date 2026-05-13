@@ -2,7 +2,6 @@ int INCOMING_SIZE = 7;
 byte INCOMING_START_BYTE = 2;
 byte INCOMING_END_BYTE = 3;
 
-// Changed to 8 to match your data, or remove the 8th value
 int OUTGOING_SIZE = 8; 
 byte OUTGOING_START_BYTE = 4;
 byte OUTGOING_END_BYTE = 5;
@@ -19,6 +18,26 @@ struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  end_val;    // 1
 }; // Total = 8 bytes
 
+enum ErrorCode {
+  ERROR_BAD_CHECKSUM = 1,
+  ERROR_COMMAND_NOT_FOUND = 2
+};
+
+enum Command {
+  CMD_PING = 0,
+  CMD_HOME = 1,
+  CMD_STOP = 2,
+  CMD_GET_POSITION = 3,
+  CMD_SET_POSITION = 4,
+  CMD_MOVE_TO_POSITION = 5,
+  CMD_GET_SPEED = 6,
+  CMD_SET_SPEED = 7,
+  CMD_GET_STEPS = 8,
+  CMD_MOVE_TO_STEP = 9
+};
+
+int motorSteps = 0;
+
 void setup() {
   Serial.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
@@ -33,36 +52,20 @@ void loop() {
       
       // Verify End Byte and Module ID
       if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE && incoming_buffer[1] == MODULE_ID) {
-
-        // Combine 2 incoming data bytes into 1 value up to 4096
-        // uint16_t incoming_data = ((uint16_t)incoming_buffer[4] << 8) | incoming_buffer[3];
-
-        // Bad Checksum, send error response
-        if (!validateChecksum(incoming_buffer))
-        {
-          OutgoingMessage message;
-          // Populate the outgoing message fields with known values
-          message.start_val = OUTGOING_START_BYTE;
-          message.module_id = incoming_buffer[1];
-          message.command_id = incoming_buffer[2];
-          message.end_val = OUTGOING_END_BYTE;
+        OutgoingMessage message;
+        
+        message.module_id = incoming_buffer[1];
+        message.command_id = incoming_buffer[2];
+        uint16_t data_value = convertBytesToInt16(incoming_buffer[3], incoming_buffer[4]);
+        
+        if (!validateChecksum(incoming_buffer)){
+          message.data_value = ErrorCode::ERROR_BAD_CHECKSUM;
           message.status = false;
-          message.data_value = 1; // 1 for checksum error
           SendSerialResponse(message);
-          continue;
+          return;
         }
-        
-        OutgoingMessage message = handleIncomingMessage(
-          incoming_buffer[1],
-          incoming_buffer[2],
-          convertBytesToInt16(incoming_buffer[3], incoming_buffer[4])
-        );
+        message = handleIncomingMessage(message, data_value);
         SendSerialResponse(message);
-        if (message.status)
-        {
-          // TODO: Do action after responding
-        }
-        
       }
     } else {
       Serial.read(); // Discard trash
@@ -72,7 +75,9 @@ void loop() {
 
 void SendSerialResponse(OutgoingMessage message) {
   // TODO: Calculate checksum for outgoing message
-
+  message.start_val = OUTGOING_START_BYTE;
+  message.checksum = calculateOutgoingChecksum(message);
+  message.end_val = OUTGOING_END_BYTE;
   Serial.write((byte*)&message, sizeof(message));
 }
 
@@ -95,64 +100,68 @@ int calculateIncomingChecksum(uint8_t module_id, uint8_t command_id, uint16_t da
   uint8_t high_byte = (data_value >> 8) & 0xFF;
   return module_id ^ command_id ^ low_byte ^ high_byte;
 }
-  
+
+int calculateOutgoingChecksum(OutgoingMessage message) {
+  uint8_t low_byte = message.data_value & 0xFF;
+  uint8_t high_byte = (message.data_value >> 8) & 0xFF;
+  return message.module_id ^ message.command_id ^ low_byte ^ high_byte ^ message.status;
+}
+
 uint16_t convertBytesToInt16(byte data1, byte data2)
 {
   return ((uint16_t)data2 << 8) | data1;
 }
 
-OutgoingMessage handleIncomingMessage(uint8_t module_id, uint8_t command_id, int16_t data_value)
+OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_value)
 {
-
-  OutgoingMessage message;
-  message.start_val = OUTGOING_START_BYTE;
-  message.end_val = OUTGOING_END_BYTE;
-  message.module_id = module_id;
-  message.command_id = command_id;
-
-  switch (command_id) {
-    // PING
-    case 0:
-      Serial.println("one");
+  Command command = (Command)message.command_id;
+  switch (command) {
+    case Command::CMD_PING:
+      message.data_value = 0;
+      message.status = true;
       break;
-    // HOME
-    case 1:
-      Serial.println("two");
+    case Command::CMD_HOME:
+      message.data_value = 1;
+      message.status = true;
       break;
-    // STOP
-    case 2:
-      Serial.println("two");
+    case Command::CMD_STOP:
+      message.data_value = 2;
+      message.status = true;
       break;
-    // GET_POSITION
-    case 3:
-      Serial.println("two");
+    case Command::CMD_GET_POSITION:
+      message.data_value = 3;
+      message.status = true;
       break;
-    // SET_POSITION
-    case 4:
-      Serial.println("two");
+    case Command::CMD_SET_POSITION:
+      message.data_value = 4;
+      message.status = true;
       break;
-    // MOVE_TO_POSITION
-    case 5:
-      Serial.println("two");
+    case Command::CMD_MOVE_TO_POSITION:
+      message.data_value = 5;
+      message.status = true;
       break;
-    // GET_SPEED
-    case 6:
-      Serial.println("two");
+    case Command::CMD_GET_SPEED:
+      message.data_value = 6;
+      message.status = true;
       break;
-    // SET_SPEED
-    case 7:
-      Serial.println("two");
+    case Command::CMD_SET_SPEED:
+      message.data_value = 7;
+      message.status = true;
       break;
-    // GET_STEPS
-    case 8:
-      Serial.println("two");
+    case Command::CMD_GET_STEPS:
+      message.data_value = motorSteps;
+      message.status = true;
       break;
-    // MOVE_TO_STEP
-    case 9:
-      Serial.println("two");
+    case Command::CMD_MOVE_TO_STEP:
+      motorSteps = data_value;
+      message.data_value = motorSteps;
+      message.status = true;
       break;
     default:
-      Serial.println("other");
+      message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
+      message.status = false;
       break;
   }
+
+  return message;
 }
