@@ -29,29 +29,31 @@ class ModuleErrorCodes(enum.Enum):
 @dataclass
 class BaseMessage(ABC):
     start_value: int
-    module_id: int
+    row: int
+    column: int
     command: ModuleCommand
     end_value: int
     data_value: int = 255
-    _struct_string = "<BBBBHBB"
+    _struct_string = "<BBBBBHBB"
 
     def __post_init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @staticmethod
-    def checksum(data_value: int, command_value: int, module_id: int, sequence_id: int) -> int:
+    def checksum(data_value: int, command_value: int, row: int, column: int sequence_id: int) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
-        return module_id ^ command_value  ^ sequence_id ^ low_byte ^ high_byte
+        return row ^ column ^ command_value  ^ sequence_id ^ low_byte ^ high_byte
 
     def _create_checksum(self, sequence_id: int) -> int:
-        return self.checksum(self.data_value, self.command.value, self.module_id, sequence_id)
+        return self.checksum(self.data_value, self.command.value, self.row, self.column, sequence_id)
 
     def encode(self, sequence_id: int) -> bytes:
         checksum = self._create_checksum(sequence_id)
         data_packet = [
             self.start_value,
-            self.module_id,
+            self.row,
+            self.column,
             sequence_id,
             self.command.value,
             self.data_value,
@@ -78,6 +80,10 @@ class BaseMessage(ABC):
     def packet_size(cls) -> int:
         return struct.calcsize(cls._struct_string)
 
+    @property
+    def location(self) -> Tuple[int, int]:
+        return (self.row, self.column)
+
 
 @dataclass(kw_only=True)
 class OutgoingMessage(BaseMessage):
@@ -91,13 +97,15 @@ class OutgoingMessage(BaseMessage):
 
     @classmethod
     def _parse_output(cls, data: bytes) -> OutgoingMessage:
-        module_id = data[1]
-        command_value = data[2]
-        data_value = data[3]
+        row = data[1]
+        row = data[2]
+        command_value = data[3]
+        data_value = data[4]
 
-        assert data[4] == cls._checksum(data_value, command_value, module_id)
+        assert data[4] == cls._checksum(data_value, command_value, row, column)
         return cls(
-            module_id=module_id,
+            row=row,
+            column=column,
             command=ModuleCommand(command_value),
             data_value=data_value,
         )
@@ -108,28 +116,40 @@ class IncomingMessage(BaseMessage):
     sequence_id: int
     start_value: int = 4
     end_value: int = 5
-    _struct_string = '<BBBBH?BB'
+    _struct_string = '<BBBBBH?BB'
 
     def __post_init__(self) -> None:
         super().__post_init__()
 
     def encode(self) -> bytes:
         checksum = self._create_checksum()
-        return struct.pack(self._struct_string, self.start_value, self.module_id, self.command.value, self.status, self.data_value, checksum, self.end_value) 
+        return struct.pack(
+            self._struct_string,
+            self.start_value,
+            self.row,
+            self.column,
+            self.command.value,
+            self.status,
+            self.data_value,
+            checksum,
+            self.end_value
+        ) 
 
     @classmethod
     def _parse_output(cls, data: bytes) -> OutgoingMessage:
-        module_id = data[1]
-        sequence_id = data[2]
-        command_value = data[3]
-        data_value = data[4]
-        status = data[5]
+        row = data[1]
+        column = data[2]
+        sequence_id = data[3]
+        command_value = data[4]
+        data_value = data[5]
+        status = data[6]
 
-        calculated_checksum = cls.checksum(data_value, command_value, module_id, status)
+        calculated_checksum = cls.checksum(data_value, command_value, row, column, status)
         if data[6] != calculated_checksum:
             raise ValueError(f"Received Checksum doesn't match calculated value. {data[5]} != {calculated_checksum}")
         return cls(
-            module_id=module_id,
+            row=row,
+            column=column,
             sequence_id=sequence_id,
             command=ModuleCommand(command_value),
             data_value=data_value,
@@ -137,10 +157,10 @@ class IncomingMessage(BaseMessage):
         )
 
     @staticmethod
-    def checksum(data_value: int, command_value: int, module_id: int, status: bool) -> int:
+    def checksum(data_value: int, command_value: int, row: int, column: int status: bool) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
-        return module_id ^ command_value ^ low_byte ^ high_byte ^ status
+        return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status
     
     def _create_checksum(self) -> bytes:
-        return self.checksum(self.data_value, self.command.value, self.module_id, self.status)
+        return self.checksum(self.data_value, self.command.value, self.row, self.column, self.status)

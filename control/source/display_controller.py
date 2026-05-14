@@ -19,24 +19,24 @@ class DisplayController(BusController):
         if len(self.modules) != num_modules:
             raise RuntimeError(f"Expected {num_modules} modules, but found {len(self.modules)}")
         
-    def home_all(self) -> None:
-        for module in self.modules.values():
-            module.home()
-            time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
+    # def home_all(self) -> None:
+    #     for module in self.modules.values():
+    #         module.home()
+    #         time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
         
-    def move_to_positions(self, positions: Dict[int, int]) -> None:
-        for module_id, position in positions.items():
-            self.modules[module_id].move_to_position(position)
-            time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
+    # def move_to_positions(self, positions: Dict[int, int]) -> None:
+    #     for module_id, position in positions.items():
+    #         self.modules[module_id].move_to_position(position)
+    #         time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
 
-    def move_to_flap(self, flaps: Dict[int, Flap]) -> None:
-        for module_id, flap in flaps.items():
-            self.modules[module_id].move_to_position(flap.value)
-            time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
+    # def move_to_flap(self, flaps: Dict[int, Flap]) -> None:
+    #     for module_id, flap in flaps.items():
+    #         self.modules[module_id].move_to_position(flap.value)
+    #         time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
 
-    def move_to_steps(self, steps: Dict[int, int]) -> None:
-        for module_id, step in steps.items():
-            self.modules[module_id].move_by_steps(step)
-            time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
+    # def move_to_steps(self, steps: Dict[int, int]) -> None:
+    #     for module_id, step in steps.items():
+    #         self.modules[module_id].move_by_steps(step)
+    #         time.sleep(COMMAND_SLEEP_TIME_S)  # Stagger commands to avoid overwhelming the bus
         
 

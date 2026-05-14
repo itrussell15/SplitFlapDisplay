@@ -12,13 +12,15 @@ class TestOutgoingMessage(unittest.TestCase):
 
     def setUp(self):
         self.data_message = OutgoingMessage(
-            module_id=0,
+            row=0,
+            column=0,
             command=ModuleCommand.MOVE_TO_POSITION,
             data_value=256
         )
 
         self.basic_message = OutgoingMessage(
-            module_id=0,
+            row=0,
+            column=0,
             command=ModuleCommand.HOME,
         )
 
@@ -34,12 +36,13 @@ class TestOutgoingMessage(unittest.TestCase):
     def test_generation(self):
         packet = self.data_message.generate_packet()
 
-        data_value = packet[3] + (packet[4] * 256)
+        data_value = packet[4] + (packet[5] * 256)
         self.assertEqual(packet[0], self.data_message.start_value)
-        self.assertEqual(packet[1], self.data_message.module_id)
-        self.assertEqual(packet[2], self.data_message.command.value)
+        self.assertEqual(packet[1], self.data_message.row)
+        self.assertEqual(packet[2], self.data_message.column)
+        self.assertEqual(packet[3], self.data_message.command.value)
         self.assertEqual(data_value , self.data_message.data_value)
-        self.assertEqual(packet[5], self.data_message.end_value)
+        self.assertEqual(packet[6], self.data_message.end_value)
 
 
 if __name__ == "__main__":

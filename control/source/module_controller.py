@@ -8,22 +8,28 @@ from typing import Any, Optional
 
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
-MAX_MODULE_ID = 256
 NUM_POSITIONS = 64
+
+MIN_ROW_VALUE = 0
+MAX_ROW_VALUE = 255
+MIN_COLUMN_VALUE = 0
+MAX_COLUMN_VALUE = 255
 
 
 class ModuleController:
     """
     Generates commands and tracks the state of a given module.
     """
-    def __init__(self, module_id: int) -> None:
-        self.logger = logging.getLogger(f"{self.__class__.__name__}({module_id})")
-        self.logger.debug(f"Module {module_id} created")
+    def __init__(self, row: int, column: int) -> None:
+        self.logger = logging.getLogger(f"{self.__class__.__name__}({row}, {column})")
+        self.logger.debug(f"Module at ({row}, {column}) created")
 
-        if module_id <= 0 or module_id > 255:
-            raise ValueError(f"Module ID {module_id} not allowed. Must be 1 <= x <= 255")
+        if row < MIN_ROW_VALUE or row > MAX_ROW_VALUE:
+            raise ValueError(f"Row {row} not allowed. Must be {MIN_ROW_VALUE} <= x <= {MAX_ROW_VALUE}")
+        if column < MIN_COLUMN_VALUE or column > MAX_COLUMN_VALUE:
+            raise ValueError(f"Column {column} not allowed. Must be {MIN_COLUMN_VALUE} <= x <= {MAX_COLUMN_VALUE}")
 
-        self._module_id = module_id
+        self._location = (row, column)
         self._command_queue = None
         self._is_homed: bool = False
 
@@ -91,7 +97,7 @@ class ModuleController:
         # TODO Handle updating
 
     def _create_packet(self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True) -> OutgoingMessage:
-        message = OutgoingMessage(module_id=self.module_id, command=command, data_value=value)
+        message = OutgoingMessage(row=self.row, column=self.column, command=command, data_value=value)
         self.logger.debug(f"Packet generated for message: {message}")
         if add_to_queue:
             if self._command_queue is None:
@@ -109,9 +115,17 @@ class ModuleController:
         return speed > 0 and speed <= MAX_SPEED
 
     @property
-    def is_command_queue_registered(self) -> int:
-        return self._command_queue is not None
+    def location(self) -> Tuple[int, int]:
+        return self._location  
 
     @property
-    def module_id(self) -> int:
-        return self._module_id
+    def row(self) -> int:
+        return self._location[0]
+
+    @property
+    def column(self) -> int:
+        return self._location[1]
+
+    @property
+    def is_command_queue_registered(self) -> int:
+        return self._command_queue is not None

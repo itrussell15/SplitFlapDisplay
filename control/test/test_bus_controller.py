@@ -31,12 +31,12 @@ class TestModuleController(unittest.TestCase):
 
     def setUp(self):
         create_logger(level=logging.DEBUG, spacing=23)
-        self.module_id = 0
         
-        self.modules = {i: ModuleController(i) for i in MODULE_IDS}
+        # self.modules = {i: ModuleController(i) for i in MODULE_IDS}
+        self.module1 = ModuleController(row=0, column=0)
+        self.modules = {(0, 0): self.module1}
         self.bus = BusController(port=PORT, modules=self.modules)
         self.bus.timeout = 0.5
-        # self.bus.discover()
         
         # self.firmware = MockFirmware(port="/tmp/vcom_host", module_ids=MODULE_IDS)
         # self.firmware_listening = threading.Thread(target=self.firmware.listen, daemon=True)
@@ -63,6 +63,7 @@ class TestModuleController(unittest.TestCase):
         self.assertEqual(self.bus.processed_commands, 1)
 
     def test_bad_checksum(self) -> None:
+        # TODO Update this based on new packet
         packet = b'\x02\x01\x06\xff\x00\xff\x03'
         self.bus.queue.put(packet)
         time.sleep(SLEEP_TIME_S)
@@ -74,6 +75,7 @@ class TestModuleController(unittest.TestCase):
         self.assertEqual(bad_packet.data_value, 1)
 
     def test_bad_command_id(self) -> None:
+        # TODO Update this based on new packet
         # Sends command ID of 100
         packet = b'\x02\x01\x64\x00\x00\x65\x03'
         self.bus.queue.put(packet)

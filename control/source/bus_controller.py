@@ -11,18 +11,27 @@ from .dataclasses_ import (
     ModuleErrorCode,
     OutgoingMessage
 )
-from .module_controller import ModuleController, ModuleCommand, MAX_MODULE_ID
+from .module_controller import (
+    ModuleController,
+    ModuleCommand,
+    MIN_ROW_VALUE,
+    MAX_ROW_VALUE,
+    MIN_COLUMN_VALUE,
+    MAX_COLUMN_VALUE
+)
 from .serial_processor import SerialProcessor
 
 EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
-    module_id = 0,
+    row = 0,
+    column = 0,
     sequence_id = 0,
     command = ModuleCommand.HOME,
     status=True
 )
 
 EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(
-    module_id = 0,
+    row = 0, 
+    column = 0,
     command = ModuleCommand.HOME
 )
 
@@ -33,7 +42,7 @@ class BusController(SerialProcessor):
     def __init__(
         self,
         port: str,
-        modules: Optional[Dict[int, ModuleController]] = None,
+        modules: Optional[Dict[Tuple[int, int], ModuleController]] = None,
         max_queue_size: int = 64,
         baudrate: int = 9600,
         timeout: int = 2
@@ -60,10 +69,12 @@ class BusController(SerialProcessor):
         self.timeout = timeout
 
         self.modules = {}
-        for i in range(1, 6):
-            self.logger.debug(f"Searching for module {i}")
+        for row in range(MIN_ROW_VALUE, MAX_ROW_VALUE):
+            for col in range(MIN_COL_VALUE, MAX_COL_VALUE):
+            self.logger.debug(f"Searching for module {(row, col)}")
             command = OutgoingMessage(
-                module_id=i,
+                row=row,
+                column=col,
                 command=ModuleCommand.PING
             )   
             self.queue.put(command)
@@ -117,7 +128,8 @@ class BusController(SerialProcessor):
         checksum = IncomingMessage.checksum(
             response.data_value,
             response.command.value,
-            response.module_id,
+            response.row,
+            response.column,
             response.status
         )
         self.logger.debug(f"Calculated Checksum: {checksum}")
@@ -126,26 +138,26 @@ class BusController(SerialProcessor):
             self._handle_bad_status(response)
             return
         
-        if response.command != ModuleCommand.PING and response.module_id not in self.module_ids:
-            self.logger.warning(f"Module Recieved - {response.module_id} is a not known module for this bus")
+        if response.command != ModuleCommand.PING and response.location not in self.module_locations:
+            self.logger.warning(f"Module Recieved - {response.location} is a not known module for this bus")
             self.error_queue.put(response)
             return
 
         try:
             match response.command:
                 case ModuleCommand.PING:
-                    self.logger.debug(f"Module {response.module_id} found!")
-                    if response.module_id not in self.modules:
-                        self.logger.debug(f"Adding module {response.module_id}")
-                        self.modules[response.module_id] = ModuleController(response.module_id)
+                    self.logger.debug(f"Module {response.location} found!")
+                    if response.location not in self.modules:
+                        self.logger.debug(f"Adding module {response.location}")
+                        self.modules[response.location] = ModuleController(row=response.row, column=response.column)
                 case ModuleCommand.GET_STEPS:
-                    self.modules[response.module_id].update(response)
+                    self.modules[response.location].update(response)
                 case ModuleCommand.GET_SPEED:
-                    self.modules[response.module_id].update(response)
+                    self.modules[response.location].update(response)
                 case ModuleCommand.GET_POSITION:
-                    self.modules[response.module_id].update(response)
+                    self.modules[response.location].update(response)
                 case _:
-                    self.logger.debug(f"Command {response.command} executed on module {response.module_id}")
+                    self.logger.debug(f"Command {response.command} executed on module {response.location}")
             self._processed_commands += 1
         except Exception as e:
             self.error_queue.put(response)

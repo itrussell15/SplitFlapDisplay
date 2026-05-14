@@ -22,24 +22,26 @@ const byte OUTGOING_END_BYTE = 5;
 
 struct __attribute__((__packed__)) IncomingMessage {
   uint8_t  start_val;  // 1
-  uint8_t  module_id;  // 1
+  uint8_t  row;  // 1
+  uint8_t  column;  // 1
   uint8_t  sequence_id;// 1
   uint8_t  command_id; // 1
   uint16_t  data_value; // 2
   uint8_t  checksum;   // 1 
   uint8_t  end_val;    // 1
-}; // Total = 8 bytes
+}; // Total = 9 bytes
 
 struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  start_val;  // 1
-  uint8_t  module_id;  // 1
+  uint8_t  row;  // 1
+  uint8_t  column;  // 1
   uint8_t  sequence_id;// 1
   uint8_t  command_id; // 1
   int16_t  data_value; // 2
   uint8_t  status;     // 1
   uint8_t  checksum;   // 1 
   uint8_t  end_val;    // 1
-}; // Total = 9 bytes
+}; // Total = 10 bytes
 
 enum ErrorCode {
   ERROR_BAD_CHECKSUM = 1,
@@ -61,7 +63,8 @@ enum Command {
   CMD_MOVE_TO_STEP = 9
 };
 
-uint8_t MODULE_ID;
+uint8_t MODULE_ROW;
+uint8_t MODULE_COLUMN;
 const int BAUDRATE = 9600;
 
 // ##### MOTOR VALUES #####
@@ -76,7 +79,8 @@ void setup() {
   Serial.begin(BAUDRATE);
 
   // Pull from EEPROM;
-  MODULE_ID = getModuleId();
+  MODULE_ROW = getModuleRow();
+  MODULE_COLUMN = getModuleColumn();
   
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(HALL_PIN, INPUT_PULLUP);
@@ -100,13 +104,14 @@ void loop() {
       Serial.readBytes(incoming_buffer, INCOMING_SIZE);
       
       // Verify End Byte and Module ID
-      if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE && incoming_buffer[1] == MODULE_ID) {
+      if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE && isThisModule(incoming_buffer[1], incoming_buffer[2])) {
         OutgoingMessage message;
         
-        message.module_id = incoming_buffer[1];
-        message.sequence_id = incoming_buffer[2];
-        message.command_id = incoming_buffer[3];
-        uint16_t data_value = convertBytesToInt16(incoming_buffer[4], incoming_buffer[5]);
+        message.row = incoming_buffer[1];
+        message.column = incoming_buffer[2];
+        message.sequence_id = incoming_buffer[3];
+        message.command_id = incoming_buffer[4];
+        uint16_t data_value = convertBytesToInt16(incoming_buffer[5], incoming_buffer[6]);
         
         if (!validateChecksum(incoming_buffer)){
           message.data_value = ErrorCode::ERROR_BAD_CHECKSUM;
@@ -135,26 +140,27 @@ void SendSerialResponse(OutgoingMessage message) {
 }
 
 bool validateChecksum(byte* buffer) {
-  uint8_t module_id = buffer[1];
-  uint8_t sequence_id = buffer[2];
-  uint8_t command_id = buffer[3];
-  uint16_t data_value = convertBytesToInt16(buffer[4], buffer[5]);
-  uint8_t received_checksum = buffer[6];
+  uint8_t row = buffer[1];
+  uint8_t column = buffer[2];
+  uint8_t sequence_id = buffer[3];
+  uint8_t command_id = buffer[4];
+  uint16_t data_value = convertBytesToInt16(buffer[5], buffer[6]);
+  uint8_t received_checksum = buffer[7];
 
-  uint8_t calculated_checksum = calculateIncomingChecksum(module_id, command_id, data_value, sequence_id);
+  uint8_t calculated_checksum = calculateIncomingChecksum(row, column, command_id, data_value, sequence_id);
   return received_checksum == calculated_checksum;
 }
 
-int calculateIncomingChecksum(uint8_t module_id, uint8_t command_id, uint16_t data_value, uint8_t sequence_id) {
+int calculateIncomingChecksum(uint8_t row, uint8_t column, uint8_t command_id, uint16_t data_value, uint8_t sequence_id) {
   uint8_t low_byte = data_value & 0xFF;
   uint8_t high_byte = (data_value >> 8) & 0xFF;
-  return module_id ^ command_id ^ sequence_id ^ low_byte ^ high_byte;
+  return row ^ column ^ command_id ^ sequence_id ^ low_byte ^ high_byte;
 }
 
 int calculateOutgoingChecksum(OutgoingMessage message) {
   uint8_t low_byte = message.data_value & 0xFF;
   uint8_t high_byte = (message.data_value >> 8) & 0xFF;
-  return message.module_id ^ message.command_id ^ low_byte ^ high_byte ^ message.status ^ message.sequence_id;
+  return message.row ^ message.column ^ message.command_id ^ low_byte ^ high_byte ^ message.status ^ message.sequence_id;
 }
 
 uint16_t convertBytesToInt16(byte data1, byte data2)
@@ -252,11 +258,23 @@ bool isValidStep(int step)
   return step >= 0 && step <= MOTOR_RESOLUTION - 1;
 }
 
-uint8_t getModuleId() {
-  // Pulls the module ID from EEPROM address 0. 
+bool isThisModule(uint8_t row, uint8_t column) {
+  return row == MODULE_ROW && column == MODULE_COLUMN;
+}
+
+uint8_t getModuleRow() {
+  // Pulls the module row from EEPROM address 0. 
   // Should be between 0-255
   int id;
   EEPROM.get(0, id);
+  return id;
+}
+
+uint8_t getModuleColumn() {
+  // Pulls the module column from EEPROM address 0. 
+  // Should be between 0-255
+  int id;
+  EEPROM.get(1, id);
   return id;
 }
 
