@@ -111,22 +111,25 @@ class SerialProcessor(ABC, SerialControl):
         self.processor = self.create_queue_processor()
 
     def worker(self):
+        sequence_id: int = 0
         while True:
             try:
                 start_time = time.time()
                 item = self.queue.get()
-                self.logger.info(f"Processing: {item}")
+                self.logger.info(f"Sequence ID {sequence_id}: {item}")
                 if isinstance(item, BaseMessage):
-                    print(item)
-                    self._send_serial_command(item.encode())
+                    self._send_serial_command(item.encode(sequence_id))
                 else:
                     self.logger.info(f"Packet doesn't need encoding: {item}")
                     self._send_serial_command(item)
                 response = self._read_serial_response()
                 self.logger.info(f"Response: {response}")
-                self._handle_response(response, item)
+                self._handle_response(response, item, sequence_id)
                 self.queue.task_done()
                 self.logger.info(f"Processing Time: {time.time() - start_time}")
+                sequence_id += 1
+                if sequence_id > 255:
+                    sequence_id = 0
             except Exception as e:
                 self.logger.error(str(e))
 
@@ -142,7 +145,7 @@ class SerialProcessor(ABC, SerialControl):
         pass
 
     @abstractmethod
-    def _handle_response(self, incoming: BaseMessage, outgoing: BaseMessage) -> None:
+    def _handle_response(self, incoming: BaseMessage, outgoing: BaseMessage, sequence_id: int) -> None:
         pass
 
     def close(self) -> None:

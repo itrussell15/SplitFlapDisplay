@@ -13,24 +13,34 @@ const int IN2 = 8;
 const int IN1 = 9;
 // ##########################
 
-const int INCOMING_SIZE = 7;
+const int INCOMING_SIZE = 8;
 const byte INCOMING_START_BYTE = 2;
 const byte INCOMING_END_BYTE = 3;
 
-const int OUTGOING_SIZE = 8; 
 const byte OUTGOING_START_BYTE = 4;
 const byte OUTGOING_END_BYTE = 5;
+
+struct __attribute__((__packed__)) IncomingMessage {
+  uint8_t  start_val;  // 1
+  uint8_t  module_id;  // 1
+  uint8_t  sequence_id;// 1
+  uint8_t  command_id; // 1
+  int16_t  data_value; // 2
+  uint8_t  checksum;   // 1 
+  uint8_t  end_val;    // 1
+}; // Total = 8 bytes
 
 // TODO: Add sequence number for more robust comms
 struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  start_val;  // 1
   uint8_t  module_id;  // 1
+  uint8_t  sequence_id;// 1
   uint8_t  command_id; // 1
   int16_t  data_value; // 2
   uint8_t  status;     // 1
   uint8_t  checksum;   // 1 
   uint8_t  end_val;    // 1
-}; // Total = 8 bytes
+}; // Total = 9 bytes
 
 enum ErrorCode {
   ERROR_BAD_CHECKSUM = 1,
@@ -93,8 +103,9 @@ void loop() {
         OutgoingMessage message;
         
         message.module_id = incoming_buffer[1];
-        message.command_id = incoming_buffer[2];
-        uint16_t data_value = convertBytesToInt16(incoming_buffer[3], incoming_buffer[4]);
+        message.sequence_id = incoming_buffer[2];
+        message.command_id = incoming_buffer[3];
+        uint16_t data_value = convertBytesToInt16(incoming_buffer[4], incoming_buffer[5]);
         
         if (!validateChecksum(incoming_buffer)){
           message.data_value = ErrorCode::ERROR_BAD_CHECKSUM;
@@ -124,24 +135,25 @@ void SendSerialResponse(OutgoingMessage message) {
 
 bool validateChecksum(byte* buffer) {
   uint8_t module_id = buffer[1];
-  uint8_t command_id = buffer[2];
-  uint16_t data_value = convertBytesToInt16(buffer[3], buffer[4]);
-  uint8_t received_checksum = buffer[5];
+  uint8_t sequence_id = buffer[2];
+  uint8_t command_id = buffer[3];
+  uint16_t data_value = convertBytesToInt16(buffer[4], buffer[5]);
+  uint8_t received_checksum = buffer[6];
 
-  uint8_t calculated_checksum = calculateIncomingChecksum(module_id, command_id, data_value);
+  uint8_t calculated_checksum = calculateIncomingChecksum(module_id, command_id, data_value, sequence_id);
   return received_checksum == calculated_checksum;
 }
 
-int calculateIncomingChecksum(uint8_t module_id, uint8_t command_id, uint16_t data_value) {
+int calculateIncomingChecksum(uint8_t module_id, uint8_t command_id, uint16_t data_value, uint8_t sequence_id) {
   uint8_t low_byte = data_value & 0xFF;
   uint8_t high_byte = (data_value >> 8) & 0xFF;
-  return module_id ^ command_id ^ low_byte ^ high_byte;
+  return module_id ^ command_id ^ sequence_id ^ low_byte ^ high_byte;
 }
 
 int calculateOutgoingChecksum(OutgoingMessage message) {
   uint8_t low_byte = message.data_value & 0xFF;
   uint8_t high_byte = (message.data_value >> 8) & 0xFF;
-  return message.module_id ^ message.command_id ^ low_byte ^ high_byte ^ message.status;
+  return message.module_id ^ message.command_id ^ low_byte ^ high_byte ^ message.status ^ message.sequence_id;
 }
 
 uint16_t convertBytesToInt16(byte data1, byte data2)

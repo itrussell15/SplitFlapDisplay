@@ -12,8 +12,9 @@ from .serial_processor import SerialProcessor
 
 EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
     module_id = 0,
-    status=True,
-    command = ModuleCommand.HOME
+    sequence_id = 0,
+    command = ModuleCommand.HOME,
+    status=True
 )
 
 EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(
@@ -91,20 +92,23 @@ class BusController(SerialProcessor):
             return None
         return incoming_packet
 
-    def _handle_response(self, incoming: bytes, outgoing: OutgoingMessage) -> None:
+    def _handle_response(self, incoming: bytes, outgoing: OutgoingMessage, sequence_id: int) -> None:
         # incoming is the echo packet (bytes) from the Arduino
         if not incoming:
             self.logger.warning(f"No response to {outgoing}")
             return
         
         try:
-            self.logger.info(struct.unpack('<BBBH?BB', incoming))
             response = IncomingMessage.decode(incoming)
             self.logger.debug(f"Incoming Message: {response}")
         except Exception as e:
             self.logger.error(f"Unable to decode incoming message {incoming}")
             self.error_queue.put(incoming)
             return
+
+        if sequence_id != response.sequence_id:
+            self.logger.warning(f"Sequence ID for incoming - {response.sequence_id} doesn't match outgoing - {sequence_id}")
+            self.error_queue(outgoing)
 
         checksum = IncomingMessage.checksum(
             response.data_value,
@@ -113,17 +117,17 @@ class BusController(SerialProcessor):
             response.status
         )
         self.logger.debug(f"Calculated Checksum: {checksum}")
-
+        
         if not response.status:
             self.logger.warning(f"Response failed with error code {response.data_value}")
             self.error_queue.put(response)
             return
         
-        if response.module_id not in self.module_ids:
+        if response.command != ModuleCommand.PING and response.module_id not in self.module_ids:
             self.logger.warning(f"Module Recieved - {response.module_id} is a not known module for this bus")
             self.error_queue.put(response)
             return
-        
+
         try:
             match response.command:
                 case ModuleCommand.PING:
