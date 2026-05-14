@@ -30,7 +30,6 @@ struct __attribute__((__packed__)) IncomingMessage {
   uint8_t  end_val;    // 1
 }; // Total = 8 bytes
 
-// TODO: Add sequence number for more robust comms
 struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  start_val;  // 1
   uint8_t  module_id;  // 1
@@ -45,6 +44,8 @@ struct __attribute__((__packed__)) OutgoingMessage {
 enum ErrorCode {
   ERROR_BAD_CHECKSUM = 1,
   ERROR_COMMAND_NOT_FOUND = 2
+  ERROR_INVALID_POSITION = 3
+  ERROR_INVALID_STEP = 4
 };
 
 enum Command {
@@ -65,6 +66,7 @@ const int BAUDRATE = 9600;
 
 // ##### MOTOR VALUES #####
 const int NUM_POSITIONS = 64;
+const int MOTOR_RESOLUTION = 4096;
 int motorSteps = 0;
 // ########################
 
@@ -169,7 +171,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_HOME:
-      message.data_value = 1;
+      int homeSteps = getStepperPosition(0);
       message.status = true;
       break;
     case Command::CMD_STOP:
@@ -177,14 +179,35 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_GET_POSITION:
+      // Returns the steps for a given position
+      if (!isValidPosition(data_value))
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_POSITION;
+        message.status = false;
+        break;
+      }
       message.data_value = getStepperPosition(data_value);
       message.status = true;
       break;
     case Command::CMD_SET_POSITION:
+      // Sets the position to be the current steps
+      if (!isValidPosition(data_value))
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_POSITION;
+        message.status = false;
+        break;
+      }
       message.data_value = 4;
       message.status = true;
       break;
     case Command::CMD_MOVE_TO_POSITION:
+      if (!isValidPosition(data_value))
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_POSITION;
+        message.status = false;
+        break;
+      }
+      message.data_value = getStepperPosition(data_value);
       message.data_value = 5;
       message.status = true;
       break;
@@ -201,6 +224,12 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_MOVE_TO_STEP:
+      if (!isValidStep(data_value))
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_STEP;
+        message.status = false;
+        break;
+      }
       motorSteps = data_value;
       message.data_value = motorSteps;
       message.status = true;
@@ -211,6 +240,16 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       break;
   }
   return message;
+}
+
+bool isValidPosition(int position)
+{
+  return position >= 0 && position <= NUM_POSITIONS - 1;
+}
+
+bool isValidStep(int step)
+{
+  return step >= 0 && step <= MOTOR_RESOLUTION - 1;
 }
 
 uint8_t getModuleId() {

@@ -20,6 +20,12 @@ class ModuleCommand(enum.Enum):
     MOVE_TO_STEP = 9
 
 
+class ModuleErrorCodes(enum.Enum):
+    BAD_CHECKSUM = 1
+    COMMAND_NOT_FOUND = 2
+    INVALID_POSITION_VALUE = 3
+
+
 @dataclass
 class BaseMessage(ABC):
     start_value: int

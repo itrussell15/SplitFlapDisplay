@@ -6,7 +6,11 @@ import threading
 from queue import Queue
 from typing import Dict, List, Optional
 
-from .dataclasses_ import IncomingMessage, OutgoingMessage
+from .dataclasses_ import (
+    IncomingMessage,
+    ModuleErrorCode,
+    OutgoingMessage
+)
 from .module_controller import ModuleController, ModuleCommand, MAX_MODULE_ID
 from .serial_processor import SerialProcessor
 
@@ -119,8 +123,7 @@ class BusController(SerialProcessor):
         self.logger.debug(f"Calculated Checksum: {checksum}")
         
         if not response.status:
-            self.logger.warning(f"Response failed with error code {response.data_value}")
-            self.error_queue.put(response)
+            self._handle_bad_status(response)
             return
         
         if response.command != ModuleCommand.PING and response.module_id not in self.module_ids:
@@ -147,6 +150,16 @@ class BusController(SerialProcessor):
         except Exception as e:
             self.error_queue.put(response)
             self.logger.error(f"Failed to decode incoming response: {e}")
+
+    def _handle_bad_status(response: IncomingMessage) -> None:
+        try:
+            error_code = ModuleErrorCode[response.data_value]
+            self.logger.warning(f"Response failed with error code {error_code}")
+        except KeyError:
+            self.logger.error(f"Response contained unknown error code - {response.data_value}")
+        except Exception as e:
+            self.logger.error(f"Unknown error occured when reading response")
+        self.error_queue.put(response)
 
     @property
     def processed_commands(self) -> int:
