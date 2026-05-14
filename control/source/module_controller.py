@@ -63,6 +63,11 @@ class ModuleController:
             raise ValueError(f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}")
         return self._create_packet(ModuleCommand.SET_POSITION, value=position)
 
+    def get_position(self, position: int) -> None:
+        if not self.is_valid_position(position):
+            raise ValueError(f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}")
+        return self._create_packet(ModuleCommand.GET_POSITION, value=position)
+
     def home(self) -> None:
         self.logger.info(f"Homing")
         output = self._create_packet(ModuleCommand.HOME)

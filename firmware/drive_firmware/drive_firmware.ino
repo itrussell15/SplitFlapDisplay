@@ -25,7 +25,7 @@ struct __attribute__((__packed__)) IncomingMessage {
   uint8_t  module_id;  // 1
   uint8_t  sequence_id;// 1
   uint8_t  command_id; // 1
-  int16_t  data_value; // 2
+  uint16_t  data_value; // 2
   uint8_t  checksum;   // 1 
   uint8_t  end_val;    // 1
 }; // Total = 8 bytes
@@ -60,7 +60,7 @@ enum Command {
   CMD_MOVE_TO_STEP = 9
 };
 
-const int MODULE_ID = 1;
+uint8_t MODULE_ID;
 const int BAUDRATE = 9600;
 
 // ##### MOTOR VALUES #####
@@ -73,9 +73,8 @@ void setup() {
   // TODO: Convert to RS485
   Serial.begin(BAUDRATE);
 
-  // TODO: Pull ID from EEPROM
-  // const int MODULE_ID = getModuleId();
-  const int MODULE_ID = 1;
+  // Pull from EEPROM;
+  MODULE_ID = getModuleId();
   
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(HALL_PIN, INPUT_PULLUP);
@@ -178,7 +177,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_GET_POSITION:
-      message.data_value = 3;
+      message.data_value = getStepperPosition(data_value);
       message.status = true;
       break;
     case Command::CMD_SET_POSITION:
@@ -224,20 +223,17 @@ uint8_t getModuleId() {
 
 // Save a position (0-4096) to a specific index (0-63)
 void saveStepperPosition(int index, uint16_t stepValue) {
-  // Shift 1 to reserve 0 for "Module ID"
-  index += 1;
   index = constrain(index, 0, NUM_POSITIONS - 1);
-  if (index >= 0 && index < NUM_POSITIONS) {
-      int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
-      EEPROM.update(address, stepValue); 
-  }
+  // Shift 1 to reserve byte 0 for "Module ID"
+  index += 1;
+  int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
+  EEPROM.put(address, stepValue);
 }
 
 // Retrieve a position from EEPROM
 uint16_t getStepperPosition(int index) {
-  // Shift 1 to reserve 0 for "Module ID"
-  index += 1;
   if (index >= 0 && index < NUM_POSITIONS) {
+      index += 1;
       uint16_t stepValue;
       EEPROM.get(index * sizeof(uint16_t), stepValue);
       return stepValue;
