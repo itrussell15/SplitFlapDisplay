@@ -53,7 +53,7 @@ class TestModuleController(unittest.TestCase):
         self.bus.close()
 
     def test_single_command(self) -> None:
-        self.modules[1].move_to_step(1)
+        self.modules[(0, 0)].move_to_step(1)
         time.sleep(SLEEP_TIME_S)
         self.assertEqual(self.bus.processed_commands, 1)
 

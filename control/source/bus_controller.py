@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from .dataclasses_ import (
     IncomingMessage,
-    ModuleErrorCode,
+    ModuleErrorCodes,
     OutgoingMessage
 )
 from .module_controller import (
@@ -71,13 +71,13 @@ class BusController(SerialProcessor):
         self.modules = {}
         for row in range(MIN_ROW_VALUE, MAX_ROW_VALUE):
             for col in range(MIN_COL_VALUE, MAX_COL_VALUE):
-            self.logger.debug(f"Searching for module {(row, col)}")
-            command = OutgoingMessage(
-                row=row,
-                column=col,
-                command=ModuleCommand.PING
-            )   
-            self.queue.put(command)
+                self.logger.debug(f"Searching for module {(row, col)}")
+                command = OutgoingMessage(
+                    row=row,
+                    column=col,
+                    command=ModuleCommand.PING
+                )   
+                self.queue.put(command)
         
         self.logger.debug("Waiting for command queue to clear")
         while not self.queue.empty():

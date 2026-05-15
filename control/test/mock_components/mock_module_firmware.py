@@ -15,7 +15,11 @@ from source.serial_processor import SerialProcessor
 from source.utils import create_logger
 
 
-EXAMPLE_MESSAGE = OutgoingMessage(1, ModuleCommand.HOME)
+EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(
+    row = 0, 
+    column = 0,
+    command = ModuleCommand.HOME
+)
 
 
 class MockFirmware(SerialProcessor):

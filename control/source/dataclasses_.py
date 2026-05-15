@@ -40,7 +40,7 @@ class BaseMessage(ABC):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @staticmethod
-    def checksum(data_value: int, command_value: int, row: int, column: int sequence_id: int) -> int:
+    def checksum(data_value: int, command_value: int, row: int, column: int, sequence_id: int) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
         return row ^ column ^ command_value  ^ sequence_id ^ low_byte ^ high_byte
@@ -157,7 +157,7 @@ class IncomingMessage(BaseMessage):
         )
 
     @staticmethod
-    def checksum(data_value: int, command_value: int, row: int, column: int status: bool) -> int:
+    def checksum(data_value: int, command_value: int, row: int, column: int, status: bool) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
         return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status

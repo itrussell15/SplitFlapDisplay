@@ -1,5 +1,8 @@
 #include <EEPROM.h>
 
+// TODO: Use this library for stepper control?
+// https://github.com/Stan-Reifel/TinyStepper_28BYJ_48
+
 // ##### PIN DEFINITIONS #####
 const int RS485_RX = 3;
 const int RS485_TX = 1;
@@ -13,7 +16,7 @@ const int IN2 = 8;
 const int IN1 = 9;
 // ##########################
 
-const int INCOMING_SIZE = 8;
+const int INCOMING_SIZE = 9;
 const byte INCOMING_START_BYTE = 2;
 const byte INCOMING_END_BYTE = 3;
 
@@ -45,8 +48,8 @@ struct __attribute__((__packed__)) OutgoingMessage {
 
 enum ErrorCode {
   ERROR_BAD_CHECKSUM = 1,
-  ERROR_COMMAND_NOT_FOUND = 2
-  ERROR_INVALID_POSITION = 3
+  ERROR_COMMAND_NOT_FOUND = 2,
+  ERROR_INVALID_POSITION = 3,
   ERROR_INVALID_STEP = 4
 };
 
@@ -101,6 +104,8 @@ void loop() {
   if (Serial.available() >= INCOMING_SIZE) {
     if (Serial.peek() == INCOMING_START_BYTE) {
       byte incoming_buffer[INCOMING_SIZE];
+
+      // TODO: Try to read the IncomingMessage struct
       Serial.readBytes(incoming_buffer, INCOMING_SIZE);
       
       // Verify End Byte and Module ID
@@ -124,48 +129,11 @@ void loop() {
       }
     } else {
       Serial.read(); // Discard trash
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);   
     }
   }
-}
-
-void SendSerialResponse(OutgoingMessage message) {
-  digitalWrite(RS485_DE, HIGH); // Start transmission
-  message.start_val = OUTGOING_START_BYTE;
-  message.checksum = calculateOutgoingChecksum(message);
-  message.end_val = OUTGOING_END_BYTE;
-  Serial.write((byte*)&message, sizeof(message));
-  Serial.flush();
-  delay(SERIAL_DELAY_MS);
-  digitalWrite(RS485_DE, LOW); // End transmission
-}
-
-bool validateChecksum(byte* buffer) {
-  uint8_t row = buffer[1];
-  uint8_t column = buffer[2];
-  uint8_t sequence_id = buffer[3];
-  uint8_t command_id = buffer[4];
-  uint16_t data_value = convertBytesToInt16(buffer[5], buffer[6]);
-  uint8_t received_checksum = buffer[7];
-
-  uint8_t calculated_checksum = calculateIncomingChecksum(row, column, command_id, data_value, sequence_id);
-  return received_checksum == calculated_checksum;
-}
-
-int calculateIncomingChecksum(uint8_t row, uint8_t column, uint8_t command_id, uint16_t data_value, uint8_t sequence_id) {
-  uint8_t low_byte = data_value & 0xFF;
-  uint8_t high_byte = (data_value >> 8) & 0xFF;
-  return row ^ column ^ command_id ^ sequence_id ^ low_byte ^ high_byte;
-}
-
-int calculateOutgoingChecksum(OutgoingMessage message) {
-  uint8_t low_byte = message.data_value & 0xFF;
-  uint8_t high_byte = (message.data_value >> 8) & 0xFF;
-  return message.row ^ message.column ^ message.command_id ^ low_byte ^ high_byte ^ message.status ^ message.sequence_id;
-}
-
-uint16_t convertBytesToInt16(byte data1, byte data2)
-{
-  return ((uint16_t)data2 << 8) | data1;
 }
 
 OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_value)
@@ -177,8 +145,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_HOME:
-      int homeSteps = getStepperPosition(0);
-      message.status = true;
+      message.status = homeMotor();
       break;
     case Command::CMD_STOP:
       message.data_value = 2;
@@ -248,6 +215,46 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
   return message;
 }
 
+void SendSerialResponse(OutgoingMessage message) {
+  digitalWrite(RS485_DE, HIGH); // Start transmission
+  message.start_val = OUTGOING_START_BYTE;
+  message.checksum = calculateOutgoingChecksum(message);
+  message.end_val = OUTGOING_END_BYTE;
+  Serial.write((byte*)&message, sizeof(message));
+  Serial.flush();
+  delay(SERIAL_DELAY_MS);
+  digitalWrite(RS485_DE, LOW); // End transmission
+}
+
+bool validateChecksum(byte* buffer) {
+  uint8_t row = buffer[1];
+  uint8_t column = buffer[2];
+  uint8_t sequence_id = buffer[3];
+  uint8_t command_id = buffer[4];
+  uint16_t data_value = convertBytesToInt16(buffer[5], buffer[6]);
+  uint8_t received_checksum = buffer[7];
+
+  uint8_t calculated_checksum = calculateIncomingChecksum(row, column, command_id, data_value, sequence_id);
+  return received_checksum == calculated_checksum;
+}
+
+int calculateIncomingChecksum(uint8_t row, uint8_t column, uint8_t command_id, uint16_t data_value, uint8_t sequence_id) {
+  uint8_t low_byte = data_value & 0xFF;
+  uint8_t high_byte = (data_value >> 8) & 0xFF;
+  return row ^ column ^ command_id ^ sequence_id ^ low_byte ^ high_byte;
+}
+
+int calculateOutgoingChecksum(OutgoingMessage message) {
+  uint8_t low_byte = message.data_value & 0xFF;
+  uint8_t high_byte = (message.data_value >> 8) & 0xFF;
+  return message.row ^ message.column ^ message.command_id ^ low_byte ^ high_byte ^ message.status ^ message.sequence_id;
+}
+
+uint16_t convertBytesToInt16(byte data1, byte data2)
+{
+  return ((uint16_t)data2 << 8) | data1;
+}
+
 bool isValidPosition(int position)
 {
   return position >= 0 && position <= NUM_POSITIONS - 1;
@@ -296,4 +303,10 @@ uint16_t getStepperPosition(int index) {
       return stepValue;
   }
   return 0; // Return 0 if index is out of bounds
+}
+
+bool homeMotor()
+{
+  // TODO: Do motor homing
+  int homeSteps = getStepperPosition(0);
 }
