@@ -1,127 +1,120 @@
 # Split-Flap Display
 
-A modular, 3D-printed split-flap display controllable over RS485 from a Raspberry Pi. Each module holds 64 characters and modules can be chained together to build a display of any width.
+Forked from [Adam G Makes - SplitFlapDisplay](https://github.com/adamgmakes/split-flap-display)
 
-**YouTube Build Video:** https://www.youtube.com/watch?v=-C8_AtxEEQc
+## Background
+I had long been obsessed with split flap displays, but the price point for something like a [Vestaboard](https://www.vestaboard.com/note) made it feel not feasible for some decor in my house. So I decided to spend more money AND time on it by trying to make it myself.
 
----
+Seeing Adam G's [youtube video](https://www.youtube.com/watch?v=-C8_AtxEEQc) and longing for a new challenge, I decided to make it. I had previously thought about trying to make one of these, but the biggest barrier for entry was the hardware design. Which Adam absolutely crushed with this modular system with really accessible components.
 
-## How It Works
+The thing that I wanted to improve on was the software. I wanted to re-write the firmware and orchestration in a more modular way.
 
-Each module contains:
-- A 3D-printed drum that holds 64 individual flaps (one per character)
-- A stepper motor driving the drum through a gear train
-- A Hall effect sensor for homing
-- A custom driver PCB (ATtiny1616 + RS485 transceiver + ULN2003 stepper driver)
+## Hardware
+[Adam's ReadMe](https://github.com/adamgmakes/SplitFlapDisplay/blob/main/README.md) and repo has the playbook on how to make all the parts, what to buy, what to order, all those nitty gritty details. I am mainly going to focus on what I changed in this document.
 
-Modules communicate over a shared RS485 bus. A Raspberry Pi running a Python web interface sends commands over USB-RS485 to each module individually by address.
+If you want access to be able to talk to the man himself, Adam has a [Patreon](https://www.patreon.com/cw/AdamGMakes) that he seems to be pretty active in and happy to answer questions about how he did things.
 
----
+## Software
+### Design
+I wanted the main controller to be doing a lot of the heavy lifting and coordinating what module should do what. The module would be more naive and do simple things like move to certain steps and be able to home itself. I also wanted to abstract away the idea of what the flap had on it from the module side simply have the module be able to move to "positions" that would corelate with a given flap. They are basically the same thing, but allows more flexibility for changing in what is actually being shown on the flap.
 
-## Repository Structure
+#### Serial Processing
+The ability to have a non-blocking way of processing serial commands as they are being generated for moves was also interesting to me so that I could try and send data as fast as possible. The bus that commands is being sent across is probably our biggest latency bottleneck and I wanted to be able to keep that as active as possible.
 
-```
-cad/                       - 3D printable parts (Bambu Lab profiles included)
-flaps-generator/           - OpenSCAD code to automatically generate (custom) flaps
-pcb/
-  driver-v2/               - Driver PCB KiCad project used in the video build
-  driver-v3/               - Updated driver PCB KiCad project, slightly cheaper to manufacture
-  bus-board/               - Bus board KiCad project
-  bus-board-5-module/      - 5-module variant of the bus board
-firmware/                  - Arduino firmware for the PCBs
-frontend/                  - Raspberry Pi Python web frontend
-docs/datasheets/           - Component datasheets
-BOM.md                     - Bill of materials
-```
+This led me to make a `SerialProcessor` class that would simply spin up a thread and listen for messages to be added to a queue. When a message is added, it would be encoded, shipped off and wait for a response. This would allow us to add commands in a non-blocking way, but still ensure that data is being sent in a clean way and avoid collisions.
 
-**OnShape Model:** https://cad.onshape.com/documents/87c916b33ca5d6492b457485/w/b3e5f0f05f6619e6e7931347/e/582ef2164e20b0aa994708ab
 
----
+### Controller
 
-## Parts List
+A `BusController` was made to control any modules that are attached to a single bus. Any USB to RS485 connection to a bus board must have its own `BusController` to handle the communication, but if your setup is similar to what Adam has, a single USB to RS485 device hooked to all the buses, then you will only need a single `BusController`. This will aggregate all the modules on the bus and handle the communication across serial to them. It is able to discover devices by sending the `discover()` command, where it pings every possible address that a module could have an sees which ones respond. This will automatically configure your bus controller and subscribe all the found modules to its command queue.
 
-See [BOM.md](BOM.md) for the complete bill of materials, broken into three sections:
+### Module
 
-- **PCB / Electronics** — all SMD components with JLCPCB part numbers for easy ordering
-- **Module BOM** — 3D printed parts and hardware per module, with quantities scaled to 45 modules
-- **Other Components** — system-level parts (Raspberry Pi, power supply, C14 connector, etc.)
-
----
-
-## Ordering the PCB from JLCPCB
-
-The driver board is designed to be ordered from JLCPCB with their PCB Assembly (PCBA) service so the SMD components arrive pre-soldered.
-
-### Step 1 — Export Gerbers from KiCad
-
-1. Open the project in `pcb/driver-v2/`
-2. In KiCad PCB editor, go to **File → Fabrication Outputs → Gerbers**
-3. Export to a folder, then zip the contents
-4. Also export the drill file from the same menu
-
-Alternatively, pre-exported Gerber and PCBA files are already be present in the KiCad project folder.
-
-### Step 2 — Upload to JLCPCB
-
-1. Go to [jlcpcb.com](https://jlcpcb.com) and click **Order Now**
-2. Upload the Gerber zip file
-3. Set your desired quantity (minimum 5)
-4. Leave most settings at default; adjust PCB colour if desired
-
-### Step 3 — Enable PCB Assembly (PCBA)
-
-1. Toggle **PCB Assembly** on
-2. Select **Standard PCBA** and set the assembly side to **Top Side**
-3. Click **Confirm**
-
-### Step 4 — Upload BOM and CPL Files
-
-1. Upload the **BOM file** from the KiCad project folder — this maps component values to JLCPCB part numbers. The part numbers in `BOM.md` match what is in this file.
-2. Upload the **CPL (Component Placement List)** file — this tells JLCPCB where each component sits on the board
-3. Review the component matches on the next screen. All parts should auto-match using the C-numbers in [BOM.md](BOM.md). Confirm any that need manual review.
-
-### Step 5 — Review and Order
-
-1. Check the parts list — confirm quantities and part numbers match the [BOM.md](BOM.md) PCB section
-2. Proceed through the review screens and place your order
-
-> **Note:** A few through-hole parts (pin headers, JST connectors) are not included in PCBA. These are listed in the BOM and will need to be soldered by hand.
-
----
-
-## 3D Printing
-
-All printable files are in the `cad/` folder. A Bambu Lab print profile is included in `cad/64FlapsWithLetters (parts and bambu print profile)/` for the flaps. Print the flaps in the correct colour for each character — see the video for details on the full 64-character set.
-
-Parts per module:
-- Enclosure Body, Right Cover, Left Cover
-- Drum Body, Drum Cap
-- Motor Gear, Center Gear, Gear Plate
-- DIN Rail Mount, Wire Retainer
-- 64 Flaps
-
-### Creating your own flaps
-
-If you want to generate your own flaps, with your own font, size and characters, you can use the OpenSCAD script to automatically generate this.
-
----
+The `ModuleController` is a bit of a misnomer as it actually doesn't really control anything at all. It has no bindings to any physical hardware. It simply subscribes to the `BusController`'s command queue and is able to add commands for its module if any of its APIs are called. After the command is processed, any respones from its module will be funneled back to it, where it can update the state of that module on the controller side.
 
 ## Firmware
 
-Located in `firmware/`. The firmware is Arduino-based and targets the ATtiny1616.
+### Calibration
+As I mentioned in the design section, I wanted to have modules simply know what a "position" is and not what is actually being displayed. So I would need to correlate motor steps to those positions that would display whatever you want. In Adam's video, he mentioned that a large pain point when setting everything up was to calibrate each module to display the desired flap when he wanted it. This required some fine tuning and I really think I only have patience to do that once, so I wanted to take advantage of the EEPROM in the microcontroller to store persistent memory of these positions so I don't have to redo it every time the module loses power.
 
-- Flash via UPDI programmer (see https://github.com/SpenceKonde/AVR-Guidance/blob/master/UPDI/jtag2updi.md if you need to make one)
-- Each module needs a unique address (0–44) stored in EEPROM. Be sure to edit this between flashes.
+The step value for a given position is stored in a 2 byte memory location 2-65 in the EEPOM, where 0-1 are reserved for storing the module's row and column location.
 
+### Commands
+Here are all the currently supported commands in the firmware, where the value is the number being sent in the packet.
+```
+enum Command {
+  CMD_PING = 0,
+  CMD_HOME = 1,
+  CMD_STOP = 2,
+  CMD_GET_POSITION = 3,
+  CMD_SET_POSITION = 4,
+  CMD_MOVE_TO_POSITION = 5,
+  CMD_GET_SPEED = 6,
+  CMD_SET_SPEED = 7,
+  CMD_GET_STEPS = 8,
+  CMD_MOVE_TO_STEP = 9
+};
+```
+
+### Communications
+The firmware was also refactored to use the new communication protocol that is outlined below
+
+## Communications
+
+The communication between the controller and the modules is done along a shared bus using a [half duplex](https://en.wikipedia.org/wiki/Duplex_(telecommunications)#Half_duplex) with RS485. This requires only a single device to be talking on the bus at a time or we will run into collisions (or data being sent on the bus at the same time). So the communication process currently looks like this:
+1. Controller sends a packet with an address for a single module along the bus
+1. If there is a module on the bus with that address, then process the packet, otherwise ignore it.
+
+> There is a potential for using a "broadcast" packet, which all devices would accept and process.
+
+### Controller
+The controller is the brains of the operation
+
+### Module Packets
+This is the packet that comes out of the Raspberry Pi (or other controller) and into the modules via the bus. These packets have the following structure:
+| Position | # Bytes | Description |
+|-|-|-|
+|Start Value | 1 | Fixed value byte to signal that this is the start of a packet |
+|Module Row | 1 | The row that the target module lives on |
+|Module Column | 1 | The column that target module lives on |
+|Sequence ID | 1 | Sequence value assigned when packet gets put into queue |
+|Command Value | 1 | Command that is being sent to the module |
+|Data Value | 2 | Payload associated with command |
+|Checksum | 1 | Checksum of all value besides this one and start and end values  |
+|End Value | 1 | Fixed value byte to signal that this is the end of a packet |
+> 9 bytes total
+
+### Controller Packets
+This is the packet that comes out of the a module and responds to the controller. These packets have the following structure:
+| Position | # Bytes | Description |
+|-|-|-|
+|Start Value | 1 | Fixed value byte to signal that this is the start of a packet |
+|Module Row | 1 | The row that this module lives on |
+|Module Column | 1 | The column that this module lives on |
+|Sequence ID | 1 | The sequence value that the module is responding to |
+|Command Value | 1 | Command that the module is responding to |
+|Data Value | 2 | Payload associated with command |
+|Status | 1 | Whether the command was successful or not |
+|Checksum | 1 | Checksum of all value besides this one and start and end values  |
+|End Value | 1 | Fixed value byte to signal that this is the end of a packet |
+> 10 bytes total
+
+Total size of a call and response from the controller to a module is 19 bytes and takes roughly 0.05ms to send, process and respond at a baudrate of 9600. This could lead to some high latency from the first modules movement to the last modules movement (~2.25 seconds for 45 modules). So I am investigating ways to make these communcations faster.
+
+### Ideas/Investigations
+- The controller packet may be a little bit overkill and can potentially be reduced to transmit less data, but I wanted a robust solution to ensure that packets are being received and executed properly. It may be worth investigating if smaller ones can be sent because smaller packets mean quicker communications and quicker communications means more responsiveness when you send commands to the display.
+- Using multiple RS485 controllers to be able to isolate each row into its own bus, this would limit the latency to just the number of modules that you have on that column. Which for this project, it would theoretically reduce it to 0.75 seconds.
+- Send a "queuing" command that will tell which position the module should move to when it receives the go-ahead, and then broadcast a move command to all modules.
+  - This doesn't get around the communication latency, but it will make all the modules synchronized and moving at the same time.
 ---
 
-## Frontend
+## Idea Wishlist
+I am storing ideas of things that I would like to do at some point here for reference.
 
-Located in `frontend/`. A Python web interface running on a Raspberry Pi sends display commands over USB-RS485 at 115200 baud.
+- [ ] Create a dockerized app that is web-accessible and can control the display
+- [ ] Create "mock" hardware that will allow people to develop on the system without needing access to hardware
 
-Need a USB-serial dongle. I used this one: https://www.adafruit.com/product/5994
 
----
 
 ## License
 
