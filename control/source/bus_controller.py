@@ -1,69 +1,60 @@
-import time
-import struct
 import logging
-import serial
+import struct
 import threading
+import time
 from queue import Queue
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
-from .dataclasses_ import (
-    IncomingMessage,
-    ModuleErrorCodes,
-    OutgoingMessage
-)
+import serial
+
+from .dataclasses_ import IncomingMessage, ModuleErrorCodes, OutgoingMessage
 from .module_controller import (
-    ModuleController,
-    ModuleCommand,
-    MIN_ROW_VALUE,
+    MAX_COLUMN_VALUE,
     MAX_ROW_VALUE,
     MIN_COLUMN_VALUE,
-    MAX_COLUMN_VALUE
+    MIN_ROW_VALUE,
+    ModuleCommand,
+    ModuleController,
 )
 from .serial_processor import SerialProcessor
 
 EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
-    row = 0,
-    column = 0,
-    sequence_id = 0,
-    command = ModuleCommand.HOME,
-    status=True
+    row=0, column=0, sequence_id=0, command=ModuleCommand.HOME, status=True
 )
 
-EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(
-    row = 0, 
-    column = 0,
-    command = ModuleCommand.HOME
-)
+EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(row=0, column=0, command=ModuleCommand.HOME)
+
 
 class BusController(SerialProcessor):
     """
     Talks to a group of modules that are on a shared bus
     """
+
     def __init__(
         self,
         port: str,
         modules: Optional[Dict[Tuple[int, int], ModuleController]] = None,
         max_queue_size: int = 64,
         baudrate: int = 9600,
-        timeout: int = 2
+        timeout: int = 2,
     ) -> None:
         super().__init__(port, baudrate, timeout, max_queue_size)
         self.modules = {} if modules is None else modules
         self.error_queue = Queue()
         self._processed_commands = 0
         self.connect()
-        
+
         # Arduino resets when serial port opens - wait for bootloader to finish
         time.sleep(1.0)
 
         # Register all modules
         if modules is not None:
-            checksum = 0 
+            checksum = 0
             for mod in self.modules.values():
                 mod.register_command_queue(self.queue)
                 checksum += 1 if mod.is_command_queue_registered else 0
             assert checksum == len(self.modules)
-    
+
     def discover(self, timeout: float = 0.01) -> None:
         tmp = self.timeout
         self.timeout = timeout
@@ -73,12 +64,10 @@ class BusController(SerialProcessor):
             for col in range(MIN_COL_VALUE, MAX_COL_VALUE):
                 self.logger.debug(f"Searching for module {(row, col)}")
                 command = OutgoingMessage(
-                    row=row,
-                    column=col,
-                    command=ModuleCommand.PING
-                )   
+                    row=row, column=col, command=ModuleCommand.PING
+                )
                 self.queue.put(command)
-        
+
         self.logger.debug("Waiting for command queue to clear")
         while not self.queue.empty():
             time.sleep(0.1)
@@ -90,29 +79,31 @@ class BusController(SerialProcessor):
         # Poll for data instead of waiting a fixed time
         max_wait = 1.5
         start_time = time.time()
-        
+
         while time.time() - start_time < max_wait:
             if self.connection.in_waiting > 0:
                 # Data arrived, start reading immediately
                 break
             time.sleep(0.05)  # Check every 50ms
-        
+
         incoming_packet = self.read_packet(
-            start_value = struct.pack("B", EXAMPLE_INCOMING_MESSAGE.start_value),
-            end_value = struct.pack("B", EXAMPLE_INCOMING_MESSAGE.end_value),
-            size = EXAMPLE_INCOMING_MESSAGE.packet_size,
+            start_value=struct.pack("B", EXAMPLE_INCOMING_MESSAGE.start_value),
+            end_value=struct.pack("B", EXAMPLE_INCOMING_MESSAGE.end_value),
+            size=EXAMPLE_INCOMING_MESSAGE.packet_size,
         )
         if not incoming_packet:
             self.logger.warning("No response")
             return None
         return incoming_packet
 
-    def _handle_response(self, incoming: bytes, outgoing: OutgoingMessage, sequence_id: int) -> None:
+    def _handle_response(
+        self, incoming: bytes, outgoing: OutgoingMessage, sequence_id: int
+    ) -> None:
         # incoming is the echo packet (bytes) from the Arduino
         if not incoming:
             self.logger.warning(f"No response to {outgoing}")
             return
-        
+
         try:
             response = IncomingMessage.decode(incoming)
             self.logger.debug(f"Incoming Message: {response}")
@@ -122,7 +113,9 @@ class BusController(SerialProcessor):
             return
 
         if sequence_id != response.sequence_id:
-            self.logger.warning(f"Sequence ID for incoming - {response.sequence_id} doesn't match outgoing - {sequence_id}")
+            self.logger.warning(
+                f"Sequence ID for incoming - {response.sequence_id} doesn't match outgoing - {sequence_id}"
+            )
             self.error_queue(outgoing)
 
         checksum = IncomingMessage.checksum(
@@ -130,16 +123,21 @@ class BusController(SerialProcessor):
             response.command.value,
             response.row,
             response.column,
-            response.status
+            response.status,
         )
         self.logger.debug(f"Calculated Checksum: {checksum}")
-        
+
         if not response.status:
             self._handle_bad_status(response)
             return
-        
-        if response.command != ModuleCommand.PING and response.location not in self.module_locations:
-            self.logger.warning(f"Module Recieved - {response.location} is a not known module for this bus")
+
+        if (
+            response.command != ModuleCommand.PING
+            and response.location not in self.module_locations
+        ):
+            self.logger.warning(
+                f"Module Recieved - {response.location} is a not known module for this bus"
+            )
             self.error_queue.put(response)
             return
 
@@ -149,7 +147,9 @@ class BusController(SerialProcessor):
                     self.logger.debug(f"Module {response.location} found!")
                     if response.location not in self.modules:
                         self.logger.debug(f"Adding module {response.location}")
-                        self.modules[response.location] = ModuleController(row=response.row, column=response.column)
+                        self.modules[response.location] = ModuleController(
+                            row=response.row, column=response.column
+                        )
                 case ModuleCommand.GET_STEPS:
                     self.modules[response.location].update(response)
                 case ModuleCommand.GET_SPEED:
@@ -157,7 +157,9 @@ class BusController(SerialProcessor):
                 case ModuleCommand.GET_POSITION:
                     self.modules[response.location].update(response)
                 case _:
-                    self.logger.debug(f"Command {response.command} executed on module {response.location}")
+                    self.logger.debug(
+                        f"Command {response.command} executed on module {response.location}"
+                    )
             self._processed_commands += 1
         except Exception as e:
             self.error_queue.put(response)
@@ -168,7 +170,9 @@ class BusController(SerialProcessor):
             error_code = ModuleErrorCode[response.data_value]
             self.logger.warning(f"Response failed with error code {error_code}")
         except KeyError:
-            self.logger.error(f"Response contained unknown error code - {response.data_value}")
+            self.logger.error(
+                f"Response contained unknown error code - {response.data_value}"
+            )
         except Exception as e:
             self.logger.error(f"Unknown error occured when reading response")
         self.error_queue.put(response)

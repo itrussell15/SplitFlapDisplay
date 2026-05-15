@@ -1,10 +1,10 @@
 import enum
-from queue import Queue
-import struct
 import logging
-from .dataclasses_ import OutgoingMessage, ModuleCommand
+import struct
+from queue import Queue
+from typing import Any, Optional, Tuple
 
-from typing import Any, Optional
+from .dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
 
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
@@ -20,14 +20,19 @@ class ModuleController:
     """
     Generates commands and tracks the state of a given module.
     """
+
     def __init__(self, row: int, column: int) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}({row}, {column})")
         self.logger.debug(f"Module at ({row}, {column}) created")
 
         if row < MIN_ROW_VALUE or row > MAX_ROW_VALUE:
-            raise ValueError(f"Row {row} not allowed. Must be {MIN_ROW_VALUE} <= x <= {MAX_ROW_VALUE}")
+            raise ValueError(
+                f"Row {row} not allowed. Must be {MIN_ROW_VALUE} <= x <= {MAX_ROW_VALUE}"
+            )
         if column < MIN_COLUMN_VALUE or column > MAX_COLUMN_VALUE:
-            raise ValueError(f"Column {column} not allowed. Must be {MIN_COLUMN_VALUE} <= x <= {MAX_COLUMN_VALUE}")
+            raise ValueError(
+                f"Column {column} not allowed. Must be {MIN_COLUMN_VALUE} <= x <= {MAX_COLUMN_VALUE}"
+            )
 
         self._location = (row, column)
         self._command_queue = None
@@ -38,16 +43,16 @@ class ModuleController:
             raise TypeError(f"Type: {type(queue)} is not allowed")
         self.logger.info(f"Command queue registered")
         self._command_queue = queue
-    
+
     def unregister_command_queue(self) -> Queue:
         if self._command_queue is None:
             self.logger.warning("No command queue registered to unregister")
-            return 
+            return
         queue = self._command_queue
         self._command_queue = None
         self.logger.info(f"Command queue unregistered")
         return queue
-    
+
     def move_to_step(self, step: int) -> None:
         self.logger.info(f"Moving to {step}")
         if not self.is_valid_step(step):
@@ -60,18 +65,24 @@ class ModuleController:
     def move_to_position(self, position: int) -> None:
         # Move to a stored EEPROM position
         if not self.is_valid_position(position):
-            raise ValueError(f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}")
+            raise ValueError(
+                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+            )
         return self._create_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
 
     def set_position(self, position: int) -> None:
         # Update the motors steps in EEPROM position to current location
         if not self.is_valid_position(position):
-            raise ValueError(f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}")
+            raise ValueError(
+                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+            )
         return self._create_packet(ModuleCommand.SET_POSITION, value=position)
 
     def get_position(self, position: int) -> None:
         if not self.is_valid_position(position):
-            raise ValueError(f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}")
+            raise ValueError(
+                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+            )
         return self._create_packet(ModuleCommand.GET_POSITION, value=position)
 
     def home(self) -> None:
@@ -96,8 +107,12 @@ class ModuleController:
         self.logger.info(f"Updating based on {message}")
         # TODO Handle updating
 
-    def _create_packet(self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True) -> OutgoingMessage:
-        message = OutgoingMessage(row=self.row, column=self.column, command=command, data_value=value)
+    def _create_packet(
+        self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True
+    ) -> OutgoingMessage:
+        message = OutgoingMessage(
+            row=self.row, column=self.column, command=command, data_value=value
+        )
         self.logger.debug(f"Packet generated for message: {message}")
         if add_to_queue:
             if self._command_queue is None:
@@ -107,7 +122,7 @@ class ModuleController:
 
     def is_valid_position(self, position_id: int) -> bool:
         return position_id >= 0 and position_id <= NUM_POSITIONS
-    
+
     def is_valid_step(self, step: int) -> bool:
         return step >= 0 and step <= MOTOR_RESOLUTION
 
@@ -116,7 +131,7 @@ class ModuleController:
 
     @property
     def location(self) -> Tuple[int, int]:
-        return self._location  
+        return self._location
 
     @property
     def row(self) -> int:

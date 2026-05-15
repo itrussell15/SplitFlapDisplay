@@ -1,15 +1,17 @@
 import logging
-import serial
-import time
 import threading
+import time
+from abc import ABC, abstractmethod
 from queue import Queue
 from typing import Optional
-from abc import ABC, abstractmethod
+
+import serial
 
 from .dataclasses_ import BaseMessage
 
+
 class SerialControl:
-    def __init__(self, port: str, baudrate: int=9600, timeout: int=1):
+    def __init__(self, port: str, baudrate: int = 9600, timeout: int = 1):
         self.logger = logging.getLogger(f"{self.__class__.__name__}({port}")
         self.port = port
         self.baudrate = baudrate
@@ -32,9 +34,7 @@ class SerialControl:
         """Attempts to open the serial port."""
         try:
             self.connection = serial.Serial(
-                port=self.port,
-                baudrate=self.baudrate,
-                timeout=self.timeout
+                port=self.port, baudrate=self.baudrate, timeout=self.timeout
             )
             self.logger.debug(f"✅ Connected to {self.port}")
         except serial.SerialException as e:
@@ -57,8 +57,10 @@ class SerialControl:
                 self.logger.debug(f"RX <- {line}")
                 return line
         return None
-    
-    def read_packet(self, start_value: byte, end_value: byte, size: int) -> Optional[bytes]:
+
+    def read_packet(
+        self, start_value: bytes, end_value: bytes, size: int
+    ) -> Optional[bytes]:
         buffer = bytes()
         data = end_value
         start_time = time.time()
@@ -70,12 +72,14 @@ class SerialControl:
                     break
             time_delta = time.time() - start_time
             timed_out = time_delta > self.timeout
-        
+
         if timed_out:
-            raise TimeoutError(f"Device on {self.port} failed to respond within {self.timeout}s")
+            raise TimeoutError(
+                f"Device on {self.port} failed to respond within {self.timeout}s"
+            )
 
         buffer += data
-        for _ in range(size-2):
+        for _ in range(size - 2):
             byte_read = self.connection.read()
             buffer += byte_read
 
@@ -86,7 +90,7 @@ class SerialControl:
             return buffer + data
         else:
             buffer += data
-        
+
         self.logger.debug(f"Packet received: {buffer}")
         return buffer
 
@@ -103,9 +107,15 @@ class SerialControl:
         return self.connection.in_waiting > 0
 
 
-class SerialProcessor(ABC, SerialControl): 
+class SerialProcessor(ABC, SerialControl):
 
-    def __init__(self, port: str, baudrate: int=9600, timeout: int=1, max_queue_size: int = 64) -> None:
+    def __init__(
+        self,
+        port: str,
+        baudrate: int = 9600,
+        timeout: int = 1,
+        max_queue_size: int = 64,
+    ) -> None:
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
         self.processor = self.create_queue_processor()
@@ -145,12 +155,16 @@ class SerialProcessor(ABC, SerialControl):
         pass
 
     @abstractmethod
-    def _handle_response(self, incoming: BaseMessage, outgoing: BaseMessage, sequence_id: int) -> None:
+    def _handle_response(
+        self, incoming: BaseMessage, outgoing: BaseMessage, sequence_id: int
+    ) -> None:
         pass
 
     def close(self) -> None:
         if not self.queue.empty():
-            self.logger.info(f"Waiting for {self.queue.qsize()} commands to complete before closing")
+            self.logger.info(
+                f"Waiting for {self.queue.qsize()} commands to complete before closing"
+            )
         while not self.queue.empty():
             time.sleep(0.1)
         self.logger.info("Closing serial connection")
