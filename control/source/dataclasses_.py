@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import enum 
-import struct
+import enum
 import logging
+import struct
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
@@ -12,7 +12,7 @@ class ModuleCommand(enum.Enum):
     HOME = 1
     STOP = 2
     GET_POSITION = 3
-    SET_POSITION = 4 # Stores position in EEPROM
+    SET_POSITION = 4  # Stores position in EEPROM
     MOVE_TO_POSITION = 5
     GET_SPEED = 6
     SET_SPEED = 7
@@ -40,13 +40,17 @@ class BaseMessage(ABC):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @staticmethod
-    def checksum(data_value: int, command_value: int, row: int, column: int, sequence_id: int) -> int:
+    def checksum(
+        data_value: int, command_value: int, row: int, column: int, sequence_id: int
+    ) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
-        return row ^ column ^ command_value  ^ sequence_id ^ low_byte ^ high_byte
+        return row ^ column ^ command_value ^ sequence_id ^ low_byte ^ high_byte
 
     def _create_checksum(self, sequence_id: int) -> int:
-        return self.checksum(self.data_value, self.command.value, self.row, self.column, sequence_id)
+        return self.checksum(
+            self.data_value, self.command.value, self.row, self.column, sequence_id
+        )
 
     def encode(self, sequence_id: int) -> bytes:
         checksum = self._create_checksum(sequence_id)
@@ -58,10 +62,10 @@ class BaseMessage(ABC):
             self.command.value,
             self.data_value,
             checksum,
-            self.end_value
+            self.end_value,
         ]
         self.logger.debug(f"Sending Packet: {data_packet}")
-        return struct.pack(self._struct_string, *data_packet) 
+        return struct.pack(self._struct_string, *data_packet)
 
     @classmethod
     def decode(cls, message: bytes) -> BaseMessage:
@@ -110,13 +114,14 @@ class OutgoingMessage(BaseMessage):
             data_value=data_value,
         )
 
+
 @dataclass(kw_only=True)
 class IncomingMessage(BaseMessage):
     status: bool
     sequence_id: int
     start_value: int = 4
     end_value: int = 5
-    _struct_string = '<BBBBBH?BB'
+    _struct_string = "<BBBBBH?BB"
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -132,8 +137,8 @@ class IncomingMessage(BaseMessage):
             self.status,
             self.data_value,
             checksum,
-            self.end_value
-        ) 
+            self.end_value,
+        )
 
     @classmethod
     def _parse_output(cls, data: bytes) -> OutgoingMessage:
@@ -143,24 +148,33 @@ class IncomingMessage(BaseMessage):
         command_value = data[4]
         data_value = data[5]
         status = data[6]
+        checksum = data[7]
 
-        calculated_checksum = cls.checksum(data_value, command_value, row, column, status)
-        if data[6] != calculated_checksum:
-            raise ValueError(f"Received Checksum doesn't match calculated value. {data[5]} != {calculated_checksum}")
+        calculated_checksum = cls.checksum(
+            data_value, command_value, row, column, status
+        )
+        if checksum != calculated_checksum:
+            raise ValueError(
+                f"Received Checksum doesn't match calculated value. {checksum} != {calculated_checksum}"
+            )
         return cls(
             row=row,
             column=column,
             sequence_id=sequence_id,
             command=ModuleCommand(command_value),
             data_value=data_value,
-            status=status
+            status=status,
         )
 
     @staticmethod
-    def checksum(data_value: int, command_value: int, row: int, column: int, status: bool) -> int:
+    def checksum(
+        data_value: int, command_value: int, row: int, column: int, status: bool
+    ) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
         return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status
-    
+
     def _create_checksum(self) -> bytes:
-        return self.checksum(self.data_value, self.command.value, self.row, self.column, self.status)
+        return self.checksum(
+            self.data_value, self.command.value, self.row, self.column, self.status
+        )

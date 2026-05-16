@@ -21,8 +21,9 @@ from .serial_processor import SerialProcessor
 EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
     row=0, column=0, sequence_id=0, command=ModuleCommand.HOME, status=True
 )
-
 EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(row=0, column=0, command=ModuleCommand.HOME)
+
+BUS_SLEEP_TIME_MS = 1
 
 
 class BusController(SerialProcessor):
@@ -61,7 +62,7 @@ class BusController(SerialProcessor):
 
         self.modules = {}
         for row in range(MIN_ROW_VALUE, MAX_ROW_VALUE):
-            for col in range(MIN_COL_VALUE, MAX_COL_VALUE):
+            for col in range(MIN_COLUMN_VALUE, MAX_COLUMN_VALUE):
                 self.logger.debug(f"Searching for module {(row, col)}")
                 command = OutgoingMessage(
                     row=row, column=col, command=ModuleCommand.PING
@@ -74,6 +75,11 @@ class BusController(SerialProcessor):
         self.timeout = tmp
         self.logger.info(f"{len(self.modules)} modules found!")
 
+    def broadcast(self, message: OutgoingMessage):
+        # Send message to ID (0, 0) which all modules will read, but not respond to so we don't overwhelm the bus.
+        # Could even do (0, i) to broadcast to a single column or (i, 0) for a whole row
+        pass
+
     def _read_serial_response(self) -> bytes:
         # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
         # Poll for data instead of waiting a fixed time
@@ -84,7 +90,7 @@ class BusController(SerialProcessor):
             if self.connection.in_waiting > 0:
                 # Data arrived, start reading immediately
                 break
-            time.sleep(0.05)  # Check every 50ms
+            time.sleep(BUS_SLEEP_TIME_MS / 1000)  # Small sleep to not overwhelm the bus
 
         incoming_packet = self.read_packet(
             start_value=struct.pack("B", EXAMPLE_INCOMING_MESSAGE.start_value),
@@ -165,9 +171,9 @@ class BusController(SerialProcessor):
             self.error_queue.put(response)
             self.logger.error(f"Failed to decode incoming response: {e}")
 
-    def _handle_bad_status(response: IncomingMessage) -> None:
+    def _handle_bad_status(self, response: IncomingMessage) -> None:
         try:
-            error_code = ModuleErrorCode[response.data_value]
+            error_code = ModuleErrorCodes[response.data_value]
             self.logger.warning(f"Response failed with error code {error_code}")
         except KeyError:
             self.logger.error(
@@ -182,7 +188,7 @@ class BusController(SerialProcessor):
         return self._processed_commands
 
     @property
-    def module_ids(self) -> List[int]:
+    def module_locations(self) -> List[int]:
         if self.num_modules <= 0:
             raise ValueError("No modules currently attached.")
         return list(self.modules.keys())
