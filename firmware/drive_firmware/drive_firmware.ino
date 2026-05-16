@@ -132,6 +132,7 @@ void loop() {
 
 OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_value)
 {
+  int step_value;
   Command command = (Command)message.command_id;
   switch (command) {
     case Command::CMD_PING:
@@ -166,9 +167,9 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.status = false;
         break;
       } 
-      int step_value = motor.getCurrentStep();
-      saveStepperPosition(data, step_value);
-      message.data_value = 4;
+      step_value = motor.getCurrentStep();
+      saveStepperPosition(data_value, step_value);
+      message.data_value = step_value;
       message.status = true;
       break;
     case Command::CMD_MOVE_TO_POSITION:
@@ -178,7 +179,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.status = false;
         break;
       }
-      int step_value = getStepperPosition(data_value);
+      step_value = getStepperPosition(data_value);
       motor.moveToStep(step_value);
       message.data_value = step_value;
       message.status = true;

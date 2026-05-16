@@ -50,7 +50,7 @@ void Stepper::moveToStep(int step_value) {
     }
 }
 
-int Stepper:getCurrentStep() {
+int Stepper::getCurrentStep() {
     return currentStep;
 }
 
