@@ -16,13 +16,42 @@ int RESOLUTION = 4096; // Default steps per revolution for 28BYJ-48
 int NUM_PHASES = 8;
 int STEP_DELAY = 10;
 
-Stepper::Stepper(int p1, int p2, int p3, int p4) {
+Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     pins[0] = p1;
     pins[1] = p2;
     pins[2] = p3;
     pins[3] = p4;
+    this->hallPin = hallPin;
     currentStep = 0;
     stepPhase = 0;
+    
+    // Set as output
+    pinMode(p1, OUTPUT);
+    pinMode(p2, OUTPUT);
+    pinMode(p3, OUTPUT); 
+    pinMode(p4, OUTPUT);
+    pinMode(hallPin, INPUT_PULLUP);
+}
+
+void Stepper::home() {
+    while(!isHallPinActive())
+    {
+        this->step();
+        delay(STEP_DELAY);
+    }
+    currentStep = 0;
+}
+
+void Stepper::moveToStep(int step_value) {
+    while(currentStep != step_value)
+    {
+        this->step();
+        delay(STEP_DELAY);
+    }
+}
+
+int Stepper:getCurrentStep() {
+    return currentStep;
 }
 
 void Stepper::step() {
@@ -39,11 +68,18 @@ void Stepper::step() {
         stepPhase = 0;
 }
 
+bool Stepper::isValidStep(int step_value)
+{
+  return step_value >= 0 && step_value <= RESOLUTION - 1;
+}
+
 void Stepper::writePins(const int* signals) {
-    // Replace with your specific platform's write function (e.g., digitalWrite)
-    for (int i = 0; i < sizeof(4); i++)
+    for (int i = 0; i < 4; i++)
     {
         digitalWrite(pins[i], signals[i]);
     }
-    delay(STEP_DELAY);
+}
+
+bool Stepper::isHallPinActive() {
+    return digitalRead(hallPin);
 }

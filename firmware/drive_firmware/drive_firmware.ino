@@ -1,4 +1,5 @@
 #include <EEPROM.h>
+#include "Stepper.h"
 
 // TODO: Use this library for stepper control?
 // https://github.com/Stan-Reifel/TinyStepper_28BYJ_48
@@ -73,7 +74,7 @@ const int BAUDRATE = 9600;
 // ##### MOTOR VALUES #####
 const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
-int motorSteps = 0;
+Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
 // ########################
 
 void setup() {
@@ -86,13 +87,6 @@ void setup() {
   MODULE_COLUMN = getModuleColumn();
   
   pinMode(LED_BUILTIN, OUTPUT);
-  pinMode(HALL_PIN, INPUT_PULLUP);
-
-  // MOTOR DRIVER PINS
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  pinMode(IN3, OUTPUT); 
-  pinMode(IN4, OUTPUT);
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
@@ -145,7 +139,9 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_HOME:
-      message.status = homeMotor();
+      // May need to respond and then move
+      message.status = true;
+      motor.home();
       break;
     case Command::CMD_STOP:
       message.data_value = 2;
@@ -169,7 +165,9 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.data_value = ErrorCode::ERROR_INVALID_POSITION;
         message.status = false;
         break;
-      }
+      } 
+      int step_value = motor.getCurrentStep();
+      saveStepperPosition(data, step_value);
       message.data_value = 4;
       message.status = true;
       break;
@@ -180,8 +178,9 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.status = false;
         break;
       }
-      message.data_value = getStepperPosition(data_value);
-      message.data_value = 5;
+      int step_value = getStepperPosition(data_value);
+      motor.moveToStep(step_value);
+      message.data_value = step_value;
       message.status = true;
       break;
     case Command::CMD_GET_SPEED:
@@ -193,18 +192,17 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_GET_STEPS:
-      message.data_value = motorSteps;
+      message.data_value = motor.getCurrentStep();
       message.status = true;
       break;
     case Command::CMD_MOVE_TO_STEP:
-      if (!isValidStep(data_value))
+      if (!motor.isValidStep(data_value))
       {
         message.data_value = ErrorCode::ERROR_INVALID_STEP;
         message.status = false;
         break;
       }
-      motorSteps = data_value;
-      message.data_value = motorSteps;
+      motor.moveToStep(data_value);
       message.status = true;
       break;
     default:
@@ -260,11 +258,6 @@ bool isValidPosition(int position)
   return position >= 0 && position <= NUM_POSITIONS - 1;
 }
 
-bool isValidStep(int step)
-{
-  return step >= 0 && step <= MOTOR_RESOLUTION - 1;
-}
-
 bool isThisModule(uint8_t row, uint8_t column) {
   return row == MODULE_ROW && column == MODULE_COLUMN;
 }
@@ -303,10 +296,4 @@ uint16_t getStepperPosition(int index) {
       return stepValue;
   }
   return 0; // Return 0 if index is out of bounds
-}
-
-bool homeMotor()
-{
-  // TODO: Do motor homing
-  int homeSteps = getStepperPosition(0);
 }
