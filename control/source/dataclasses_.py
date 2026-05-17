@@ -64,7 +64,7 @@ class BaseMessage(ABC):
             checksum,
             self.end_value,
         ]
-        self.logger.debug(f"Sending Packet: {data_packet}")
+        self.logger.debug(f"Creating Packet: {data_packet}")
         return struct.pack(self._struct_string, *data_packet)
 
     @classmethod
@@ -102,7 +102,7 @@ class OutgoingMessage(BaseMessage):
     @classmethod
     def _parse_output(cls, data: bytes) -> OutgoingMessage:
         row = data[1]
-        row = data[2]
+        column = data[2]
         command_value = data[3]
         data_value = data[4]
 
@@ -126,8 +126,10 @@ class IncomingMessage(BaseMessage):
     def __post_init__(self) -> None:
         super().__post_init__()
 
-    def encode(self) -> bytes:
-        checksum = self._create_checksum()
+    def encode(
+        self,
+    ) -> bytes:
+        # checksum = self._create_checksum()
         return struct.pack(
             self._struct_string,
             self.start_value,
@@ -151,7 +153,12 @@ class IncomingMessage(BaseMessage):
         checksum = data[7]
 
         calculated_checksum = cls.checksum(
-            data_value, command_value, row, column, status
+            data_value=data_value,
+            command_value=command_value,
+            row=row,
+            column=column,
+            status=status,
+            sequence_id=sequence_id,
         )
         if checksum != calculated_checksum:
             raise ValueError(
@@ -168,13 +175,25 @@ class IncomingMessage(BaseMessage):
 
     @staticmethod
     def checksum(
-        data_value: int, command_value: int, row: int, column: int, status: bool
+        data_value: int,
+        command_value: int,
+        row: int,
+        column: int,
+        status: bool,
+        sequence_id: int,
     ) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
-        return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status
+        return (
+            row ^ column ^ sequence_id ^ command_value ^ low_byte ^ high_byte ^ status
+        )
 
     def _create_checksum(self) -> bytes:
         return self.checksum(
-            self.data_value, self.command.value, self.row, self.column, self.status
+            data_value=self.data_value,
+            command_value=self.command.value,
+            row=self.row,
+            column=self.column,
+            status=self.status,
+            sequence_id=sequence_id,
         )

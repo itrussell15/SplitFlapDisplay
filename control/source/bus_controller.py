@@ -23,7 +23,7 @@ EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
 )
 EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(row=0, column=0, command=ModuleCommand.HOME)
 
-BUS_SLEEP_TIME_MS = 1
+BUS_SLEEP_TIME_MS = 5
 
 
 class BusController(SerialProcessor):
@@ -38,12 +38,14 @@ class BusController(SerialProcessor):
         max_queue_size: int = 64,
         baudrate: int = 9600,
         timeout: int = 2,
+        connect_now: bool = True
     ) -> None:
         super().__init__(port, baudrate, timeout, max_queue_size)
         self.modules = {} if modules is None else modules
         self.error_queue = Queue()
         self._processed_commands = 0
-        self.connect()
+        if connect_now:
+            self.connect()
 
         # Arduino resets when serial port opens - wait for bootloader to finish
         time.sleep(1.0)
@@ -56,7 +58,7 @@ class BusController(SerialProcessor):
                 checksum += 1 if mod.is_command_queue_registered else 0
             assert checksum == len(self.modules)
 
-    def discover(self, timeout: float = 0.01) -> None:
+    def discover(self, timeout: float = 0.1) -> None:
         tmp = self.timeout
         self.timeout = timeout
 
@@ -83,10 +85,9 @@ class BusController(SerialProcessor):
     def _read_serial_response(self) -> bytes:
         # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
         # Poll for data instead of waiting a fixed time
-        max_wait = 1.5
         start_time = time.time()
 
-        while time.time() - start_time < max_wait:
+        while time.time() - start_time < self.timeout:
             if self.connection.in_waiting > 0:
                 # Data arrived, start reading immediately
                 break
@@ -114,7 +115,9 @@ class BusController(SerialProcessor):
             response = IncomingMessage.decode(incoming)
             self.logger.debug(f"Incoming Message: {response}")
         except Exception as e:
-            self.logger.error(f"Unable to decode incoming message {incoming}")
+            self.logger.error(
+                f"Unable to decode incoming message {incoming} - {str(e)}"
+            )
             self.error_queue.put(incoming)
             return
 
@@ -123,15 +126,6 @@ class BusController(SerialProcessor):
                 f"Sequence ID for incoming - {response.sequence_id} doesn't match outgoing - {sequence_id}"
             )
             self.error_queue(outgoing)
-
-        checksum = IncomingMessage.checksum(
-            response.data_value,
-            response.command.value,
-            response.row,
-            response.column,
-            response.status,
-        )
-        self.logger.debug(f"Calculated Checksum: {checksum}")
 
         if not response.status:
             self._handle_bad_status(response)

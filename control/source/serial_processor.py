@@ -47,7 +47,7 @@ class SerialControl:
             self.connection.write(message)
             self.logger.debug(f"TX -> {message}")
         else:
-            self.logger.debug("⚠️ Not connected. Cannot send.")
+            raise ConnectionError("⚠️ Not connected. Cannot send.")
 
     def read(self, size: int = 1) -> Optional[bytes]:
         """Reads a line from the bus and decodes it."""
@@ -101,6 +101,10 @@ class SerialControl:
             self.logger.debug("🔌 Connection closed.")
 
     @property
+    def is_connected(self):
+        return self.connection is not None
+
+    @property
     def is_data_waiting(self) -> bool:
         if not self.connection:
             raise ConnectionError(f"{self.port} not connected")
@@ -118,15 +122,19 @@ class SerialProcessor(ABC, SerialControl):
     ) -> None:
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
+        self._is_processing: bool = False
         self.processor = self.create_queue_processor()
 
     def worker(self):
         sequence_id: int = 0
-        while True:
+        while not self._stop_event.is_set():
             try:
+                sequence_id += 1
                 start_time = time.time()
                 item = self.queue.get()
-                self.logger.info(f"Sequence ID {sequence_id}: {item}")
+                self.logger.info(
+                    f"Queue Size: {self.queue.qsize()} - Sequence ID {sequence_id}: {item}"
+                )
                 if isinstance(item, BaseMessage):
                     self._send_serial_command(item.encode(sequence_id))
                 else:
@@ -143,8 +151,17 @@ class SerialProcessor(ABC, SerialControl):
             except Exception as e:
                 self.logger.error(str(e))
 
-    def create_queue_processor(self) -> threading.Thread:
+    def start_processor(self) -> threading.Thread:
+        if not self.is_connected:
+            raise ConnectionError("Can't start processing queue with a closed connection")
+        self._stop_event = threading.Event()
+        self._is_processing = True
         return threading.Thread(target=self.worker, daemon=True)
+
+    def stop_processor(self):
+        self.logger.debug("Stopping processing thread")
+        self._stop_event.set()
+        self._is_processing = False
 
     def _send_serial_command(self, command: bytes) -> bool:
         self.logger.debug(f"Raw packet being sent {command}")
@@ -167,5 +184,10 @@ class SerialProcessor(ABC, SerialControl):
             )
         while not self.queue.empty():
             time.sleep(0.1)
+
         self.logger.info("Closing serial connection")
         super().close()
+
+    @property
+    def is_processing(self) -> bool:
+        return self.is_processing
