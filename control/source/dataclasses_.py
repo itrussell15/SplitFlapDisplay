@@ -34,7 +34,7 @@ class BaseMessage(ABC):
     command: ModuleCommand
     end_value: int
     data_value: int = 255
-    _struct_string = "<BBBBBHBB"
+    _struct_string: str = "<BBBBBHBB"
 
     def __post_init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -93,6 +93,7 @@ class BaseMessage(ABC):
 class OutgoingMessage(BaseMessage):
     start_value: int = 2
     end_value: int = 3
+    _is_processed: bool = False
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -113,6 +114,13 @@ class OutgoingMessage(BaseMessage):
             command=ModuleCommand(command_value),
             data_value=data_value,
         )
+
+    def process() -> None:
+        self._is_processed = True
+
+    @property
+    def is_processed(self) -> bool:
+        return self._is_processed
 
 
 @dataclass(kw_only=True)

@@ -21,46 +21,58 @@ SLEEP_TIME_S = 1.0
 PORT = "/dev/ttyACM0"
 
 
-class TestModuleController(unittest.TestCase):
+class TestBusController(unittest.TestCase):
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
 
-        # self.modules = {i: ModuleController(i) for i in MODULE_IDS}
-        self.module1 = ModuleController(row=0, column=0)
-        self.modules = {(0, 0): self.module1}
-        self.bus = BusController(port=PORT, modules=self.modules)
-        self.bus.timeout = 0.5
+        cls.ROW = 1
+        cls.COLUMN = 1
+        cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
+        cls.test_location = (cls.ROW, cls.COLUMN)
+        cls.modules = {cls.test_location: cls.module}
+        cls.bus = BusController(port=PORT, modules=cls.modules)
+        cls.bus.timeout = 0.5
 
-        # self.firmware = MockFirmware(port="/tmp/vcom_host", module_ids=MODULE_IDS)
-        # self.firmware_listening = threading.Thread(target=self.firmware.listen, daemon=True)
-
-        self.bus.processor.start()
-        # self.firmware_listening.start()
-
-    def tearDown(self):
-        # Let processor stop working
-        # self.firmware.stop_event.set()
-        # self.firmware_listening.join(timeout=1)
-        # self.firmware.close()
-
+    @classmethod
+    def tearDownClass(cls):
+        # Runs once after ALL tests in this class
+        time.sleep(1)
         self.bus.close()
 
-    def test_single_command(self) -> None:
-        self.modules[(0, 0)].move_to_step(2000)
-        time.sleep(0.1)
-        
-        self.assertEqual(self.bus.processed_commands, 1)
-        time.sleep(SLEEP_TIME_S)
-        print(self.modules[(0, 0)].get_steps())
-        time.sleep(5.0)
-        print(self.modules[(0, 0)].get_steps())
+    def setUp(self):
+        self.timeout = 0.5
 
-    # def test_get_position(s
-    # elf) -> None:
-    #     self.modules[1].get_position(1)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.processed_commands, 1)
+    def test_ping(self) -> None:
+        ping_message = OutgoingMessage(
+            row=self.ROW, column=self.COLUMN, command=ModuleCommand.PING
+        )
+        self.bus.queue.put(ping_message)
+
+        self.wait_for_message_process()
+        self.assertEqual(self.bus.processed_commands, 1)
+        self.assertTrue(ping_message.is_processed)
+
+    def test_get_steps(self) -> None:
+        self.modules[self.test_location].get_steps()
+        self.wait_for_message_process()
+        self.assertEqual(self.bus.processed_commands, 1) 
+
+    def test_get_position(self) -> None:
+        self.modules[self.test_location].get_position(1)
+        self.wait_for_message_process()
+        self.assertEqual(self.bus.processed_commands, 1)
+
+    def test_move_to_step(self) -> None:
+        self.modules[self.test_location].move_to_step(1000)
+        self.wait_for_message_process()
+        self.assertEqual(self.bus.processed_commands, 1)
+        
+
+    def wait_for_message_process(self, message: OutgoingMessage) -> None:
+        while not message.is_processed:
+            time.sleep(0.05)
 
     # def test_bad_checksum(self) -> None:
     #     # TODO Update this based on new packet

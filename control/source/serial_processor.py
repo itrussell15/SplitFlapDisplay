@@ -118,7 +118,7 @@ class SerialProcessor(ABC, SerialControl):
     ) -> None:
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
-        self.processor = self.create_queue_processor()
+        self.processor = self.start_processor()
 
     def worker(self):
         sequence_id: int = 0
@@ -143,8 +143,10 @@ class SerialProcessor(ABC, SerialControl):
             except Exception as e:
                 self.logger.error(str(e))
 
-    def create_queue_processor(self) -> threading.Thread:
-        return threading.Thread(target=self.worker, daemon=True)
+    def start_processor(self) -> threading.Thread:
+        processor = threading.Thread(target=self.worker, daemon=True)
+        processor.start()
+        return processor
 
     def _send_serial_command(self, command: bytes) -> bool:
         self.logger.debug(f"Raw packet being sent {command}")
