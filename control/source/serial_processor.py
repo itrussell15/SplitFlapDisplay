@@ -119,17 +119,31 @@ class SerialProcessor(ABC, SerialControl):
         baudrate: int = 9600,
         timeout: int = 1,
         max_queue_size: int = 64,
+        connect_now: bool = True,
+        start: bool = True,
+        startup_sleep: float = 0.5
     ) -> None:
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
         self._is_processing: bool = False
-        self.processor = self.create_queue_processor()
+
+        # Arduino resets when serial port opens - wait for bootloader to finish
+        time.sleep(startup_sleep)
+
+        self.processor: Optional[threading.Thread] = None
+        if connect_now:
+            self.connect()
+            if start:
+                self.processor = self.start_processor()
 
     def worker(self):
         sequence_id: int = 0
         while not self._stop_event.is_set():
+            if sequence_id > 255:
+                self.logger.debug(f"Sequence ID overflow! Resetting to 0")
+                sequence_id = 0
+            sequence_id += 1
             try:
-                sequence_id += 1
                 start_time = time.time()
                 item = self.queue.get()
                 self.logger.info(
@@ -140,23 +154,27 @@ class SerialProcessor(ABC, SerialControl):
                 else:
                     self.logger.info(f"Packet doesn't need encoding: {item}")
                     self._send_serial_command(item)
+                send_time = time.time()
                 response = self._read_serial_response()
+                respond_time = time.time()
                 self.logger.info(f"Response: {response}")
                 self._handle_response(response, item, sequence_id)
+                handling_time = time.time()
                 self.queue.task_done()
-                self.logger.info(f"Processing Time: {time.time() - start_time}")
-                sequence_id += 1
-                if sequence_id > 255:
-                    sequence_id = 0
+                self.logger.debug(f"Total: {handling_time - start_time:.4f} Send Time: {send_time - start_time:.4f} - Respond Time: {respond_time - send_time:.4f} - Handle Time: {handling_time - respond_time:.4f}")
             except Exception as e:
                 self.logger.error(str(e))
+        self.logger.info("Worker shut down")
 
     def start_processor(self) -> threading.Thread:
         if not self.is_connected:
             raise ConnectionError("Can't start processing queue with a closed connection")
         self._stop_event = threading.Event()
         self._is_processing = True
-        return threading.Thread(target=self.worker, daemon=True)
+        worker = threading.Thread(target=self.worker, daemon=True)
+        worker.start()
+        self.logger.info(f"{self.__class__.__name__} has started processing")
+        return worker
 
     def stop_processor(self):
         self.logger.debug("Stopping processing thread")
@@ -184,7 +202,8 @@ class SerialProcessor(ABC, SerialControl):
             )
         while not self.queue.empty():
             time.sleep(0.1)
-
+        self.stop_processor()
+        time.sleep(0.5)
         self.logger.info("Closing serial connection")
         super().close()
 

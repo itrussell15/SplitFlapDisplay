@@ -38,17 +38,14 @@ class BusController(SerialProcessor):
         max_queue_size: int = 64,
         baudrate: int = 9600,
         timeout: int = 2,
-        connect_now: bool = True
+        connect_now: bool = True,
+        start: bool = True,
+        startup_sleep: float = 0.5
     ) -> None:
-        super().__init__(port, baudrate, timeout, max_queue_size)
+        super().__init__(port, baudrate, timeout, max_queue_size, connect_now, start, startup_sleep)
         self.modules = {} if modules is None else modules
         self.error_queue = Queue()
         self._processed_commands = 0
-        if connect_now:
-            self.connect()
-
-        # Arduino resets when serial port opens - wait for bootloader to finish
-        time.sleep(1.0)
 
         # Register all modules
         if modules is not None:
@@ -63,8 +60,8 @@ class BusController(SerialProcessor):
         self.timeout = timeout
 
         self.modules = {}
-        for row in range(MIN_ROW_VALUE, MAX_ROW_VALUE):
-            for col in range(MIN_COLUMN_VALUE, MAX_COLUMN_VALUE):
+        for row in range(MIN_ROW_VALUE, MAX_ROW_VALUE + 1):
+            for col in range(MIN_COLUMN_VALUE, MAX_COLUMN_VALUE + 1):
                 self.logger.debug(f"Searching for module {(row, col)}")
                 command = OutgoingMessage(
                     row=row, column=col, command=ModuleCommand.PING
