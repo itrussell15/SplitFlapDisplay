@@ -17,9 +17,8 @@ from source.utils import create_logger
 from test.mock_components.mock_module_firmware import MockFirmware
 
 MODULE_IDS = [1, 2, 3, 4, 5]
-SLEEP_TIME_S = 0.5
-# PORT = "/dev/ttyACM0"
-PORT = "/dev/tty.usbmodem1101"
+SLEEP_TIME_S = 1.0
+PORT = "/dev/ttyACM0"
 
 
 class TestModuleController(unittest.TestCase):
@@ -48,11 +47,17 @@ class TestModuleController(unittest.TestCase):
         self.bus.close()
 
     def test_single_command(self) -> None:
-        self.modules[(0, 0)].move_to_step(1)
-        time.sleep(SLEEP_TIME_S)
+        self.modules[(0, 0)].move_to_step(2000)
+        time.sleep(0.1)
+        
         self.assertEqual(self.bus.processed_commands, 1)
+        time.sleep(SLEEP_TIME_S)
+        print(self.modules[(0, 0)].get_steps())
+        time.sleep(5.0)
+        print(self.modules[(0, 0)].get_steps())
 
-    # def test_get_position(self) -> None:
+    # def test_get_position(s
+    # elf) -> None:
     #     self.modules[1].get_position(1)
     #     time.sleep(SLEEP_TIME_S)
     #     self.assertEqual(self.bus.processed_commands, 1)

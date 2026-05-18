@@ -75,6 +75,7 @@ const int BAUDRATE = 9600;
 const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
+int targetValue;
 // ########################
 
 void setup() {
@@ -94,6 +95,11 @@ void setup() {
 }
 
 void loop() {
+
+  if (targetValue != motor.getCurrentStep()){
+    motor.step();
+    delay(1);
+  }
   
   if (Serial.available() >= INCOMING_SIZE) {
     if (Serial.peek() == INCOMING_START_BYTE) {
@@ -120,6 +126,7 @@ void loop() {
         }
         message = handleIncomingMessage(message, data_value);
         SendSerialResponse(message);
+//        doMove(message, data_value);
       }
     } else {
       Serial.read(); // Discard trash
@@ -169,7 +176,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       } 
       step_value = motor.getCurrentStep();
       saveStepperPosition(data_value, step_value);
-      message.data_value = step_value;
+      message.data_value = 4;
       message.status = true;
       break;
     case Command::CMD_MOVE_TO_POSITION:
@@ -180,7 +187,6 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         break;
       }
       step_value = getStepperPosition(data_value);
-      motor.moveToStep(step_value);
       message.data_value = step_value;
       message.status = true;
       break;
@@ -203,7 +209,8 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.status = false;
         break;
       }
-      motor.moveToStep(data_value);
+      targetValue = data_value;
+      message.data_value = motor.getCurrentStep();
       message.status = true;
       break;
     default:
@@ -212,6 +219,21 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       break;
   }
   return message;
+}
+
+OutgoingMessage doMove(OutgoingMessage message, int16_t data_value)
+{
+  int step_value;
+  Command command = (Command)message.command_id;
+  switch (command) {
+    case Command::CMD_MOVE_TO_POSITION:
+      step_value = getStepperPosition(data_value);
+      motor.moveToStep(step_value);
+      break;
+    case Command::CMD_MOVE_TO_STEP:
+      motor.moveToStep(data_value);
+      break;
+  }
 }
 
 void SendSerialResponse(OutgoingMessage message) {

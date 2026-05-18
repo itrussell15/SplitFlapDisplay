@@ -14,7 +14,9 @@ const int STEP_SEQUENCES[8][4] = {
 
 int RESOLUTION = 4096; // Default steps per revolution for 28BYJ-48
 int NUM_PHASES = 8;
-int STEP_DELAY = 10;
+int STEP_DELAY = 1;
+
+int currentStep;
 
 Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     pins[0] = p1;
@@ -43,7 +45,9 @@ void Stepper::home() {
 }
 
 void Stepper::moveToStep(int step_value) {
-    while(currentStep != step_value)
+    if (!isValidStep(step_value)) return;
+    
+    while(getCurrentStep() != step_value)
     {
         this->step();
         delay(STEP_DELAY);
@@ -51,21 +55,13 @@ void Stepper::moveToStep(int step_value) {
 }
 
 int Stepper::getCurrentStep() {
-    return currentStep;
+    return this->currentStep;
 }
 
 void Stepper::step() {
-
     writePins(STEP_SEQUENCES[stepPhase]);
-    // Keep step between 0-4095
-    currentStep += 1;
-    if (currentStep >= RESOLUTION - 1)
-        currentStep = 0;
-
-    // Keep phase between 0-7
-    stepPhase += 1;
-    if (stepPhase >= NUM_PHASES - 1)
-        stepPhase = 0;
+    this->currentStep = (currentStep + 1);
+    this->stepPhase = (stepPhase + 1) % NUM_PHASES;
 }
 
 bool Stepper::isValidStep(int step_value)

@@ -151,7 +151,7 @@ class IncomingMessage(BaseMessage):
         checksum = data[7]
 
         calculated_checksum = cls.checksum(
-            data_value, command_value, row, column, status
+            data_value, command_value, row, column, status, sequence_id
         )
         if checksum != calculated_checksum:
             raise ValueError(
@@ -168,13 +168,9 @@ class IncomingMessage(BaseMessage):
 
     @staticmethod
     def checksum(
-        data_value: int, command_value: int, row: int, column: int, status: bool
+        data_value: int, command_value: int, row: int, column: int, status: bool, sequence_id: int
     ) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
-        return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status
+        return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status ^ sequence_id
 
-    def _create_checksum(self) -> bytes:
-        return self.checksum(
-            self.data_value, self.command.value, self.row, self.column, self.status
-        )

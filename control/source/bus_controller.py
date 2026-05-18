@@ -83,10 +83,9 @@ class BusController(SerialProcessor):
     def _read_serial_response(self) -> bytes:
         # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
         # Poll for data instead of waiting a fixed time
-        max_wait = 1.5
         start_time = time.time()
 
-        while time.time() - start_time < max_wait:
+        while time.time() - start_time < self.timeout:
             if self.connection.in_waiting > 0:
                 # Data arrived, start reading immediately
                 break
@@ -114,7 +113,7 @@ class BusController(SerialProcessor):
             response = IncomingMessage.decode(incoming)
             self.logger.debug(f"Incoming Message: {response}")
         except Exception as e:
-            self.logger.error(f"Unable to decode incoming message {incoming}")
+            self.logger.error(f"Unable to decode incoming message {incoming} - {str(e)}")
             self.error_queue.put(incoming)
             return
 
@@ -130,6 +129,7 @@ class BusController(SerialProcessor):
             response.row,
             response.column,
             response.status,
+            response.sequence_id
         )
         self.logger.debug(f"Calculated Checksum: {checksum}")
 

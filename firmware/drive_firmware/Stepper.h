@@ -13,11 +13,12 @@ public:
     void step();
     bool isValidStep(int step_value);
 
+    int currentStep;
+
 
 private:
     int pins[4];
     int hallPin;
-    int currentStep;
     int stepPhase;
     
     // Internal helper to set pin states
