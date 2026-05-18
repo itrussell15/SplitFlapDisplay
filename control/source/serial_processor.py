@@ -123,9 +123,10 @@ class SerialProcessor(ABC, SerialControl):
     def worker(self):
         sequence_id: int = 0
         while True:
+            future = None
             try:
                 start_time = time.time()
-                item = self.queue.get()
+                future, item = self.queue.get()
                 self.logger.info(f"Sequence ID {sequence_id}: {item}")
                 if isinstance(item, BaseMessage):
                     self._send_serial_command(item.encode(sequence_id))
@@ -134,14 +135,20 @@ class SerialProcessor(ABC, SerialControl):
                     self._send_serial_command(item)
                 response = self._read_serial_response()
                 self.logger.info(f"Response: {response}")
-                self._handle_response(response, item, sequence_id)
+                if response.sequence_id != sequence_id:
+                    raise RuntimeError(f"Sequence ID response did not match outgoing - {reponse.sequence_id} != {sequence_id}")
+                # result = self._handle_response(response, item, sequence_id)
+                future.set_result(result)
                 self.queue.task_done()
                 self.logger.info(f"Processing Time: {time.time() - start_time}")
                 sequence_id += 1
                 if sequence_id > 255:
                     sequence_id = 0
             except Exception as e:
+                if future is not None and isinstance(future, Future):
+                    future.set_exception(e)
                 self.logger.error(str(e))
+                
 
     def start_processor(self) -> threading.Thread:
         processor = threading.Thread(target=self.worker, daemon=True)

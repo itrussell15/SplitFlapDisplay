@@ -146,6 +146,8 @@ class BusController(SerialProcessor):
             )
             self.error_queue.put(response)
             return
+        
+        # Handle PING command here?
 
         try:
             match response.command:

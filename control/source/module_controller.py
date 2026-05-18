@@ -2,6 +2,7 @@ import enum
 import logging
 import struct
 from queue import Queue
+from concurrent.futures import Future
 from typing import Any, Optional, Tuple
 
 from .dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
@@ -57,10 +58,11 @@ class ModuleController:
         self.logger.info(f"Moving to {step}")
         if not self.is_valid_step(step):
             raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
-        return self._create_packet(ModuleCommand.MOVE_TO_STEP, step)
+        return self._send_packet(ModuleCommand.MOVE_TO_STEP, step)
 
-    def get_steps(self) -> None:
-        return self._create_packet(ModuleCommand.GET_STEPS)
+    def get_steps(self) -> int:
+        result = self._send_packet(ModuleCommand.GET_STEPS)
+        return result
 
     def move_to_position(self, position: int) -> None:
         # Move to a stored EEPROM position
@@ -68,7 +70,7 @@ class ModuleController:
             raise ValueError(
                 f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
             )
-        return self._create_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
+        return self._send_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
 
     def set_position(self, position: int) -> None:
         # Update the motors steps in EEPROM position to current location
@@ -76,40 +78,39 @@ class ModuleController:
             raise ValueError(
                 f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
             )
-        return self._create_packet(ModuleCommand.SET_POSITION, value=position)
 
     def get_position(self, position: int) -> None:
         if not self.is_valid_position(position):
             raise ValueError(
                 f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
             )
-        return self._create_packet(ModuleCommand.GET_POSITION, value=position)
+        return self._send_packet(ModuleCommand.GET_POSITION, value=position)
 
     def home(self) -> None:
         self.logger.info(f"Homing")
-        output = self._create_packet(ModuleCommand.HOME)
+        output = self._send_packet(ModuleCommand.HOME, wait_for_result=False)
         self.is_homed = True
         return output
 
     def stop(self) -> None:
-        return self._create_packet(ModuleCommand.STOP)
+        return self._send_packet(ModuleCommand.STOP)
 
     def set_speed(self, value: int) -> None:
         self.logger.info(f"Setting speed to {value}")
         if not self.is_valid_speed(value):
             raise ValueError(f"Speed value: {value} must be between 0-{MAX_SPEED}")
-        return self._create_packet(ModuleCommand.SET_SPEED, value=value)
+        return self._send_packet(ModuleCommand.SET_SPEED, value=value)
 
     def get_speed(self) -> None:
-        return self._create_packet(ModuleCommand.GET_SPEED)
+        return self._send_packet(ModuleCommand.GET_SPEED)
 
     def update(self, message: IncomingMessage) -> None:
         self.logger.info(f"Updating based on {message}")
         # TODO Handle updating
 
-    def _create_packet(
-        self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True
-    ) -> OutgoingMessage:
+    def _send_packet(
+        self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True, wait_for_result: bool = True
+    ) -> Optional[IncomingMessage]:
         message = OutgoingMessage(
             row=self.row, column=self.column, command=command, data_value=value
         )
@@ -117,8 +118,10 @@ class ModuleController:
         if add_to_queue:
             if self._command_queue is None:
                 raise RuntimeError("No command queue registered")
-            self._command_queue.put(message)
-        return message
+            future = Future()
+            self._command_queue.put((future, message))
+        
+        return future.result() if wait_for_result else None
 
     def is_valid_position(self, position_id: int) -> bool:
         return position_id >= 0 and position_id <= NUM_POSITIONS
