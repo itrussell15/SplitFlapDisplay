@@ -59,37 +59,53 @@ class BusController(SerialProcessor):
 
         self.processor = self.start_processor()
 
-    def discover(self, timeout: float = 0.05) -> None:
+    def discover(self, max_row_value: int, max_column_value: int, timeout: float = 0.05) -> None:
         tmp = self.timeout
         self.timeout = timeout
 
+        if max_row_value < 0 or max_row_value > MAX_ROW_VALUE:
+            raise ValueError(f"Discover row value must be betweeen 0-{MAX_ROW_VALUE} - Not {max_row_value}")
+
+        if max_column_value < 0 or max_column_value > MAX_COLUMN_VALUE:
+            raise ValueError(f"Discover column value must be betweeen 0-{MAX_COLUMN_VALUE} - Not {max_column_value}") 
+
         start_time = time.time()
         self.modules = {}
-        for row in range(MIN_ROW_VALUE, MAX_ROW_VALUE):
-            for col in range(MIN_COLUMN_VALUE, MAX_COLUMN_VALUE):
+        for row in range(0, max_row_value):
+            for col in range(0, max_column_value):
                 self.logger.debug(f"Searching for module {(row, col)}")
-                future = Future()
                 command = OutgoingMessage(
                     row=row, column=col, command=ModuleCommand.PING
                 )
-                self.queue.put((future, command))
+                future = self._send_message(command)
                 try:
                     future.result(self.timeout)
                 except TimeoutError:
                     continue
                 self.modules[(row, col)] = ModuleController(row, col)
-            
 
         self.logger.debug("Waiting for command queue to clear")
         while not self.queue.empty():
             time.sleep(0.1)
         self.timeout = tmp
         self.logger.info(f"{len(self.modules)} modules found in {time.time() - start_time:.2f}s!")
+        self.logger.info(f"Module Locations: {self.module_locations}")
 
-    def broadcast(self, message: OutgoingMessage):
+    def broadcast(self, command: ModuleCommand, data_value: int = 0) -> None:
         # Send message to ID (0, 0) which all modules will read, but not respond to so we don't overwhelm the bus.
         # Could even do (0, i) to broadcast to a single column or (i, 0) for a whole row
-        pass
+        message = OutgoingMessage(
+            row=0, 
+            column=0,
+            command=command,
+            data_value=data_value
+        )
+        future = self._send_message(message)
+        
+    def _send_message(self, message: OutgoingMessage) -> Future:
+        future = Future()
+        self.queue.put((future, message))
+        return future
 
     def _read_serial_response(self) -> bytes:
         # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
@@ -142,10 +158,6 @@ class BusController(SerialProcessor):
             response.sequence_id
         )
 
-        if not response.status:
-            self._handle_bad_status(response)
-            return
-
         if (
             response.command != ModuleCommand.PING
             and response.location not in self.module_locations
@@ -159,45 +171,6 @@ class BusController(SerialProcessor):
         self._processed_commands += 1
         return response
         
-        # Handle PING command here?
-
-        # try:
-        #     match response.command:
-        #         case ModuleCommand.PING:
-        #             self.logger.debug(f"Module {response.location} found!")
-        #             if response.location not in self.modules:
-        #                 self.logger.debug(f"Adding module {response.location}")
-        #                 self.modules[response.location] = ModuleController(
-        #                     row=response.row, column=response.column
-        #                 )
-        #         case ModuleCommand.GET_STEPS:
-        #             self.modules[response.location].update(response)
-        #         case ModuleCommand.GET_SPEED:
-        #             self.modules[response.location].update(response)
-        #         case ModuleCommand.GET_POSITION:
-        #             self.modules[response.location].update(response)
-        #         case _:
-        #             self.logger.debug(
-        #                 f"Command {response.command} executed on module {response.location}"
-        #             )
-            
-        # except Exception as e:
-        #     self.error_queue.put(response)
-        #     self.logger.error(f"Failed to decode incoming response: {e}")
-
-    def _handle_bad_status(self, response: IncomingMessage) -> None:
-        try:
-            error_code = ModuleErrorCodes[response.data_value]
-            self.logger.warning(f"Response failed with error code {error_code}")
-        except KeyError:
-            self.logger.error(
-                f"Response contained unknown error code - {response.data_value}"
-            )
-            raise e
-        except Exception as e:
-            self.logger.error(f"Unknown error occured when reading response")
-            raise e
-
     @property
     def processed_commands(self) -> int:
         return self._processed_commands

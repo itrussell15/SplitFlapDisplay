@@ -12,14 +12,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from source.bus_controller import BusController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
-from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION
+from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
 from source.utils import create_logger
 from test.mock_components.mock_module_firmware import MockFirmware
 
 MODULE_IDS = [1, 2, 3, 4, 5]
 SLEEP_TIME_S = 1.0
 PORT = "/dev/ttyACM0"
-
 
 class TestBusController(unittest.TestCase):
 
@@ -77,75 +76,25 @@ class TestBusController(unittest.TestCase):
         self.assertEqual(message.command, ModuleCommand.GET_POSITION)
         self.assertTrue(message.status)
 
+    def test_bad_command(self) -> None:
+        with self.assertRaises(FirmwareException):
+            message = self.modules[self.test_location]._send_packet(ModuleCommand.BAD_COMMAND)
+
     def test_discover(self) -> None:
-        self.bus.discover()
+        # Test all bad values
+        with self.assertRaises(ValueError):
+            self.bus.discover(max_row_value=5, max_column_value=-1)    
+        with self.assertRaises(ValueError):
+            self.bus.discover(max_row_value=-1, max_column_value=5)
+        with self.assertRaises(ValueError):
+            self.bus.discover(max_row_value=500, max_column_value=10)
+        with self.assertRaises(ValueError):
+            self.bus.discover(max_row_value=4, max_column_value=500)
 
-    # def test_steps(self) -> None:
-    #     step_value = 500
-    #     message = self.modules[self.test_location].move_to_step(step_value)
-    #     self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
-    #     real_value = -1
-    #     while real_value != step_value:
-    #         message = self.modules[self.test_location].get_steps()
-    #         real_value = message.data_value
-    #         time.sleep(0.1)
-    #     self.assertEqual(message.data_value, step_value)
+        # Actually search for 1 module
+        self.bus.discover(max_row_value=5, max_column_value=5)
+        self.assertEqual(len(self.bus.modules), 1)
 
-    # def test_get_position(self) -> None:
-    #     self.modules[self.test_location].get_position(1)
-    #     time.sleep(0.5)
-    #     self.assertEqual(self.bus.processed_commands, 1)
-
-    # def test_move_to_step(self) -> None:
-    #     self.modules[self.test_location].move_to_step(100)
-    #     time.sleep(0.5)
-    #     self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
-
-    # def test_move_to_position(self) -> None:
-    #     self.modules[self.test_location].move_to_position(5)
-    #     time.sleep(0.5)
-    #     self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
-
-    # def test_get_position(self) -> None:
-    #     self.modules[self.test_location].get_position(5)
-    #     time.sleep(0.5)
-    #     self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
-    
-    # def test_double_move(self) -> None:
-    #     self.modules[self.test_location].move_to_step(200)
-    #     time.sleep(2.0)
-    #     self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
-        
-    #     self.modules[self.test_location].move_to_step(1500)
-    #     time.sleep(0.5)
-    #     self.assertEqual(self.bus.processed_commands, self._num_processed_start + 2)
-
-    # def test_bad_checksum(self) -> None:
-    #     # TODO Update this based on new packet
-    #     packet = b'\x02\x00\x00\x01\t\xdc\x05\xd1\x03'
-    #     self.bus.queue.put(packet)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.error_queue.qsize(), 1)
-
-    #     bad_packet = self.bus.error_queue.get()
-    #     self.assertIsInstance(bad_packet, IncomingMessage)
-    #     self.assertFalse(bad_packet.status)
-    #     self.assertEqual(bad_packet.data_value, 1)
-
-    # def test_bad_command_id(self) -> None:
-    #     # TODO Update this based on new packet
-    #     # Sends command ID of 100
-    #     packet = b'\x02\x01\x64\x00\x00\x65\x03'
-    #     self.bus.queue.put(packet)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.error_queue.qsize(), 1)
-
-    #     bad_packet = self.bus.error_queue.get()
-    #     self.assertIsInstance(bad_packet, bytes)
-    #     self.assertEqual(bad_packet[3], 2)
-
-    # def test_discover(self) -> None:
-    #     self.bus.discover(0.01)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.processed_commands, 1)
-    #     self.assertEqual(len(self.bus.modules), 1)
+    def test_broadcast(self) -> None:
+        self.bus.broadcast(ModuleCommand.GET_STEPS)
+        self.assertEqual(self.bus.queue.qsize(), 1)

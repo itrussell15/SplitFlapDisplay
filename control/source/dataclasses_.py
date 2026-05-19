@@ -20,6 +20,8 @@ class ModuleCommand(enum.Enum):
     SET_SPEED = 7
     GET_STEPS = 8
     MOVE_TO_STEP = 9
+    IS_MOVING = 10
+    BAD_COMMAND = 99
 
 
 class ModuleErrorCodes(enum.Enum):
@@ -108,7 +110,7 @@ class OutgoingMessage(BaseMessage):
         command_value = data[3]
         data_value = data[4]
 
-        assert data[4] == cls._checksum(data_value, command_value, row, column)
+        assert data[5] == cls._checksum(data_value, command_value, row, column)
         return cls(
             row=row,
             column=column,

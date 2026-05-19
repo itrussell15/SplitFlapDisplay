@@ -5,16 +5,19 @@ from queue import Queue
 from concurrent.futures import Future
 from typing import Any, Optional, Tuple
 
-from .dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
+from .dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage, ModuleErrorCodes
 
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
 NUM_POSITIONS = 64
 
 MIN_ROW_VALUE = 0
-MAX_ROW_VALUE = 30
+MAX_ROW_VALUE = 255
 MIN_COLUMN_VALUE = 0
-MAX_COLUMN_VALUE = 30
+MAX_COLUMN_VALUE = 255
+
+class FirmwareException(Exception):
+    pass
 
 
 class ModuleController:
@@ -38,6 +41,7 @@ class ModuleController:
         self._location = (row, column)
         self._command_queue = None
         self._is_homed: bool = False
+        self._current_step: int = 0
 
     def register_command_queue(self, queue: Queue) -> None:
         if not isinstance(queue, Queue):
@@ -88,7 +92,7 @@ class ModuleController:
 
     def home(self) -> None:
         self.logger.info(f"Homing")
-        output = self._send_packet(ModuleCommand.HOME, wait_for_result=False)
+        output = self._send_packet(ModuleCommand.HOME)
         self.is_homed = True
         return output
 
@@ -104,24 +108,8 @@ class ModuleController:
     def get_speed(self) -> None:
         return self._send_packet(ModuleCommand.GET_SPEED)
 
-    def update(self, message: IncomingMessage) -> None:
-        self.logger.info(f"Updating based on {message}")
-        # TODO Handle updating
-
-    def _send_packet(
-        self, command: ModuleCommand, value: int = 255, add_to_queue: bool = True, wait_for_result: bool = True
-    ) -> Optional[IncomingMessage]:
-        message = OutgoingMessage(
-            row=self.row, column=self.column, command=command, data_value=value
-        )
-        self.logger.debug(f"Packet generated for message: {message}")
-        if add_to_queue:
-            if self._command_queue is None:
-                raise RuntimeError("No command queue registered")
-            future = Future()
-            self._command_queue.put((future, message))
-        
-        return future.result() if wait_for_result else None
+    def is_moving(self) -> None:
+        return self._send_packet(ModuleCommand.IS_MOVING)
 
     def is_valid_position(self, position_id: int) -> bool:
         return position_id >= 0 and position_id <= NUM_POSITIONS
@@ -131,6 +119,39 @@ class ModuleController:
 
     def is_valid_speed(self, speed: int) -> bool:
         return speed > 0 and speed <= MAX_SPEED
+
+    def _send_packet(
+        self, command: ModuleCommand, value: int = 0
+    ) -> Optional[IncomingMessage]:
+        message = OutgoingMessage(
+            row=self.row, column=self.column, command=command, data_value=value
+        )
+        self.logger.debug(f"Packet generated for message: {message}")
+        
+        if self._command_queue is None:
+            raise RuntimeError("No command queue registered")
+        
+        future = Future()
+        self._command_queue.put((future, message))
+        result = future.result()
+        if not result.status:
+            self._handle_bad_status(result)
+        
+        if future.exception() is not None:
+            raise e
+        
+        return future.result()
+        
+    def _handle_bad_status(self, response: IncomingMessage) -> None:
+        try:
+            error_code = ModuleErrorCodes[response.data_value]
+            self.logger.warning(f"Response failed with error code {error_code}")
+            raise FirmwareException(f"Error Code: {error_code}")
+        except KeyError:
+            raise FirmwareException(f"Unknown error code returned - {response.data_value}")
+        except Exception as e:
+            self.logger.error(f"Unknown error occured when reading response")
+            raise e
 
     @property
     def location(self) -> Tuple[int, int]:
