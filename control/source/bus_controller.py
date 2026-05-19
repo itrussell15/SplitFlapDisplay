@@ -3,6 +3,7 @@ import struct
 import threading
 import time
 from queue import Queue
+from concurrent.futures import Future
 from typing import Dict, List, Optional, Tuple
 
 import serial
@@ -56,24 +57,34 @@ class BusController(SerialProcessor):
                 checksum += 1 if mod.is_command_queue_registered else 0
             assert checksum == len(self.modules)
 
-    def discover(self, timeout: float = 0.01) -> None:
+        self.processor = self.start_processor()
+
+    def discover(self, timeout: float = 0.05) -> None:
         tmp = self.timeout
         self.timeout = timeout
 
+        start_time = time.time()
         self.modules = {}
         for row in range(MIN_ROW_VALUE, MAX_ROW_VALUE):
             for col in range(MIN_COLUMN_VALUE, MAX_COLUMN_VALUE):
                 self.logger.debug(f"Searching for module {(row, col)}")
+                future = Future()
                 command = OutgoingMessage(
                     row=row, column=col, command=ModuleCommand.PING
                 )
-                self.queue.put(command)
+                self.queue.put((future, command))
+                try:
+                    future.result(self.timeout)
+                except TimeoutError:
+                    continue
+                self.modules[(row, col)] = ModuleController(row, col)
+            
 
         self.logger.debug("Waiting for command queue to clear")
         while not self.queue.empty():
             time.sleep(0.1)
         self.timeout = tmp
-        self.logger.info(f"{len(self.modules)} modules found!")
+        self.logger.info(f"{len(self.modules)} modules found in {time.time() - start_time:.2f}s!")
 
     def broadcast(self, message: OutgoingMessage):
         # Send message to ID (0, 0) which all modules will read, but not respond to so we don't overwhelm the bus.
@@ -114,8 +125,7 @@ class BusController(SerialProcessor):
             self.logger.debug(f"Incoming Message: {response}")
         except Exception as e:
             self.logger.error(f"Unable to decode incoming message {incoming} - {str(e)}")
-            self.error_queue.put(incoming)
-            return
+            raise e
 
         if sequence_id != response.sequence_id:
             self.logger.warning(
@@ -131,7 +141,6 @@ class BusController(SerialProcessor):
             response.status,
             response.sequence_id
         )
-        self.logger.debug(f"Calculated Checksum: {checksum}")
 
         if not response.status:
             self._handle_bad_status(response)
@@ -147,29 +156,34 @@ class BusController(SerialProcessor):
             self.error_queue.put(response)
             return
 
-        try:
-            match response.command:
-                case ModuleCommand.PING:
-                    self.logger.debug(f"Module {response.location} found!")
-                    if response.location not in self.modules:
-                        self.logger.debug(f"Adding module {response.location}")
-                        self.modules[response.location] = ModuleController(
-                            row=response.row, column=response.column
-                        )
-                case ModuleCommand.GET_STEPS:
-                    self.modules[response.location].update(response)
-                case ModuleCommand.GET_SPEED:
-                    self.modules[response.location].update(response)
-                case ModuleCommand.GET_POSITION:
-                    self.modules[response.location].update(response)
-                case _:
-                    self.logger.debug(
-                        f"Command {response.command} executed on module {response.location}"
-                    )
-            self._processed_commands += 1
-        except Exception as e:
-            self.error_queue.put(response)
-            self.logger.error(f"Failed to decode incoming response: {e}")
+        self._processed_commands += 1
+        return response
+        
+        # Handle PING command here?
+
+        # try:
+        #     match response.command:
+        #         case ModuleCommand.PING:
+        #             self.logger.debug(f"Module {response.location} found!")
+        #             if response.location not in self.modules:
+        #                 self.logger.debug(f"Adding module {response.location}")
+        #                 self.modules[response.location] = ModuleController(
+        #                     row=response.row, column=response.column
+        #                 )
+        #         case ModuleCommand.GET_STEPS:
+        #             self.modules[response.location].update(response)
+        #         case ModuleCommand.GET_SPEED:
+        #             self.modules[response.location].update(response)
+        #         case ModuleCommand.GET_POSITION:
+        #             self.modules[response.location].update(response)
+        #         case _:
+        #             self.logger.debug(
+        #                 f"Command {response.command} executed on module {response.location}"
+        #             )
+            
+        # except Exception as e:
+        #     self.error_queue.put(response)
+        #     self.logger.error(f"Failed to decode incoming response: {e}")
 
     def _handle_bad_status(self, response: IncomingMessage) -> None:
         try:
@@ -179,9 +193,10 @@ class BusController(SerialProcessor):
             self.logger.error(
                 f"Response contained unknown error code - {response.data_value}"
             )
+            raise e
         except Exception as e:
             self.logger.error(f"Unknown error occured when reading response")
-        self.error_queue.put(response)
+            raise e
 
     @property
     def processed_commands(self) -> int:

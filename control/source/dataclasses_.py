@@ -95,7 +95,6 @@ class BaseMessage(ABC):
 class OutgoingMessage(BaseMessage):
     start_value: int = 2
     end_value: int = 3
-    _is_processed: bool = False
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -116,14 +115,6 @@ class OutgoingMessage(BaseMessage):
             command=ModuleCommand(command_value),
             data_value=data_value,
         )
-
-    def process(self) -> None:
-        self._is_processed = True
-
-    @property
-    def is_processed(self) -> bool:
-        return self._is_processed
-
 
 @dataclass(kw_only=True)
 class IncomingMessage(BaseMessage):

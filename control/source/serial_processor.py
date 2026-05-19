@@ -118,32 +118,35 @@ class SerialProcessor(ABC, SerialControl):
     ) -> None:
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
-        self.processor = self.start_processor()
 
     def worker(self):
         sequence_id: int = 0
         self.logger.debug("Processor started")
         while True:
+            future, item = self.queue.get()
+            start_time = time.time()
+            self.logger.debug(f"Sequence ID {sequence_id}: {item}")
             try:
-                start_time = time.time()
-                item = self.queue.get()
-                self.logger.info(f"Sequence ID {sequence_id}: {item}")
                 if isinstance(item, BaseMessage):
                     self._send_serial_command(item.encode(sequence_id))
                 else:
                     self.logger.info(f"Packet doesn't need encoding: {item}")
                     self._send_serial_command(item)
+                send_time = time.time()
                 response = self._read_serial_response()
-                self.logger.info(f"Response: {response}")
-                self._handle_response(response, item, sequence_id)
-                item.process()
+                read_time = time.time()
+                self.logger.debug(f"Response: {response}")
+                result = self._handle_response(response, item, sequence_id)
+                handle_time = time.time()
+                future.set_result(result)
                 self.queue.task_done()
-                self.logger.info(f"Processing Time: {time.time() - start_time}")
                 sequence_id += 1
                 if sequence_id > 255:
                     sequence_id = 0
             except Exception as e:
+                future.set_exception(e)
                 self.logger.error(str(e))
+            self._collect_stats(start_time, send_time, read_time, handle_time)
 
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")
@@ -164,6 +167,15 @@ class SerialProcessor(ABC, SerialControl):
         self, incoming: BaseMessage, outgoing: BaseMessage, sequence_id: int
     ) -> None:
         pass
+
+    def _collect_stats(self, start_time: float, send_time: float, read_time: float, handle_time: float) -> None:
+        total_time = time.time() - start_time
+        total_send_time = send_time - start_time
+        total_read_time = read_time - send_time
+        total_handle_time = handle_time - read_time
+        self.logger.debug(
+            f"Processing Time: {total_time:.4f} - Send: {total_send_time:.4f} - Read: {total_read_time:.4f} - Handle: {total_handle_time:.4f}"
+        )
 
     def close(self) -> None:
         if not self.queue.empty():
