@@ -1,0 +1,65 @@
+import logging
+
+from .bus_controller import BusController
+from .flaps import Flap
+
+class DisplayController:
+
+    def __init__(self) -> None:
+        self.logger = logging.getLogger(f"{self.__class__.__name__}")
+        self.buses = {}
+        self.modules = {}
+
+    def add_bus_controller(self, bus: BusController, discover: bool = False) -> None:
+        if bus.port in self.buses:
+            raise ConnectionError(f"Already connected to bus at {bus.port}")
+        self.buses[bus.port] = bus
+        self._update_modules(bus)
+        self.logger.info(f"Adding bus at {bus.port}")
+
+    def reset_processed_commands(self) -> None:
+        for bus in self.buses.values():
+            bus.reset_processed_commands()
+
+    def discover(self, row_value: int, column_value: int) -> None:
+        self.modules = {}
+        for bus in self.buses.values():
+            bus.discover(row_value, column_value)
+            self._update_modules(bus)
+
+    def move_all_to_position(self, position: int) -> None:
+        self.logger.info(f"Moving {self.num_modules} modules to position {position}")
+        for module in self.modules.values():
+            result = module.move_to_position(position)
+
+    def move_to_position(self, positions: Dict[Tuple[int, int], Flap]) -> None:
+        for module_location, position in positions.items():
+            if module_location not in self.modules:
+                raise ValueError(f"No module at {location} found on this display")
+            result = self.modules[module_location].move_to_position(position)
+
+    def move_to_flaps(self, flaps: Dict[Tuple[int, int], Flap]) -> None:
+        for module_location, flap in flaps.items():
+            if module_location not in self.modules:
+                raise ValueError(f"No module at {location} found on this display")
+            result = self.modules[module_location].move_to_position(flap.value)
+
+    def _update_modules(self, bus: BusController) -> None:
+        for bus in self.buses.values():
+            for location, controller in bus.modules.items():
+                if location in self.modules:
+                    raise ValueError(f"Location value: {location} already found in display")
+                self.modules[location] = controller
+
+    @property
+    def processed_commands(self) -> int:
+        return sum(bus.processed_commands for bus in self.buses.values())
+
+    @property
+    def num_buses(self) -> int:
+        return len(self.buses)
+
+    @property
+    def num_modules(self) -> int:
+        return len(self.modules)
+    

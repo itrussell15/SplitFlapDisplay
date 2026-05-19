@@ -40,7 +40,7 @@ class TestBusController(unittest.TestCase):
 
     def setUp(self):
         self.timeout = 0.5
-        self._num_processed_start = self.bus.processed_commands
+        self.bus.reset_processed_commands()
     
     def tearDown(self):
         time.sleep(0.5)

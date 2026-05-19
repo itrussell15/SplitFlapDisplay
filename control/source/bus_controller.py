@@ -83,6 +83,7 @@ class BusController(SerialProcessor):
                 except TimeoutError:
                     continue
                 self.modules[(row, col)] = ModuleController(row, col)
+                self.modules[(row, col)].register_command_queue(self.queue)
 
         self.logger.debug("Waiting for command queue to clear")
         while not self.queue.empty():
@@ -101,7 +102,10 @@ class BusController(SerialProcessor):
             data_value=data_value
         )
         future = self._send_message(message)
-        
+    
+    def reset_processed_commands(self) -> None:
+        self._processed_commands = 0
+
     def _send_message(self, message: OutgoingMessage) -> Future:
         future = Future()
         self.queue.put((future, message))
