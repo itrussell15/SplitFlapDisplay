@@ -122,6 +122,7 @@ class SerialProcessor(ABC, SerialControl):
 
     def worker(self):
         sequence_id: int = 0
+        self.logger.debug("Processor started")
         while True:
             try:
                 start_time = time.time()
@@ -135,6 +136,7 @@ class SerialProcessor(ABC, SerialControl):
                 response = self._read_serial_response()
                 self.logger.info(f"Response: {response}")
                 self._handle_response(response, item, sequence_id)
+                item.process()
                 self.queue.task_done()
                 self.logger.info(f"Processing Time: {time.time() - start_time}")
                 sequence_id += 1
@@ -144,6 +146,7 @@ class SerialProcessor(ABC, SerialControl):
                 self.logger.error(str(e))
 
     def start_processor(self) -> threading.Thread:
+        self.logger.debug("Starting processor thread")
         processor = threading.Thread(target=self.worker, daemon=True)
         processor.start()
         return processor

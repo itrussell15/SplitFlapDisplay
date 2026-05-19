@@ -60,7 +60,7 @@ int Stepper::getCurrentStep() {
 
 void Stepper::step() {
     writePins(STEP_SEQUENCES[stepPhase]);
-    this->currentStep = (currentStep + 1);
+    this->currentStep = (currentStep + 1) % RESOLUTION;
     this->stepPhase = (stepPhase + 1) % NUM_PHASES;
 }
 

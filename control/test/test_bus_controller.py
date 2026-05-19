@@ -27,21 +27,28 @@ class TestBusController(unittest.TestCase):
     def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
 
-        cls.ROW = 1
-        cls.COLUMN = 1
+        cls.ROW = 0
+        cls.COLUMN = 0
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
         cls.bus = BusController(port=PORT, modules=cls.modules)
         cls.bus.timeout = 0.5
+        cls._num_processed_start = 0
 
     @classmethod
     def tearDownClass(cls):
         # Runs once after ALL tests in this class
         time.sleep(1)
-        self.bus.close()
+        cls.bus.close()
 
     def setUp(self):
+        # time.sleep(1)
+        self.timeout = 0.5
+        self._num_processed_start = self.bus.processed_commands
+    
+    def tearDown(self):
+        # time.sleep(1)
         self.timeout = 0.5
 
     def test_ping(self) -> None:
@@ -50,36 +57,51 @@ class TestBusController(unittest.TestCase):
         )
         self.bus.queue.put(ping_message)
 
-        self.wait_for_message_process()
-        self.assertEqual(self.bus.processed_commands, 1)
+        time.sleep(SLEEP_TIME_S)
+        self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
+        time.sleep(0.5)
         self.assertTrue(ping_message.is_processed)
 
     def test_get_steps(self) -> None:
         self.modules[self.test_location].get_steps()
-        self.wait_for_message_process()
-        self.assertEqual(self.bus.processed_commands, 1) 
+        time.sleep(0.5)
+        self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1) 
 
     def test_get_position(self) -> None:
         self.modules[self.test_location].get_position(1)
-        self.wait_for_message_process()
+        time.sleep(0.5)
         self.assertEqual(self.bus.processed_commands, 1)
 
     def test_move_to_step(self) -> None:
-        self.modules[self.test_location].move_to_step(1000)
-        self.wait_for_message_process()
-        self.assertEqual(self.bus.processed_commands, 1)
+        self.modules[self.test_location].move_to_step(100)
+        time.sleep(0.5)
+        self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
+
+    def test_move_to_position(self) -> None:
+        self.modules[self.test_location].move_to_position(5)
+        time.sleep(0.5)
+        self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
+
+    def test_get_position(self) -> None:
+        self.modules[self.test_location].get_position(5)
+        time.sleep(0.5)
+        self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
+    
+    def test_double_move(self) -> None:
+        self.modules[self.test_location].move_to_step(200)
+        time.sleep(2.0)
+        self.assertEqual(self.bus.processed_commands, self._num_processed_start + 1)
         
+        self.modules[self.test_location].move_to_step(1500)
+        time.sleep(0.5)
+        self.assertEqual(self.bus.processed_commands, self._num_processed_start + 2)
 
-    def wait_for_message_process(self, message: OutgoingMessage) -> None:
-        while not message.is_processed:
-            time.sleep(0.05)
-
-    # def test_bad_checksum(self) -> None:
-    #     # TODO Update this based on new packet
-    #     packet = b'\x02\x01\x06\xff\x00\xff\x03'
-    #     self.bus.queue.put(packet)
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.error_queue.qsize(), 1)
+    def test_bad_checksum(self) -> None:
+        # TODO Update this based on new packet
+        packet = b'\x02\x00\x00\x01\t\xdc\x05\x11\x03'
+        self.bus.queue.put(packet)
+        time.sleep(SLEEP_TIME_S)
+        self.assertEqual(self.bus.error_queue.qsize(), 1)
 
     #     bad_packet = self.bus.error_queue.get()
     #     self.assertIsInstance(bad_packet, IncomingMessage)
@@ -103,12 +125,3 @@ class TestBusController(unittest.TestCase):
     #     time.sleep(SLEEP_TIME_S)
     #     self.assertEqual(self.bus.processed_commands, 1)
     #     self.assertEqual(len(self.bus.modules), 1)
-
-    # def test_single_command(self) -> None:
-    #     self.modules[1].move_to_step(110)
-
-    #     # TODO Check module for updated value
-
-    #     self.modules[1].get_steps()
-    #     time.sleep(SLEEP_TIME_S)
-    #     self.assertEqual(self.bus.processed_commands, 2)

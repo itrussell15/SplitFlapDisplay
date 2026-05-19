@@ -98,7 +98,7 @@ void loop() {
 
   if (targetValue != motor.getCurrentStep()){
     motor.step();
-    delay(1);
+    delay(2);
   }
   
   if (Serial.available() >= INCOMING_SIZE) {

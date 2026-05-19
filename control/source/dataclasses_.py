@@ -6,6 +6,8 @@ import struct
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from typing import ClassVar
+
 
 class ModuleCommand(enum.Enum):
     PING = 0
@@ -34,7 +36,7 @@ class BaseMessage(ABC):
     command: ModuleCommand
     end_value: int
     data_value: int = 255
-    _struct_string: str = "<BBBBBHBB"
+    _struct_string: ClassVar[str] = "<BBBBBHBB"
 
     def __post_init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -103,7 +105,7 @@ class OutgoingMessage(BaseMessage):
     @classmethod
     def _parse_output(cls, data: bytes) -> OutgoingMessage:
         row = data[1]
-        row = data[2]
+        column = data[2]
         command_value = data[3]
         data_value = data[4]
 
@@ -115,7 +117,7 @@ class OutgoingMessage(BaseMessage):
             data_value=data_value,
         )
 
-    def process() -> None:
+    def process(self) -> None:
         self._is_processed = True
 
     @property
@@ -129,7 +131,8 @@ class IncomingMessage(BaseMessage):
     sequence_id: int
     start_value: int = 4
     end_value: int = 5
-    _struct_string = "<BBBBBH?BB"
+    _struct_string: ClassVar[str] = "<BBBBBH?BB"
+    
 
     def __post_init__(self) -> None:
         super().__post_init__()
