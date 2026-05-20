@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enum-Driven Split-Flap Interface</title>
+    <style>
+        body { background: #121212; color: #e0e0e0; font-family: sans-serif; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(15, 50px); gap: 6px; margin-bottom: 25px; }
+        .flap-input { 
+            width: 50px; height: 70px; font-size: 26px; text-align: center; 
+            text-transform: uppercase; background: #222; color: #fff; 
+            border: 2px solid #444; border-radius: 6px; font-weight: bold;
+        }
+        .flap-input:focus { border-color: #007acc; outline: none; box-shadow: 0 0 5px #007acc; }
+        
+        /* CSS styling matched up directly against the visual state properties */
+        .flap-input[data-style="red"] { background: darkred; color: white; }
+        .flap-input[data-style="green"] { background: darkgreen; color: white; }
+        .flap-input[data-style="blue"] { background: darkblue; color: white; }
+        .flap-input[data-style="yellow"] { background: #bfa000; color: black; }
+
+        .palette-container { background: #1e1e1e; padding: 15px; border-radius: 8px; max-width: 780px; }
+        .palette { display: flex; flex-wrap: wrap; gap: 8px; }
+        .palette-btn { padding: 8px 12px; border: 1px solid #444; background: #333; color: white; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .palette-btn:hover { background: #444; }
+        .btn-submit { margin-top: 20px; padding: 12px 24px; font-size: 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-submit:hover { background: #005999; }
+    </style>
+</head>
+<body>
+
+    <h2>Split-Flap Control Panel (Enum Mode)</h2>
+    <div class="grid" id="displayGrid"></div>
+
+    <div class="palette-container">
+        <h3>Special Elements & Colors Picker</h3>
+        <div class="palette" id="specialPalette"></div>
+    </div>
+    
+    <button class="btn-submit" onclick="sendGridToDisplay()">Update Hardware Display</button>
+
+    <script>
+        // 1. Define the exact mapping match for your control/source/flaps.py IntEnum
+        // Replace these numbers/labels with your exact Python Enum integers and keys.
+        const FLAP_ENUM_MAP = {
+            0: { label: " ", style: "blank" },
+            1: { label: "A", style: "text" }, 2: { label: "B", style: "text" }, 3: { label: "C", style: "text" },
+            // ... add your standard A-Z, 0-9 values here ...
+            40: { label: "🟥", style: "red", isSpecial: true, name: "Red" },
+            41: { label: "🟩", style: "green", isSpecial: true, name: "Green" },
+            42: { label: "🟦", style: "blue", isSpecial: true, name: "Blue" },
+            43: { label: "🟨", style: "yellow", isSpecial: true, name: "Yellow" },
+            44: { label: "❓", style: "text", isSpecial: true, name: "Question Mark" }
+        };
+
+        // Reverse map to lookup enum integers quickly via keyboard inputs
+        const KEYBOARD_LOOKUP = {};
+        Object.entries(FLAP_ENUM_MAP).forEach(([enumVal, info]) => {
+            if (!info.isSpecial) {
+                KEYBOARD_LOOKUP[info.label.toUpperCase()] = parseInt(enumVal);
+            }
+        });
+
+        const ROWS = fukdribb;
+        const COLS = 15;
+        const gridContainer = document.getElementById('displayGrid');
+        const paletteContainer = document.getElementById('specialPalette');
+        let activeInput = null;
+
+        // Build the 3x15 input structure
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = 1;
+                input.className = 'flap-input';
+                input.dataset.row = r;
+                input.dataset.col = c;
+                input.dataset.enumVal = 0; // Default to BLANK (0) 
+
+                input.addEventListener('focus', () => activeInput = input);
+
+                // Capturing standard keystrokes
+                input.addEventListener('input', (e) => {
+                    const typedChar = input.value.toUpperCase();
+                    
+                    if (KEYBOARD_LOOKUP[typedChar] !== undefined) {
+                        const enumVal = KEYBOARD_LOOKUP[typedChar];
+                        input.dataset.enumVal = enumVal;
+                        input.dataset.style = FLAP_ENUM_MAP[enumVal].style;
+                        
+                        // Auto-advance [cite: 2, 12, 13]
+                        let next = input.nextElementSibling;
+                        if (next) next.focus();
+                    } else if (typedChar === "") {
+                        // Reset if cleared manually
+                        resetInputToBlank(input);
+                    } else {
+                        // Reject invalid characters completely
+                        input.value = "";
+                    }
+                });
+
+                // Auto-Backtrack on Backspace [cite: 14]
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && input.value === '') {
+                        let prev = input.previousElementSibling;
+                        if (prev) {
+                            prev.focus();
+                            resetInputToBlank(prev);
+                        }
+                    }
+                });
+
+                gridContainer.appendChild(input);
+            }
+        }
+
+        function resetInputToBlank(input) {
+            input.value = "";
+            input.dataset.enumVal = 0; // Back to BLANK enum 
+            input.removeAttribute('data-style');
+        }
+
+        // Generate the visual macro palette buttons dynamically
+        Object.entries(FLAP_ENUM_MAP).forEach(([enumVal, info]) => {
+            if (info.isSpecial || enumVal == 0) {
+                const btn = document.createElement('button');
+                btn.className = 'palette-btn';
+                btn.textContent = info.name || (info.label === " " ? "Blank" : info.label);
+                btn.onclick = () => selectFromPalette(parseInt(enumVal));
+                paletteContainer.appendChild(btn);
+            }
+        });
+
+        // Triggered when an element is picked out of the palette
+        function selectFromPalette(enumVal) {
+            if (activeInput) {
+                const info = FLAP_ENUM_MAP[enumVal];
+                activeInput.value = info.isSpecial ? info.label : "";
+                activeInput.dataset.enumVal = enumVal;
+                activeInput.dataset.style = info.style;
+                
+                let next = activeInput.nextElementSibling;
+                if (next) next.focus();
+            }
+        }
+
+        // package up 2D JSON array and POST it to the backend server
+        async function sendGridToDisplay() {
+            const inputs = document.querySelectorAll('.flap-input');
+            let gridPayload = [[], [], []];
+            
+            inputs.forEach(input => {
+                const r = parseInt(input.dataset.row);
+                const enumValue = parseInt(input.dataset.enumVal);
+                gridPayload[r].push(enumValue);
+            });
+
+            try {
+                const response = await fetch('/api/display', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ grid: gridPayload })
+                });
+                const result = await response.json();
+                alert(result.message || "Display update queued!");
+            } catch (err) {
+                alert("Error sending update to backend: " + err);
+            }
+        }
+    </script>
+</body>
+</html>
