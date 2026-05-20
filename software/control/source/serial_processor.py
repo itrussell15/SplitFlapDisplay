@@ -143,10 +143,11 @@ class SerialProcessor(ABC, SerialControl):
                 sequence_id += 1
                 if sequence_id > 255:
                     sequence_id = 0
+                self._collect_stats(start_time, send_time, read_time, handle_time)
             except Exception as e:
                 future.set_exception(e)
                 self.logger.error(str(e))
-            self._collect_stats(start_time, send_time, read_time, handle_time)
+            
 
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")
