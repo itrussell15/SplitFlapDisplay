@@ -4,21 +4,28 @@ import sys
 import threading
 import time
 import unittest
-from pathlib import Path
 from concurrent.futures import Future
+from pathlib import Path
 
 # Add the parent directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from source.bus_controller import BusController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
-from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException, NUM_POSITIONS
-from utils import create_logger
+from source.module_controller import (
+    FirmwareException,
+    MAX_SPEED,
+    ModuleController,
+    MOTOR_RESOLUTION,
+    NUM_POSITIONS,
+)
 from test.mock_components.mock_module_firmware import MockFirmware
+from utils import create_logger
 
 MODULE_IDS = [1, 2, 3, 4, 5]
 SLEEP_TIME_S = 1.0
 PORT = "/dev/ttyACM0"
+
 
 class TestBusController(unittest.TestCase):
 
@@ -85,7 +92,9 @@ class TestBusController(unittest.TestCase):
 
     def test_bad_command(self) -> None:
         with self.assertRaises(FirmwareException):
-            message = self.modules[self.test_location]._send_packet(ModuleCommand.BAD_COMMAND)
+            message = self.modules[self.test_location]._send_packet(
+                ModuleCommand.BAD_COMMAND
+            )
 
     def test_discover(self) -> None:
         # Test all bad values
