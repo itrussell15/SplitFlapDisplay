@@ -14,7 +14,22 @@ The thing that I wanted to improve on was the software. I wanted to re-write the
 
 If you want access to be able to talk to the man himself, Adam has a [Patreon](https://www.patreon.com/cw/AdamGMakes) that he seems to be pretty active in and happy to answer questions about how he did things.
 
-## Software
+## API 
+To allow large amounts of flexibility, I wanted to develop an API that I can hit with requests to be able to display whatever I wanted on the board and don't need to be locked into any specific structure. This would make the board super generic and able to be a tool rather than having to update software to be able to add new functionality. The new functionality would simply be what whatever code created to call these APIs. The current list of APIs that I am envisioning are:
+- Get steps of all modules
+- Move to a position
+- Move all modules to a position
+- Move to a flap character
+
+### Frontend / App
+This API/Iterface could be turned into a docker container and easily distributed to a raspberry pi or computer. I am hoping to have a nice accompanying web interface that would be built into the docker app as well to be used that way if desired.
+
+See the work done by [Split Flap OS](https://github.com/csader/splitflap-os) as an example of a nice UI that I am hoping for on the front end. There is potential that I fork this to work with my stack, but there is a lot of work to between then and now.
+
+## Controller
+
+The controller is the interfacing layer between the firmware and the API. It generates the software packets and sends them through the USB port. 
+
 ### Design
 I wanted the main controller to be doing a lot of the heavy lifting and coordinating what module should do what. The module would be more naive and do simple things like move to certain steps and be able to home itself. I also wanted to abstract away the idea of what the flap had on it from the module side simply have the module be able to move to "positions" that would corelate with a given flap. They are basically the same thing, but allows more flexibility for changing in what is actually being shown on the flap.
 
@@ -35,7 +50,7 @@ The `ModuleController` is a bit of a misnomer as it actually doesn't really cont
 ## Firmware
 
 ### Calibration
-As I mentioned in the design section, I wanted to have modules simply know what a "position" is and not what is actually being displayed. So I would need to correlate motor steps to those positions that would display whatever you want. In Adam's video, he mentioned that a large pain point when setting everything up was to calibrate each module to display the desired flap when he wanted it. This required some fine tuning and I really think I only have patience to do that once, so I wanted to take advantage of the EEPROM in the microcontroller to store persistent memory of these positions so I don't have to redo it every time the module loses power.
+As I mentioned in the design section, I wanted to have modules simply know what a "position" is and not what is actually being displayed. So I would need to correlate motor steps to those positions that would display whatever you want. In Adam's video, he mentioned that a large pain point when setting everything up was to calibrate each module to display the desired flap when he wanted it. This required some fine tuning and I really think I only have patience to do that once, so I wanted to take advantage of the [EEPROM](https://docs.arduino.cc/learn/programming/eeprom-guide/) in the microcontroller to store persistent memory of these positions so I don't have to redo it every time the module loses power.
 
 The step value for a given position is stored in a 2 byte memory location 2-65 in the EEPOM, where 0-1 are reserved for storing the module's row and column location.
 
@@ -67,9 +82,6 @@ The communication between the controller and the modules is done along a shared 
 
 > There is a potential for using a "broadcast" packet, which all devices would accept and process.
 
-### Controller
-The controller is the brains of the operation
-
 ### Module Packets
 This is the packet that comes out of the Raspberry Pi (or other controller) and into the modules via the bus. These packets have the following structure:
 | Position | # Bytes | Description |
@@ -99,11 +111,12 @@ This is the packet that comes out of the a module and responds to the controller
 |End Value | 1 | Fixed value byte to signal that this is the end of a packet |
 > 10 bytes total
 
-Total size of a call and response from the controller to a module is 19 bytes and takes roughly 0.05ms to send, process and respond at a baudrate of 9600. This could lead to some high latency from the first modules movement to the last modules movement (~2.25 seconds for 45 modules). So I am investigating ways to make these communcations faster.
+Total size of a call and response from the controller to a module is 19 bytes and takes roughly 23ms to send, process and respond at a baudrate of 9600. This would result in *~1 second* of latency for the whole set of modules (currently planning on 45) using a single serial bus. 
+> As I am still working on getting the hardware fully up and running. I am testing this via a "normal" serial port and not a software serial port, so the 23ms time could change as I get further. 
 
 ### Ideas/Investigations
 - The controller packet may be a little bit overkill and can potentially be reduced to transmit less data, but I wanted a robust solution to ensure that packets are being received and executed properly. It may be worth investigating if smaller ones can be sent because smaller packets mean quicker communications and quicker communications means more responsiveness when you send commands to the display.
-- Using multiple RS485 controllers to be able to isolate each row into its own bus, this would limit the latency to just the number of modules that you have on that column. Which for this project, it would theoretically reduce it to 0.75 seconds.
+- Using multiple RS485 controllers to be able to isolate each row into its own bus, this would limit the latency to just the number of modules that you have on that column.
 - Send a "queuing" command that will tell which position the module should move to when it receives the go-ahead, and then broadcast a move command to all modules.
   - This doesn't get around the communication latency, but it will make all the modules synchronized and moving at the same time.
 ---
