@@ -127,7 +127,6 @@ class SerialProcessor(ABC, SerialControl):
             start_time = time.time()
             self.logger.debug(f"Sequence ID {sequence_id}: {item}")
             try:
-
                 if isinstance(item, BaseMessage):
                     self._send_serial_command(item.encode(sequence_id))
                 else:

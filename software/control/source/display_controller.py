@@ -75,6 +75,11 @@ class DisplayController:
         for bus in self.buses.values():
             bus.close()
 
+    def close(self) -> None:
+        self.logger.info("Closing display connection")
+        for bus in self.buses.values():
+            bus.close()
+
     def _update_modules(self, bus: BusController) -> None:
         for bus in self.buses.values():
             for location, controller in bus.modules.items():
