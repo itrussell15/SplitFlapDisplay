@@ -8,7 +8,7 @@ from concurrent.futures import Future
 from pathlib import Path
 
 # Add the parent directory to the path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from source.bus_controller import BusController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage

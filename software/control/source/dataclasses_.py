@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 
-class ModuleCommand(enum.Enum):
+class ModuleCommand(enum.IntEnum):
     PING = 0
     HOME = 1
     STOP = 2
@@ -92,6 +92,13 @@ class BaseMessage(ABC):
     def location(self) -> Tuple[int, int]:
         return (self.row, self.column)
 
+    @property
+    def location_map(self) -> Dict[str, int]:
+        return {
+            "row": self.row,
+            "column": self.column
+        }
+
 
 @dataclass(kw_only=True)
 class OutgoingMessage(BaseMessage):
@@ -118,12 +125,20 @@ class OutgoingMessage(BaseMessage):
             data_value=data_value,
         )
 
+
+@dataclass
+class CommunicationTimes:
+    send: float
+    receive: float
+
+
 @dataclass(kw_only=True)
 class IncomingMessage(BaseMessage):
     status: bool
     sequence_id: int
     start_value: int = 4
     end_value: int = 5
+    times: Optional[CommunicationTimes] = None
     _struct_string: ClassVar[str] = "<BBBBBH?BB"
     
 
@@ -177,4 +192,3 @@ class IncomingMessage(BaseMessage):
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
         return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status ^ sequence_id
-

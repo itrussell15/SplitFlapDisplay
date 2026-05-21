@@ -1,11 +1,14 @@
 import logging
+import json
+
+from typing import Dict, Tuple
 
 from .bus_controller import BusController
 from .flaps import Flap
 
 class DisplayController:
 
-    def __init__(self) -> None:
+    def __init__(self, timeout: float = 0.3) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         self.buses = {}
         self.modules = {}
@@ -22,27 +25,48 @@ class DisplayController:
             bus.reset_processed_commands()
 
     def discover(self, row_value: int, column_value: int) -> None:
-        self.modules = {}
         for bus in self.buses.values():
-            bus.discover(row_value, column_value)
+            module_locations = bus.discover(row_value, column_value)
             self._update_modules(bus)
+        print(module_locations)
 
     def move_all_to_position(self, position: int) -> None:
+        values = {}
         self.logger.info(f"Moving {self.num_modules} modules to position {position}")
-        for module in self.modules.values():
-            result = module.move_to_position(position)
+        for location, module in self.modules.items():
+            values[location] = module.move_to_position(position)
+        return values
 
     def move_to_position(self, positions: Dict[Tuple[int, int], Flap]) -> None:
+        values = {}
         for module_location, position in positions.items():
             if module_location not in self.modules:
                 raise ValueError(f"No module at {location} found on this display")
-            result = self.modules[module_location].move_to_position(position)
+            values[module_location] = self.modules[module_location].move_to_position(position)
+        return values
+
+    def get_all_steps(self) -> Dict[Tuple[int, int], int]:
+        values = {}
+        for location, module in self.modules.items():
+            values[location] = module.get_steps()
+        return values
+
+    def get_position_steps(self, position: int) -> Dict[Tuple[int, int], int]:
+        values = {}
+        for location, module in self.modules.items():
+            values[location] = module.get_position(position)
+        return values
 
     def move_to_flaps(self, flaps: Dict[Tuple[int, int], Flap]) -> None:
         for module_location, flap in flaps.items():
             if module_location not in self.modules:
                 raise ValueError(f"No module at {location} found on this display")
             result = self.modules[module_location].move_to_position(flap.value)
+
+    def close(self) -> None:
+        self.logger.info("Closing display connection")
+        for bus in self.buses.values():
+            bus.close()
 
     def _update_modules(self, bus: BusController) -> None:
         for bus in self.buses.values():

@@ -91,6 +91,7 @@ class BusController(SerialProcessor):
         self.timeout = tmp
         self.logger.info(f"{len(self.modules)} modules found in {time.time() - start_time:.2f}s!")
         self.logger.info(f"Module Locations: {self.module_locations}")
+        return self.module_locations
 
     def broadcast(self, command: ModuleCommand, data_value: int = 0) -> None:
         # Send message to ID (0, 0) which all modules will read, but not respond to so we don't overwhelm the bus.
@@ -161,7 +162,7 @@ class BusController(SerialProcessor):
             response.status,
             response.sequence_id
         )
-
+        
         if (
             response.command != ModuleCommand.PING
             and response.location not in self.module_locations

@@ -1,14 +1,15 @@
 import os
+import sys
+from pathlib import Path
 import logging
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+print(sys.path)
 from app.context import lifespan
 from app.api.base import API_VERSION
 from app.api import display, base
-
-from utils import create_logger
-
-
 from utils import create_logger
 
 

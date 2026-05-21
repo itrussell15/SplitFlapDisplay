@@ -7,7 +7,7 @@ from typing import Optional
 
 import serial
 
-from .dataclasses_ import BaseMessage
+from .dataclasses_ import BaseMessage, CommunicationTimes
 
 
 class SerialControl:
@@ -127,6 +127,7 @@ class SerialProcessor(ABC, SerialControl):
             start_time = time.time()
             self.logger.debug(f"Sequence ID {sequence_id}: {item}")
             try:
+                
                 if isinstance(item, BaseMessage):
                     self._send_serial_command(item.encode(sequence_id))
                 else:
@@ -137,7 +138,7 @@ class SerialProcessor(ABC, SerialControl):
                 read_time = time.time()
                 self.logger.debug(f"Response: {response}")
                 result = self._handle_response(response, item, sequence_id)
-                handle_time = time.time()
+                result.times = self._get_communications_timing(start_time, send_time, read_time)
                 future.set_result(result)
                 self.queue.task_done()
                 sequence_id += 1
@@ -168,6 +169,12 @@ class SerialProcessor(ABC, SerialControl):
         self, incoming: BaseMessage, outgoing: BaseMessage, sequence_id: int
     ) -> None:
         pass
+
+    def _get_communications_timing(self, start_time: float, send_time: float, read_time: float) -> CommunicationTimes:
+        return CommunicationTimes(
+            send=send_time-start_time,
+            receive=read_time-send_time
+        )
 
     def _collect_stats(self, start_time: float, send_time: float, read_time: float, handle_time: float) -> None:
         total_time = time.time() - start_time

@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 import serial
 import time
@@ -11,4 +12,6 @@ def create_logger(level = logging.DEBUG, spacing: int = 15):
         datefmt='%H:%M:%S'
     )
 
-
+def get_current_timestamp() -> str:
+    TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
+    return datetime.now().strftime(TIMESTAMP_FORMAT)
