@@ -1,0 +1,19 @@
+{
+    "request_time": "2026-05-21T15:30:00",
+    "module_requests": [
+        {
+            "location": {
+                "row": 0, 
+                "column": 5
+            },
+            "flap": "A"
+        },
+        {
+            "location": {
+                "row": 1, 
+                "column": 10
+            },
+            "flap": "B"
+        }
+    ]
+}

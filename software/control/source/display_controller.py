@@ -1,7 +1,7 @@
 import logging
 import json
 
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from .bus_controller import BusController
 from .flaps import Flap
@@ -28,40 +28,47 @@ class DisplayController:
         for bus in self.buses.values():
             module_locations = bus.discover(row_value, column_value)
             self._update_modules(bus)
-        print(module_locations)
 
-    def move_all_to_position(self, position: int) -> None:
-        values = {}
+    def move_all_to_position(self, position: int) -> List[int]:
+        values = []
         self.logger.info(f"Moving {self.num_modules} modules to position {position}")
         for location, module in self.modules.items():
-            values[location] = module.move_to_position(position)
+            values.append(
+                module.move_to_position(position)
+            )
         return values
 
-    def move_to_position(self, positions: Dict[Tuple[int, int], Flap]) -> None:
-        values = {}
+    def get_all_steps(self) -> List[int]:
+        values = []
+        for location, module in self.modules.items():
+            values.append(
+                module.get_steps()
+            )
+        return values
+
+    def get_position_steps(self, position: int) -> List[int]:
+        values = []
+        for location, module in self.modules.items():
+            values.append(
+                module.get_position(position)
+            )
+        return values
+
+    def move_to_position(self, positions: Dict[Tuple[int, int], int]) -> List[int]:
+        values = []
         for module_location, position in positions.items():
-            if module_location not in self.modules:
-                raise ValueError(f"No module at {location} found on this display")
-            values[module_location] = self.modules[module_location].move_to_position(position)
+            self._is_valid_module(module_location, throw_error=True)
+            response = self.modules[module_location].move_to_position(position)
+            values.append(response)
         return values
 
-    def get_all_steps(self) -> Dict[Tuple[int, int], int]:
-        values = {}
-        for location, module in self.modules.items():
-            values[location] = module.get_steps()
-        return values
-
-    def get_position_steps(self, position: int) -> Dict[Tuple[int, int], int]:
-        values = {}
-        for location, module in self.modules.items():
-            values[location] = module.get_position(position)
-        return values
-
-    def move_to_flaps(self, flaps: Dict[Tuple[int, int], Flap]) -> None:
+    def move_to_flaps(self, flaps: Dict[Tuple[int, int], Flap]) -> List:
+        values = []
         for module_location, flap in flaps.items():
-            if module_location not in self.modules:
-                raise ValueError(f"No module at {location} found on this display")
-            result = self.modules[module_location].move_to_position(flap.value)
+            self._is_valid_module(module_location, throw_error=True)
+            response = self.modules[module_location].move_to_position(flap.value)
+            values.append(response)
+        return values
 
     def close(self) -> None:
         self.logger.info("Closing display connection")
@@ -74,6 +81,12 @@ class DisplayController:
                 if location in self.modules:
                     raise ValueError(f"Location value: {location} already found in display")
                 self.modules[location] = controller
+
+    def _is_valid_module(self, module_location: Tuple[int, int], throw_error: bool = False) -> bool:
+        result = module_location in self.modules
+        if not result and throw_error:
+            raise ValueError(f"No module at {module_location} found on this display")
+        return result
 
     @property
     def processed_commands(self) -> int:

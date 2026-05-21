@@ -1,14 +1,12 @@
 from typing import List
 from pydantic import BaseModel
+from .common import Location
 
-
-class Location(BaseModel):
-    row: int
-    column: int
 
 class MessageTimes(BaseModel):
     send: float
     receive: float
+    total: float
 
 class ModuleResponse(BaseModel):
     # We omit start_value and end_value here
@@ -16,7 +14,7 @@ class ModuleResponse(BaseModel):
     command: int
     data_value: int
     status: bool
-    times: MessageTimes
+    latency_ms: MessageTimes
 
 class DisplayResponse(BaseModel):
     request_time: str

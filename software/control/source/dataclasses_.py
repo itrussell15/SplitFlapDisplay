@@ -127,9 +127,10 @@ class OutgoingMessage(BaseMessage):
 
 
 @dataclass
-class CommunicationTimes:
+class LatencyMs:
     send: float
     receive: float
+    total: float
 
 
 @dataclass(kw_only=True)
@@ -138,7 +139,7 @@ class IncomingMessage(BaseMessage):
     sequence_id: int
     start_value: int = 4
     end_value: int = 5
-    times: Optional[CommunicationTimes] = None
+    latency_ms: Optional[LatencyMs] = None
     _struct_string: ClassVar[str] = "<BBBBBH?BB"
     
 

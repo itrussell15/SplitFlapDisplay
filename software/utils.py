@@ -4,6 +4,8 @@ import serial
 import time
 from typing import Optional
 
+TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
+
 # Functions
 def create_logger(level = logging.DEBUG, spacing: int = 15):
     logging.basicConfig(
@@ -13,5 +15,4 @@ def create_logger(level = logging.DEBUG, spacing: int = 15):
     )
 
 def get_current_timestamp() -> str:
-    TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
     return datetime.now().strftime(TIMESTAMP_FORMAT)
