@@ -1,10 +1,10 @@
-import logging
 import json
-
+import logging
 from typing import Dict, List, Tuple
 
 from .bus_controller import BusController
 from .flaps import Flap
+
 
 class DisplayController:
 
@@ -28,30 +28,25 @@ class DisplayController:
         for bus in self.buses.values():
             module_locations = bus.discover(row_value, column_value)
             self._update_modules(bus)
+        print(module_locations)
 
     def move_all_to_position(self, position: int) -> List[int]:
         values = []
         self.logger.info(f"Moving {self.num_modules} modules to position {position}")
         for location, module in self.modules.items():
-            values.append(
-                module.move_to_position(position)
-            )
+            values.append(module.move_to_position(position))
         return values
 
     def get_all_steps(self) -> List[int]:
         values = []
         for location, module in self.modules.items():
-            values.append(
-                module.get_steps()
-            )
+            values.append(module.get_steps())
         return values
 
     def get_position_steps(self, position: int) -> List[int]:
         values = []
         for location, module in self.modules.items():
-            values.append(
-                module.get_position(position)
-            )
+            values.append(module.get_position(position))
         return values
 
     def move_to_position(self, positions: Dict[Tuple[int, int], int]) -> List[int]:
@@ -75,14 +70,23 @@ class DisplayController:
         for bus in self.buses.values():
             bus.close()
 
+    def close(self) -> None:
+        self.logger.info("Closing display connection")
+        for bus in self.buses.values():
+            bus.close()
+
     def _update_modules(self, bus: BusController) -> None:
         for bus in self.buses.values():
             for location, controller in bus.modules.items():
                 if location in self.modules:
-                    raise ValueError(f"Location value: {location} already found in display")
+                    raise ValueError(
+                        f"Location value: {location} already found in display"
+                    )
                 self.modules[location] = controller
 
-    def _is_valid_module(self, module_location: Tuple[int, int], throw_error: bool = False) -> bool:
+    def _is_valid_module(
+        self, module_location: Tuple[int, int], throw_error: bool = False
+    ) -> bool:
         result = module_location in self.modules
         if not result and throw_error:
             raise ValueError(f"No module at {module_location} found on this display")
@@ -99,4 +103,3 @@ class DisplayController:
     @property
     def num_modules(self) -> int:
         return len(self.modules)
-    

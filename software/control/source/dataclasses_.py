@@ -5,7 +5,6 @@ import logging
 import struct
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-
 from typing import ClassVar
 
 
@@ -94,10 +93,7 @@ class BaseMessage(ABC):
 
     @property
     def location_map(self) -> Dict[str, int]:
-        return {
-            "row": self.row,
-            "column": self.column
-        }
+        return {"row": self.row, "column": self.column}
 
 
 @dataclass(kw_only=True)
@@ -141,7 +137,6 @@ class IncomingMessage(BaseMessage):
     end_value: int = 5
     latency_ms: Optional[LatencyMs] = None
     _struct_string: ClassVar[str] = "<BBBBBH?BB"
-    
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -188,8 +183,15 @@ class IncomingMessage(BaseMessage):
 
     @staticmethod
     def checksum(
-        data_value: int, command_value: int, row: int, column: int, status: bool, sequence_id: int
+        data_value: int,
+        command_value: int,
+        row: int,
+        column: int,
+        status: bool,
+        sequence_id: int,
     ) -> int:
         low_byte = data_value & 0xFF
         high_byte = (data_value >> 8) & 0xFF
-        return row ^ column ^ command_value ^ low_byte ^ high_byte ^ status ^ sequence_id
+        return (
+            row ^ column ^ command_value ^ low_byte ^ high_byte ^ status ^ sequence_id
+        )

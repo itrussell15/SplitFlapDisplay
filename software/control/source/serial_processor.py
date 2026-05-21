@@ -127,7 +127,7 @@ class SerialProcessor(ABC, SerialControl):
             start_time = time.time()
             self.logger.debug(f"Sequence ID {sequence_id}: {item}")
             try:
-                
+
                 if isinstance(item, BaseMessage):
                     self._send_serial_command(item.encode(sequence_id))
                 else:
@@ -148,7 +148,6 @@ class SerialProcessor(ABC, SerialControl):
             except Exception as e:
                 future.set_exception(e)
                 self.logger.error(str(e))
-            
 
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")
@@ -170,16 +169,16 @@ class SerialProcessor(ABC, SerialControl):
     ) -> None:
         pass
 
-    def _get_latency(self, start_time: float, send_time: float, read_time: float) -> CommunicationTimes:
+    def _get_latency(
+        self, start_time: float, send_time: float, read_time: float
+    ) -> LatencyMs:
         send = (send_time - start_time) * 1e3
         receive = (read_time - send_time) * 1e3
-        return LatencyMs(
-            send=send,
-            receive=receive,
-            total=send + receive
-        )
+        return LatencyMs(send=send, receive=receive, total=send + receive)
 
-    def _collect_stats(self, start_time: float, send_time: float, read_time: float, handle_time: float) -> None:
+    def _collect_stats(
+        self, start_time: float, send_time: float, read_time: float, handle_time: float
+    ) -> None:
         total_time = time.time() - start_time
         total_send_time = send_time - start_time
         total_read_time = read_time - send_time
