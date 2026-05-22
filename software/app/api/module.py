@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from .dependencies import get_display
 from .common import exception_response, package_incoming_message_as_module_response
+from control.source.flaps import Flap
 from app.api.models.common import Location 
 from app.api.models.responses import ModuleResponse
-from app.api.models.requests import StepRequest
+from app.api.models.requests import StepRequest, FlapRequest, PositionRequest
 
 
 router = APIRouter(prefix="/modules", tags=["Module Control"])
@@ -29,10 +30,26 @@ def move_to_module_steps(steps: int, location: Location, display=Depends(get_dis
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)
 
-@router.get("/position/{position}", response_model=ModuleResponse)
-def get_module_position(position: int, location: Location, display=Depends(get_display)):
+@router.post("/flap", response_model=ModuleResponse)
+def move_to_flap(request: FlapRequest, display=Depends(get_display)):
     try:
-        response = display.get_module(*location.as_tuple()).get_position(position)
+        flap = Flap[request.flap.upper()]
+    except KeyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Invalid flap input - {request.flap}",
+        )
+
+    try:
+        response = display.get_module(*request.location.as_tuple()).move_to_position(flap.value)
+    except Exception as e:
+        raise exception_response(e)
+    return package_incoming_message_as_module_response(response)
+
+@router.post("/position", response_model=ModuleResponse)
+def move_to_position(request: PositionRequest, display=Depends(get_display)):
+    try:
+        response = display.get_module(*request.location.as_tuple()).move_to_position(request.position)
     except Exception as e:
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)
@@ -41,6 +58,14 @@ def get_module_position(position: int, location: Location, display=Depends(get_d
 def home_module(location: Location, display=Depends(get_display)):
     try:
         response = display.get_module(*location.as_tuple()).home()
+    except Exception as e:
+        raise exception_response(e)
+    return package_incoming_message_as_module_response(response)
+
+@router.get("/position/{position}", response_model=ModuleResponse)
+def get_module_position(position: int, location: Location, display=Depends(get_display)):
+    try:
+        response = display.get_module(*location.as_tuple()).get_position(position)
     except Exception as e:
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)

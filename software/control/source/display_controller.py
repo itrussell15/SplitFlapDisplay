@@ -30,11 +30,20 @@ class DisplayController:
         for bus in self.buses.values():
             bus.reset_processed_commands()
 
-    def discover(self, row_value: int, column_value: int) -> None:
+    def discover(self, row_value: int, column_value: int) -> List[Tuple[int, int]]:
+        modules = []
         for bus in self.buses.values():
             module_locations = bus.discover(row_value, column_value)
+            modules.extend(module_locations)
             self._update_modules(bus)
-        print(module_locations)
+        return modules            
+
+    def home_all(self) -> None:
+        values = []
+        self.logger.info("Homing all modules")
+        for location, module in self.modules.items():
+            values.append(module.home(position))
+        return values  
 
     def move_all_to_position(self, position: int) -> List[int]:
         values = []
@@ -76,17 +85,8 @@ class DisplayController:
         for bus in self.buses.values():
             bus.close()
 
-    def close(self) -> None:
-        self.logger.info("Closing display connection")
-        for bus in self.buses.values():
-            bus.close()
-
-    def close(self) -> None:
-        self.logger.info("Closing display connection")
-        for bus in self.buses.values():
-            bus.close()
-
     def _update_modules(self, bus: BusController) -> None:
+        self.modules = {}
         for bus in self.buses.values():
             for location, controller in bus.modules.items():
                 if location in self.modules:

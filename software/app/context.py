@@ -12,8 +12,9 @@ from control.source.display_controller import DisplayController
 
 logger = logging.getLogger(__name__)
 PORTS = ["/dev/ttyACM1"]
-NUM_ROWS = 2
-NUM_COLUMNS = 3
+
+ROWS = [0, 2]
+COLUMNS = [0, 3]
 
 
 @asynccontextmanager
@@ -24,7 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     for port in PORTS:
         bus = BusController(port=port, timeout=0.5)
         app.state.display.add_bus_controller(bus)
-    app.state.display.discover(NUM_ROWS, NUM_COLUMNS)
+    app.state.display.discover(ROWS, COLUMNS)
     logger.info(f"App started with {app.state.display.num_modules} modules found")
     
     yield

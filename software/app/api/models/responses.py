@@ -19,3 +19,9 @@ class ModuleResponse(BaseModel):
 class DisplayResponse(BaseModel):
     request_time: str
     data: List[ModuleResponse]
+
+class DiscoverResponse(BaseModel):
+    request_time: str
+    num_modules: int
+    num_buses: int
+    locations: List[Location]
