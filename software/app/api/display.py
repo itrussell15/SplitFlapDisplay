@@ -5,38 +5,30 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import List
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+
 import app.api.models.requests as reqs
 from app.api.dependencies import get_display
 from app.api.models.responses import DisplayResponse
 from control.source.dataclasses_ import IncomingMessage
 from control.source.flaps import Flap
 from control.source.module_controller import ModuleController
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from .common import exception_response, package_incoming_message_as_module_response
 from utils import get_current_timestamp, TIMESTAMP_FORMAT
 
 router = APIRouter(prefix="/display", tags=["Display Control"])
-
 logger = logging.getLogger("DisplayAPI")
-
 
 def package_display_response(
     display_response: List[IncomingMessage],
 ) -> DisplayResponse:
     output = {"request_time": get_current_timestamp(), "data": []}
-    for data in display_response:
-        json_data = asdict(data)
-        json_data["location"] = data.location_map
-        json_data["latency_ms"] = asdict(data.latency_ms)
-        output["data"].append(json_data)
+    for message in display_response:
+        # Package incoming message
+        output["data"].append(
+            package_incoming_message_as_module_response(message)
+        )
     return DisplayResponse(**output)
-
-
-def exception_response(e: Exception) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=f"Error while communicating with display. Error: {str(e)}",
-    )
 
 
 @router.get("/steps", response_model=DisplayResponse)
@@ -62,7 +54,7 @@ def move_all_to_position(position: int, display=Depends(get_display)) -> Dict[st
     try:
         response = display.move_all_to_position(position)
     except Exception as e:
-        raise exception_response(e)
+        raise common.exception_response(e)
     return package_display_response(response)
 
 
@@ -90,6 +82,28 @@ def move_to_positions(
 
 
 @router.post("/flaps", response_model=DisplayResponse)
+def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
+    request_data = {}
+    for request in flaps.module_requests:
+        try:
+            flap = Flap[request.flap.upper()]
+        except KeyError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Flap value '{request.flap}' is not valid",
+            )
+        request_data[request.location.as_tuple()] = flap
+
+    try:
+        response = display.move_to_flaps(request_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error while trying to move to flap: {str(e)}",
+        )
+    return package_display_response(response)
+
+@router.post("/home", response_model=DisplayResponse)
 def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
     request_data = {}
     for request in flaps.module_requests:

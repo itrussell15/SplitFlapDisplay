@@ -18,3 +18,7 @@ class PositionRequest(BaseModel):
 class DisplayPositionRequest(BaseModel):
     request_time: str
     module_requests: List[PositionRequest]
+
+class StepRequest(BaseModel):
+    location: Location
+    step: int

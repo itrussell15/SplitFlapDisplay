@@ -11,9 +11,9 @@ from control.source.display_controller import DisplayController
 
 
 logger = logging.getLogger(__name__)
-PORTS = ["/dev/ttyACM0"]
-NUM_ROWS = 1
-NUM_COLUMNS = 1
+PORTS = ["/dev/ttyACM1"]
+NUM_ROWS = 2
+NUM_COLUMNS = 3
 
 
 @asynccontextmanager
@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"App started with {app.state.display.num_modules} modules found")
     
     yield
+    
     # app teardown
     logger.info("Tearing down app")
     app.state.display.close()

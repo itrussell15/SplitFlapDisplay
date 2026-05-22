@@ -24,7 +24,7 @@ from utils import create_logger
 
 MODULE_IDS = [1, 2, 3, 4, 5]
 SLEEP_TIME_S = 1.0
-PORT = "/dev/ttyACM0"
+PORT = "/dev/ttyACM1"
 
 
 class TestBusController(unittest.TestCase):

@@ -20,6 +20,12 @@ class DisplayController:
         self._update_modules(bus)
         self.logger.info(f"Adding bus at {bus.port}")
 
+    def get_module(self, row: int, column: int) -> ModuleController:
+        location = (row, column)
+        if location not in self.modules:
+            raise ValueError(f"No module found at ({row}, {column})")
+        return self.modules[location]
+
     def reset_processed_commands(self) -> None:
         for bus in self.buses.values():
             bus.reset_processed_commands()

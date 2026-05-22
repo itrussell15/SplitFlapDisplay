@@ -85,7 +85,7 @@ class ModuleController:
         # Move to a stored EEPROM position
         if not self.is_valid_position(position):
             raise ValueError(
-                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+                f"Position value: {position} must be between 0-{NUM_POSITIONS}"
             )
 
         result = self._send_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
@@ -105,7 +105,7 @@ class ModuleController:
     def get_position(self, position: int) -> IncomingMessage:
         if not self.is_valid_position(position):
             raise ValueError(
-                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+                f"Position value: {position} must be between 0-{NUM_POSITIONS}"
             )
         result = self._send_packet(ModuleCommand.GET_POSITION, value=position)
         self._positions_to_steps[position] = result.data_value
