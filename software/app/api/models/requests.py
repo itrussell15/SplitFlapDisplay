@@ -3,22 +3,22 @@ from pydantic import BaseModel
 from .common import Location
 
 
-class FlapRequest(BaseModel):
+class LocationRequest(BaseModel):
     location: Location
+
+class FlapRequest(LocationRequest):
     flap: str
 
 class DisplayFlapRequest(BaseModel):
     request_time: str
     module_requests: List[FlapRequest]
 
-class PositionRequest(BaseModel):
-    location: Location
+class PositionRequest(LocationRequest):
     position: int
 
 class DisplayPositionRequest(BaseModel):
     request_time: str
     module_requests: List[PositionRequest]
 
-class StepRequest(BaseModel):
-    location: Location
+class StepRequest(LocationRequest):
     step: int

@@ -1,4 +1,5 @@
-from typing import List
+from __future__ import annotations
+from typing import Dict, List, Optional
 from pydantic import BaseModel
 from .common import Location
 
@@ -25,3 +26,7 @@ class DiscoverResponse(BaseModel):
     num_modules: int
     num_buses: int
     locations: List[Location]
+
+class PositionResponse(BaseModel):
+    request_time: str
+    positions: Dict[int, int]

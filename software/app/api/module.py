@@ -7,9 +7,9 @@ from .dependencies import get_display
 from .common import exception_response, package_incoming_message_as_module_response
 from control.source.flaps import Flap
 from app.api.models.common import Location 
-from app.api.models.responses import ModuleResponse
-from app.api.models.requests import StepRequest, FlapRequest, PositionRequest
-
+from app.api.models.responses import ModuleResponse, PositionResponse
+from app.api.models.requests import StepRequest, FlapRequest, PositionRequest, LocationRequest
+from utils import get_current_timestamp, TIMESTAMP_FORMAT
 
 router = APIRouter(prefix="/modules", tags=["Module Control"])
 logger = logging.getLogger("DisplayAPI")
@@ -45,6 +45,17 @@ def move_to_flap(request: FlapRequest, display=Depends(get_display)):
     except Exception as e:
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)
+
+@router.get("/position", response_model=PositionResponse)
+def get_all_positions(request: LocationRequest, display=Depends(get_display)):
+    try:
+        response = display.get_module(*request.location.as_tuple()).get_all_positions()
+    except Exception as e:
+        raise exception_response(e)
+    
+    output = {"request_time": get_current_timestamp(), "positions": response}
+    print(output)
+    return output
 
 @router.post("/position", response_model=ModuleResponse)
 def move_to_position(request: PositionRequest, display=Depends(get_display)):
