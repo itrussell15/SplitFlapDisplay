@@ -90,6 +90,13 @@ class TestBusController(unittest.TestCase):
         # self.assertEqual(message.command, ModuleCommand.GET_SPEED)
         # self.assertTrue(message.status)
 
+    def test_get_all_positions(self) -> None:
+        positions = self.modules[self.test_location].get_all_positions()
+        self.assertEqual(len(positions), NUM_POSITIONS)
+        self.assertTrue(self.modules[self.test_location].positions_known)
+        # self.assertEqual(message.command, ModuleCommand.GET_SPEED)
+        # self.assertTrue(message.status)
+
     def test_bad_command(self) -> None:
         with self.assertRaises(FirmwareException):
             message = self.modules[self.test_location]._send_packet(

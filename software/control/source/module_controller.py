@@ -87,7 +87,6 @@ class ModuleController:
             raise ValueError(
                 f"Position value: {position} must be between 0-{NUM_POSITIONS}"
             )
-
         result = self._send_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
         self._current_position = position
         self._current_step = result.data_value
