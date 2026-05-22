@@ -4,9 +4,11 @@
 // License under creative commons: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 $fn=180; // Quality of render
+
 layers = 3;
 layerheight = 0.16;
 fontsize = 28;
+blackmargin = 3;
 
 // USE [F6] to render the flaps
 
@@ -16,24 +18,26 @@ fontsize = 28;
 // Show Preview of all the flaps - NOT FOR PRINTING
 PreviewFlaps();
 
+
+
 // Fonts to use
 fonts = ["Consolas:style=bold", "Arial:style=Narrow Bold"];
 charFont = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
 // 64 Characters you want to use
-chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!@#$&()-+=;:%'\u20AC\"\u2191\u2193\u20BF\u00b0\u263A_.♥[] ";
+chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!@#$&[]-+=:%'\u20AC\"\u2191\u2193\u20BF\u00b0\u263A.♥    ";
 
 // Flap Color layer, to generate as individual colors for each flap background
-flapColor = [0,1,2,3,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1];
+flapColor = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,3,2,1,0];
 
 // Color layer, to generate as individual colors
-charColorLayer = [1,2,3,4,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,3,1,1,2,1,1,1,1,1,1,1,1,1,1,2,1,2,1,3,1,3,1,1,1,3,3,2];
+charColorLayer = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,4,1,4,4,4,1,1,1,1,1,1,1,1,3,2,4,1,4,1,2,1,1,1,1,1];
 
 // Per Character Font Size overwrite
-charSizeOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,0];
+charSizeOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,5,0,0,0,0,0,0,0,0,0,0,0];
 
 // Per Character Y Position overwrite -> default is centered
-charYposOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-3.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,0,9,0,0,0,9,1.5,-12,-12,0,0,0,0];
+charYposOffset = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,-3.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9,0,9,0,0,0,9,1.5,-12,0,0,0,0,0,0];
 
 colors = ["black", "white", "red", "green", "yellow"];
 
@@ -52,6 +56,7 @@ module MakeFlaps(part){
     for ( y = [0 : 5] ){
         for ( x = [0 : 2 : 12] ){
             char = (y*14)+x;
+            if (char>56){
             if (char<64) {
                 if (char==0){
                  translate([17+(x*17),22+(y*43),0])
@@ -62,6 +67,7 @@ module MakeFlaps(part){
                 else {
                  translate([17+(x*17),22+(y*43),0])
                  flap(char-1, char, char+1, part);} 
+            }
             }
         }
     }
@@ -75,9 +81,26 @@ module flapPreview(c1){
          import("flap.dxf");
          
          color(colors[flapColor[c1]])
-         linear_extrude(h=(layers*layerheight))
-         rotate([0,0,180])
-         import("flap.dxf");
+             difference(){
+             linear_extrude(h=(layers*layerheight))
+             rotate([0,0,180])
+             import("flap.dxf");
+
+             translate([0,-21.16+(blackmargin/2),(layerheight*layers)/2])            
+             cube([34,blackmargin,layerheight*layers], center=true);
+         }
+
+         // black margin
+             color(colors[0])
+             translate([0,0,layerheight*2])
+             difference(){
+                linear_extrude(h=(layerheight))
+                 rotate([0,0,180])
+                 import("flap.dxf");
+                 translate([-17,-21.16+blackmargin,0])            
+                 cube([34,21.16-blackmargin,layerheight]);
+         }
+         
          }
          charPreview(c1);
      }
@@ -90,9 +113,30 @@ module flap(c1,c2,c3, part){
      difference(){ 
      union(){
      if (flapColor[c3]==part) {
+         
+         //color(colors[flapColor[c3]])
+         //linear_extrude(h=(layerheight))
+         //import("flap.dxf");
+         
+         if (flapColor[c3] != 0) {
          color(colors[flapColor[c3]])
-         linear_extrude(h=(layerheight))
-         import("flap.dxf");
+         translate([0,0,0])
+             difference(){
+                 linear_extrude(h=(layerheight))
+                 import("flap.dxf");
+                 translate([0,21.16-(blackmargin/2),layerheight/2])            
+                 cube([34,blackmargin,layerheight], center=true);
+                 
+             }
+         }
+         else {
+             color(colors[0])
+             translate([0,0,0])
+             linear_extrude(h=(layerheight))
+             import("flap.dxf");
+         } 
+         
+         
      }
      
      if (part==0){  // Always generate middle layer black
@@ -122,14 +166,55 @@ module flap(c1,c2,c3, part){
       linear_extrude(h=(layerheight))
       rotate([0,0,180])
       import("flap.dxf");
+      
+      
+      //top layer bottom margin
+      color(colors[0])
+             translate([0,0,layerheight*2])
+             difference(){
+                linear_extrude(h=(layerheight))
+                 rotate([0,0,180])
+                 import("flap.dxf");
+                 translate([-17,-21.16+blackmargin,0])            
+                 cube([34,21.16-blackmargin,layerheight]);
+         }
+      
+      //bottom layer bottom margin
+      color(colors[0])
+             translate([0,0,0])
+             difference(){
+                linear_extrude(h=(layerheight))
+                 import("flap.dxf");
+                translate([-17,-21.16+blackmargin,0])            
+                 cube([34,21.16-blackmargin,layerheight]);
+         }
+         
+         
+      
      }
      
      if (flapColor[c2]==part) {
+         if (flapColor[c2] != 0) {
          color(colors[flapColor[c2]])
          translate([0,0,layerheight*2])
-         linear_extrude(h=(layerheight))
-         rotate([0,0,180])
-         import("flap.dxf");
+             difference(){
+                 linear_extrude(h=(layerheight))
+                 rotate([0,0,180])
+                 import("flap.dxf");
+                 translate([0,-21.16+(blackmargin/2),layerheight/2])            
+                 cube([34,blackmargin,layerheight], center=true);
+                 
+             }
+         }
+         else {
+             color(colors[0])
+             translate([0,0,layerheight*2])
+             linear_extrude(h=(layerheight))
+             rotate([0,0,180])
+             import("flap.dxf");
+         } 
+     
+         
      }
      }
      char1(c1);

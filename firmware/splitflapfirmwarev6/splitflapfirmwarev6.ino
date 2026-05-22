@@ -5,7 +5,7 @@
 //               CONFIGURATION
 // ==========================================
 // !!! CHANGE THIS FOR EACH MODULE TODAY !!!
-const uint8_t HARDCODED_ID = 38; 
+const uint8_t HARDCODED_ID = 01; 
 
 const String FLAP_CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;q:%'.,/?*roygbpw";
 
