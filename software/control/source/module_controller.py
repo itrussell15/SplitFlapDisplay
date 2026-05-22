@@ -1,11 +1,16 @@
 import enum
 import logging
 import struct
-from queue import Queue
 from concurrent.futures import Future
+from queue import Queue
 from typing import Any, Optional, Tuple
 
-from .dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage, ModuleErrorCodes
+from .dataclasses_ import (
+    IncomingMessage,
+    ModuleCommand,
+    ModuleErrorCodes,
+    OutgoingMessage,
+)
 
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
@@ -15,6 +20,7 @@ MIN_ROW_VALUE = 0
 MAX_ROW_VALUE = 255
 MIN_COLUMN_VALUE = 0
 MAX_COLUMN_VALUE = 255
+
 
 class FirmwareException(Exception):
     pass
@@ -42,6 +48,10 @@ class ModuleController:
         self._command_queue = None
         self._is_homed: bool = False
         self._current_step: int = 0
+        self._current_position: int = None
+
+        # Have to initialize before calling `get_all_positions` otherwise no positions to request for
+        self._positions_to_steps = {i: None for i in range(NUM_POSITIONS)}
 
     def register_command_queue(self, queue: Queue) -> None:
         if not isinstance(queue, Queue):
@@ -62,10 +72,13 @@ class ModuleController:
         self.logger.info(f"Moving to {step}")
         if not self.is_valid_step(step):
             raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
-        return self._send_packet(ModuleCommand.MOVE_TO_STEP, step)
+        result = self._send_packet(ModuleCommand.MOVE_TO_STEP, step)
+        self._current_step = result.data_value
+        return result
 
     def get_steps(self) -> int:
         result = self._send_packet(ModuleCommand.GET_STEPS)
+        self._current_step = result.data_value
         return result
 
     def move_to_position(self, position: int) -> None:
@@ -74,26 +87,41 @@ class ModuleController:
             raise ValueError(
                 f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
             )
-        return self._send_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
+
+        result = self._send_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
+        self._current_position = position
+        self._current_step = result.data_value
+        return result
 
     def set_position(self, position: int) -> None:
         # Update the motors steps in EEPROM position to current location
         if not self.is_valid_position(position):
             raise ValueError(
-                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+                f"Position value: {position} must be between 0-{NUM_POSITIONS}"
             )
+        # Check if there is already a position at this location
+        return self._send_packet(ModuleCommand.SET_POSITION, value=position)
 
-    def get_position(self, position: int) -> None:
+    def get_position(self, position: int) -> IncomingMessage:
         if not self.is_valid_position(position):
             raise ValueError(
                 f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
             )
-        return self._send_packet(ModuleCommand.GET_POSITION, value=position)
+        result = self._send_packet(ModuleCommand.GET_POSITION, value=position)
+        self._positions_to_steps[position] = result.data_value
+        return result
+
+    def get_all_positions(self) -> Dict[int, int]:
+        for position in self._positions_to_steps:
+            result = self.get_position(position)
+        return self._positions_to_steps
 
     def home(self) -> None:
         self.logger.info(f"Homing")
         output = self._send_packet(ModuleCommand.HOME)
         self.is_homed = True
+        self._current_position = 0
+        self._current_step = 0
         return output
 
     def stop(self) -> None:
@@ -127,31 +155,36 @@ class ModuleController:
             row=self.row, column=self.column, command=command, data_value=value
         )
         self.logger.debug(f"Packet generated for message: {message}")
-        
+
         if self._command_queue is None:
             raise RuntimeError("No command queue registered")
-        
+
         future = Future()
         self._command_queue.put((future, message))
         result = future.result()
         if not result.status:
             self._handle_bad_status(result)
-        
+
         if future.exception() is not None:
             raise e
-        
+
         return future.result()
-        
+
     def _handle_bad_status(self, response: IncomingMessage) -> None:
         try:
             error_code = ModuleErrorCodes[response.data_value]
             self.logger.warning(f"Response failed with error code {error_code}")
             raise FirmwareException(f"Error Code: {error_code}")
         except KeyError:
-            raise FirmwareException(f"Unknown error code returned - {response.data_value}")
+            raise FirmwareException(
+                f"Unknown error code returned - {response.data_value}"
+            )
         except Exception as e:
             self.logger.error(f"Unknown error occured when reading response")
             raise e
+
+    def positions_known(self) -> bool:
+        return None in list(self._positions_to_steps.values())
 
     @property
     def location(self) -> Tuple[int, int]:

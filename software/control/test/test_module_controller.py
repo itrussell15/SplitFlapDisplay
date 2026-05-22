@@ -14,8 +14,9 @@ from source.dataclasses_ import OutgoingMessage, ModuleCommand
 class TestModuleController(unittest.TestCase):
 
     def setUp(self):
-        self.module_id = 1
-        self.controller = ModuleController(self.module_id)
+        self.row = 0
+        self.column = 0
+        self.controller = ModuleController(self.row, self.column)
         queue = Queue()
         self.controller.register_command_queue(queue)
     
@@ -42,8 +43,8 @@ class TestModuleController(unittest.TestCase):
             message = self.controller.move(move_value)
     
     def test_get_position(self):
-        message = self.controller.get_position()
-        self._validate_message(message, ModuleCommand.GET_POSITION, 255)
+        message = self.controller.get_position(10)
+        self._validate_message(message, ModuleCommand.GET_POSITION)
     
     def test_home(self):
         message = self.controller.home()
@@ -96,7 +97,8 @@ class TestModuleController(unittest.TestCase):
         self.assertIsInstance(message, OutgoingMessage)
         self.assertIsInstance(message.command, ModuleCommand)
 
-        self.assertEqual(message.module_id, self.module_id)
+        self.assertEqual(message.row, self.row)
+        self.assertEqual(message.column, self.column)
         self.assertEqual(message.command, command)
         self.assertEqual(message.data_value, data_value)
 

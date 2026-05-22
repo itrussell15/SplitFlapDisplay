@@ -12,8 +12,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from source.bus_controller import BusController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
-from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
-from source.utils import create_logger
+from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException, NUM_POSITIONS
+from utils import create_logger
 from test.mock_components.mock_module_firmware import MockFirmware
 
 MODULE_IDS = [1, 2, 3, 4, 5]
@@ -41,7 +41,7 @@ class TestBusController(unittest.TestCase):
     def setUp(self):
         self.timeout = 0.5
         self.bus.reset_processed_commands()
-    
+
     def tearDown(self):
         time.sleep(0.5)
         self.timeout = 0.5
@@ -76,6 +76,13 @@ class TestBusController(unittest.TestCase):
         self.assertEqual(message.command, ModuleCommand.GET_POSITION)
         self.assertTrue(message.status)
 
+    def test_get_all_positions(self) -> None:
+        positions = self.modules[self.test_location].get_all_positions()
+        self.assertEqual(len(positions), NUM_POSITIONS)
+        self.assertTrue(self.modules[self.test_location].positions_known)
+        # self.assertEqual(message.command, ModuleCommand.GET_SPEED)
+        # self.assertTrue(message.status)
+
     def test_bad_command(self) -> None:
         with self.assertRaises(FirmwareException):
             message = self.modules[self.test_location]._send_packet(ModuleCommand.BAD_COMMAND)
@@ -83,16 +90,16 @@ class TestBusController(unittest.TestCase):
     def test_discover(self) -> None:
         # Test all bad values
         with self.assertRaises(ValueError):
-            self.bus.discover(max_row_value=5, max_column_value=-1)    
+            self.bus.discover([0, 5], [0, -1])
         with self.assertRaises(ValueError):
-            self.bus.discover(max_row_value=-1, max_column_value=5)
+            self.bus.discover([0, -1], [0, 5])
         with self.assertRaises(ValueError):
-            self.bus.discover(max_row_value=500, max_column_value=10)
+            self.bus.discover([0, 500], [0, 10])
         with self.assertRaises(ValueError):
-            self.bus.discover(max_row_value=4, max_column_value=500)
+            self.bus.discover([0, 4], [0, 500])
 
         # Actually search for 1 module
-        self.bus.discover(max_row_value=5, max_column_value=5)
+        self.bus.discover([0, 5], [0, 5])
         self.assertEqual(len(self.bus.modules), 1)
 
     def test_broadcast(self) -> None:
