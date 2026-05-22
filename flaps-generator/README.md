@@ -11,7 +11,7 @@ The script builds a grid of split-flap blanks matching the outline in `flap.dxf`
 <img src=examples/openscad_preview_example.png width=300>
 
 You control:
-
+- **`blackmargin`** - Control bottom of the flap black margin, when flap is in different color. 
 - **`fonts`** — list of OpenSCAD font strings (e.g. `Consolas:style=Bold`). Any style your system has installed works the same way as a single `text()` `font=` argument.
 - **`charFont`** — **64 integers**, one per character index in **`chars`**. Each value picks which entry in **`fonts`** to use for that glyph (e.g. `0` → first font, `1` → second).
 - **`fontsize`** — base letter height passed to OpenSCAD `text()` on each flap face
@@ -38,5 +38,12 @@ At the top of `flaps.scad`, **`MakeFlaps(99)`** produces the flap bodies with le
 Example in Bambu Studio (Preview): one grouped object with body + inlay STLs, each mapped to a filament slot.
 
 ![Bambu Studio: grouped flap body and inlay STLs with filament slots](examples/bambu_screenshot_example.png)
+
+## Bonus
+
+Added a flaps holding case. See flaps_holding_case.stl and openscad file (in case you want to customize)
+
+<img src=examples/holding_case.png width=300>
+
 
 License for this generator: see comments in `flaps.scad` (Creative Commons BY-NC-SA 4.0).
