@@ -11,10 +11,10 @@ from control.source.display_controller import DisplayController
 
 
 logger = logging.getLogger(__name__)
-PORTS = ["/dev/ttyACM1"]
+PORTS = ["/dev/ttyACM0"]
 
-ROWS = [0, 2]
-COLUMNS = [0, 3]
+ROWS = [1, 3]
+COLUMNS = [1, 3]
 
 
 @asynccontextmanager

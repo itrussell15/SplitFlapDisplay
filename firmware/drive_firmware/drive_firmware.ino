@@ -84,8 +84,8 @@ void setup() {
   Serial.begin(BAUDRATE);
 
   // Pull from EEPROM;
-  MODULE_ROW = getModuleRow();
-  MODULE_COLUMN = getModuleColumn();
+  MODULE_ROW = 1;
+  MODULE_COLUMN = 1;
   
   pinMode(LED_BUILTIN, OUTPUT);
 

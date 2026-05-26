@@ -24,7 +24,7 @@ from utils import create_logger
 
 MODULE_IDS = [1, 2, 3, 4, 5]
 SLEEP_TIME_S = 1.0
-PORT = "/dev/ttyACM1"
+PORT = "/dev/ttyACM0"
 
 
 class TestBusController(unittest.TestCase):
@@ -33,8 +33,8 @@ class TestBusController(unittest.TestCase):
     def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
 
-        cls.ROW = 0
-        cls.COLUMN = 0
+        cls.ROW = 1
+        cls.COLUMN = 1
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
@@ -115,7 +115,7 @@ class TestBusController(unittest.TestCase):
             self.bus.discover([0, 4], [0, 500])
 
         # Actually search for 1 module
-        self.bus.discover([0, 5], [0, 5])
+        self.bus.discover([1, 3], [1, 3], 1.0)
         self.assertEqual(len(self.bus.modules), 1)
 
     def test_broadcast(self) -> None:

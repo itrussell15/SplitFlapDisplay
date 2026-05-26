@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Split-Flap Display Controller</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: #2d2d2d;
+            --flap-bg: #0a0a0a;
+            --flap-text: #ffffff;
+            --accent-color: #00adb5;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg-color);
+            color: #eeeeee;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            color: var(--accent-color);
+            letter-spacing: 2px;
+        }
+
+        .container {
+            background-color: var(--panel-bg);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            max-width: 100%;
+        }
+
+        /* 3 Rows x 15 Columns Grid Structure */
+        .display-grid {
+            display: grid;
+            grid-template-rows: repeat(3, 1fr);
+            grid-template-columns: repeat(15, 1fr);
+            gap: 6px;
+            background-color: #151515;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        /* Individual Flap Box Style mimicking hardware split-flaps */
+        .flap-cell {
+            width: 40px;
+            height: 60px;
+            background-color: var(--flap-bg);
+            color: var(--flap-text);
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 60px;
+            border: 1px solid #333;
+            border-radius: 4px;
+            text-transform: uppercase;
+            outline: none;
+            caret-color: var(--accent-color);
+            transition: all 0.1s ease;
+            
+            /* Horizontal split line effect across the cards */
+            background-image: linear-gradient(to bottom, rgba(255,255,255,0.03) 49%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0) 51%);
+        }
+
+        .flap-cell:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 8px rgba(0, 173, 181, 0.6);
+        }
+
+        /* Optional Special Classes for Color Blocks/States */
+        .flap-cell.red-state { background-color: #8b0000; }
+        .flap-cell.green-state { background-color: #006400; }
+        .flap-cell.yellow-state { background-color: #8b8000; color: #000; }
+
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        button {
+            font-family: inherit;
+            background-color: var(--accent-color);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #007c82;
+        }
+
+        button.secondary {
+            background-color: #555;
+        }
+
+        button.secondary:hover {
+            background-color: #444;
+        }
