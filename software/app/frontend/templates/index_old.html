@@ -81,7 +81,6 @@
             border-radius: 4px;
             position: relative;
             display: flex;
-            max-width: 100px;
             flex-direction: column;
             overflow: hidden;
             border: 1px solid #000;
@@ -109,7 +108,7 @@
         }
 
         .flap-module span {
-            font-size: 8vw; /* Proportional scaling text size */
+            font-size: 2vw; /* Proportional scaling text size */
             font-weight: bold;
             font-family: Courier, monospace;
             color: var(--text-color);
@@ -142,41 +141,6 @@
             outline: 2px solid var(--accent-color);
             box-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
         }
-
-        /* Control Panel Buttons */
-        .controls {
-            margin-top: 25px;
-            display: flex;
-            gap: 15px;
-        }
-
-        button {
-            padding: 12px 24px;
-            font-size: 16px;
-            font-weight: 600;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .btn-submit {
-            background-color: #00ffcc;
-            color: #121212;
-        }
-
-        .btn-submit:hover {
-            background-color: #00ccaa;
-        }
-
-        .btn-clear {
-            background-color: #444444;
-            color: #ffffff;
-        }
-
-        .btn-clear:hover {
-            background-color: #555555;
-        }
     </style>
 </head>
 <body>
@@ -190,10 +154,6 @@
     </header>
 
     <div id="preview-grid"></div>
-    <div class="controls">
-        <button class="btn-clear" onclick="clearBoard()">Clear All</button>
-        <button class="btn-submit" onclick="submitBoard()">Update Display</button>
-    </div>
 
     <script>
         let gridRows = 0;
@@ -259,16 +219,6 @@
             }
         }
 
-        function submitBoard(){
-            const inputs = document.querySelectorAll('.flap-input');
-            input.addEventListener('input', (e) => {
-                const val = e.target.value.toUpperCase() || ' ';
-                const row = parseInt(e.target.dataset.row);
-                const col = parseInt(e.target.dataset.col);
-                sendFlapUpdate(row, col, val);
-            });
-        }
-
         // Setup individual cell input loops and keyboard focus controls
         function setupInputEventListeners() {
             const inputs = document.querySelectorAll('.flap-input');
@@ -282,8 +232,8 @@
                     // Update corresponding display modules instantly
                     updateLocalFlapUI(row, col, val);
 
-                    // // Push value payload to back-end controllers
-                    // sendFlapUpdate(row, col, val);
+                    // Push value payload to back-end controllers
+                    sendFlapUpdate(row, col, val);
 
                     // Auto-advance structural focus to next chronological box
                     if (e.target.value.length > 0) {
@@ -297,7 +247,7 @@
                 });
             });
         }
-        
+
         // Direct visual mutation helper for updating separate half components
         function updateLocalFlapUI(row, col, character) {
             const module = document.getElementById(`flap-${row}-${col}`);

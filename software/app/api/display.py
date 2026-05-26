@@ -36,6 +36,16 @@ def package_location(location: Tuple[int, int]) -> Dict[int, int]:
         "column": location[1],
     }
 
+@router.get("/info")
+def get_display_info(display=Depends(get_display)):
+    rows, columns = display.get_rows_and_columns()
+    return {
+        "num_modules": display.num_modules,
+        "num_buses": display.num_buses,
+        "rows": rows, 
+        "columns": columns
+    }
+
 @router.post("/discover", response_model=DiscoverResponse)
 def discover(display=Depends(get_display)):
     try:
@@ -103,6 +113,10 @@ def move_to_positions(
             detail=f"Error while trying to move to position: {str(e)}",
         )
     return package_display_response(response)
+
+@router.get("/flap")
+def get_flaps():
+    return {flap.name: flap.value for flap in Flap}
 
 @router.post("/flap", response_model=DisplayResponse)
 def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):

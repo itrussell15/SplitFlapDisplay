@@ -80,6 +80,15 @@ class DisplayController:
             values.append(response)
         return values
 
+    def get_rows_and_columns(self) -> Tuple[int, int]:
+        max_row = -1
+        max_col = -1
+        for location in self.modules:
+            row, col = location
+            max_row = max([row, max_row])
+            max_col = max([col, max_col])
+        return max_row, max_col
+
     def close(self) -> None:
         self.logger.info("Closing display connection")
         for bus in self.buses.values():

@@ -30,3 +30,7 @@ class DiscoverResponse(BaseModel):
 class PositionResponse(BaseModel):
     request_time: str
     positions: Dict[int, int]
+
+class DisplayInfoResponse(BaseModel):
+    request_time: str
+    data: List[ModuleResponse]

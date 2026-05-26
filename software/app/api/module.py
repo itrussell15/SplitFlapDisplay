@@ -54,11 +54,11 @@ def get_all_positions(request: LocationRequest, display=Depends(get_display)):
         raise exception_response(e)
     
     output = {"request_time": get_current_timestamp(), "positions": response}
-    print(output)
     return output
 
 @router.post("/position", response_model=ModuleResponse)
 def move_to_position(request: PositionRequest, display=Depends(get_display)):
+    print(request)
     try:
         response = display.get_module(*request.location.as_tuple()).move_to_position(request.position)
     except Exception as e:
