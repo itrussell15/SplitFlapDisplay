@@ -1,3 +1,4 @@
+#include <SoftwareSerial.h>
 #include <EEPROM.h>
 #include "Stepper.h"
 
@@ -10,11 +11,14 @@ const int RS485_TX = 1;
 const int RS485_DE = 2;
 const int SERIAL_DELAY_MS = 50;
 
+SoftwareSerial rs485(RS485_RX, RS485_TX);
+
 const int HALL_PIN = 4;
 const int IN4 = 6;
 const int IN3 = 7;
 const int IN2 = 8;
 const int IN1 = 9;
+const int STATUS_LED_PIN = PIN_PA3;
 // ##########################
 
 const int INCOMING_SIZE = 9;
@@ -80,14 +84,13 @@ int targetValue;
 
 void setup() {
 
-  // TODO: Convert to RS485
-  Serial.begin(BAUDRATE);
+  rs485.begin(BAUDRATE);
 
   // Pull from EEPROM;
   MODULE_ROW = getModuleRow();
   MODULE_COLUMN = getModuleColumn();
   
-  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(STATUS_LED_PIN, OUTPUT);
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
@@ -101,12 +104,12 @@ void loop() {
     delay(2);
   }
   
-  if (Serial.available() >= INCOMING_SIZE) {
-    if (Serial.peek() == INCOMING_START_BYTE) {
+  if (rs485.available() >= INCOMING_SIZE) {
+    if (rs485.peek() == INCOMING_START_BYTE) {
       byte incoming_buffer[INCOMING_SIZE];
 
       // TODO: Try to read the IncomingMessage struct
-      Serial.readBytes(incoming_buffer, INCOMING_SIZE);
+      rs485.readBytes(incoming_buffer, INCOMING_SIZE);
       
       // Verify End Byte and Module ID
       if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE && isThisModule(incoming_buffer[1], incoming_buffer[2])) {
@@ -129,10 +132,10 @@ void loop() {
 //        doMove(message, data_value);
       }
     } else {
-      Serial.read(); // Discard trash
-      digitalWrite(LED_BUILTIN, HIGH);
+      rs485.read(); // Discard trash
+      digitalWrite(STATUS_LED_PIN, HIGH);
       delay(100);
-      digitalWrite(LED_BUILTIN, LOW);   
+      digitalWrite(STATUS_LED_PIN, LOW);   
     }
   }
 }
@@ -237,14 +240,17 @@ OutgoingMessage doMove(OutgoingMessage message, int16_t data_value)
 }
 
 void SendSerialResponse(OutgoingMessage message) {
-  digitalWrite(RS485_DE, HIGH); // Start transmission
   message.start_val = OUTGOING_START_BYTE;
   message.checksum = calculateOutgoingChecksum(message);
   message.end_val = OUTGOING_END_BYTE;
-  Serial.write((byte*)&message, sizeof(message));
-  Serial.flush();
-  delay(SERIAL_DELAY_MS);
-  digitalWrite(RS485_DE, LOW); // End transmission
+
+  delay(50);                    // Give host USB dongle time to switch to receive mode
+  digitalWrite(RS485_DE, HIGH);
+  delay(10);                    // Let RS485 transceiver stabilize before sending
+
+  rs485.write((byte*)&message, sizeof(message));
+  delay(100);
+  digitalWrite(RS485_DE, LOW);
 }
 
 bool validateChecksum(byte* buffer) {
