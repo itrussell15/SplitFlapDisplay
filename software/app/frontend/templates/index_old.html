@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Split-Flap Display Controller</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: #111111;
+            --flap-bg: #222222;
+            --text-color: #ffffff;
+            --border-color: #333333;
+            --accent-color: #00ff66;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 24px;
+            letter-spacing: 1px;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #ff3b30;
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+        }
+
+        .status-dot.connected {
+            background-color: var(--accent-color);
+            box-shadow: 0 0 8px var(--accent-color);
+        }
+
+        /* The Main Viewport Grid Wrapper */
+        #preview-grid {
+            display: grid;
+            gap: 6px;
+            padding: 15px;
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 1200px;
+            box-sizing: border-box;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* Individual Flap Module Styling */
+        .flap-module {
+            background-color: var(--flap-bg);
+            aspect-ratio: 2 / 3;
+            border-radius: 4px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #000;
+        }
+
+        /* Split Flap Visual Cuts */
+        .flap-top, .flap-bottom {
+            height: 50%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #2a2a2a 0%, #1e1e1e 100%);
+        }
+
+        .flap-top {
+            border-bottom: 1px solid #111;
+            align-items: flex-end;
+        }
+
+        .flap-bottom {
+            border-top: 1px solid #333;
+            align-items: flex-start;
+        }
+
+        .flap-module span {
+            font-size: 2vw; /* Proportional scaling text size */
+            font-weight: bold;
+            font-family: Courier, monospace;
+            color: var(--text-color);
+            position: absolute;
+            line-height: 0;
+        }
+
+        .flap-top span {
+            bottom: -1px;
+        }
+
+        .flap-bottom span {
+            top: -1px;
+        }
+
+        /* Hidden functional input overlay mapping across the grid */
+        .flap-input {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0; /* Fully hidden text inputs layered right over the visual card */
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        /* Target focus state indicator ring */
+        .flap-module:focus-within {
+            outline: 2px solid var(--accent-color);
+            box-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Split-Flap Matrix Controller</h1>
+        <div class="status-container">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">Connecting...</span>
+        </div>
+    </header>
+
+    <div id="preview-grid"></div>
+
+    <script>
+        let gridRows = 0;
+        let gridCols = 0;
+
+        // Initialize display configuration dynamically from backend parameters
+        async function initializeDynamicDisplay() {
+            const statusDot = document.getElementById('status-dot');
+            const statusText = document.getElementById('status-text');
+            const previewGrid = document.getElementById('preview-grid');
+
+            try {
+                statusText.innerText = "Fetching grid parameters...";
+                
+                // Query configuration endpoint
+                const response = await fetch('/api/v1/display/info');
+                if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                
+                const config = await response.json();
+                gridRows = config.rows;
+                gridCols = config.columns;
+
+                console.log(`Initializing HTML Slices for a ${gridRows}x${gridCols} grid...`);
+
+                // Clear layout placeholders
+                previewGrid.innerHTML = '';
+
+                // Dynamically transform CSS variables based on parsed bounds
+                previewGrid.style.gridTemplateRows = `repeat(${gridRows}, 1fr)`;
+                previewGrid.style.gridTemplateColumns = `repeat(${gridCols}, 1fr)`;
+
+                // Loop layout dimensions to establish independent tracking modules
+                for (let r = 1; r < gridRows + 1; r++) {
+                    for (let c = 1; c < gridCols + 1; c++) {
+                        const flapModule = document.createElement('div');
+                        flapModule.className = 'flap-module';
+                        flapModule.id = `flap-${r}-${c}`;
+
+                        // Inner physical geometry rendering splits
+                        flapModule.innerHTML = `
+                            <div class="flap-top"><span class="char-view">&nbsp;</span></div>
+                            <div class="flap-bottom"><span class="char-view">&nbsp;</span></div>
+                            <input type="text" class="flap-input" maxlength="1" 
+                                   data-row="${r}" data-col="${c}" autocomplete="off">
+                        `;
+
+                        previewGrid.appendChild(flapModule);
+                    }
+                }
+
+                // Update system statuses
+                statusDot.className = 'status-dot connected';
+                statusText.innerText = `Connected (${gridRows}x${gridCols} Grid Ready)`;
+
+                // Bind functional input events for auto-advancing keyboard mechanics
+                setupInputEventListeners();
+
+            } catch (error) {
+                console.error("Failed to dynamically initialize HTML slices:", error);
+                statusDot.className = 'status-dot';
+                statusText.innerText = "Connection Failed. Retrying in 5s...";
+                setTimeout(initializeDynamicDisplay, 5000);
+            }
+        }
+
+        // Setup individual cell input loops and keyboard focus controls
+        function setupInputEventListeners() {
+            const inputs = document.querySelectorAll('.flap-input');
+
+            inputs.forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const val = e.target.value.toUpperCase() || ' ';
+                    const row = parseInt(e.target.dataset.row);
+                    const col = parseInt(e.target.dataset.col);
+
+                    // Update corresponding display modules instantly
+                    updateLocalFlapUI(row, col, val);
+
+                    // Push value payload to back-end controllers
+                    sendFlapUpdate(row, col, val);
+
+                    // Auto-advance structural focus to next chronological box
+                    if (e.target.value.length > 0) {
+                        moveToNextCell(row, col);
+                    }
+                });
+
+                // Clear focus transitions or allow manual overwrites on select
+                input.addEventListener('focus', (e) => {
+                    e.target.select();
+                });
+            });
+        }
+
+        // Direct visual mutation helper for updating separate half components
+        function updateLocalFlapUI(row, col, character) {
+            const module = document.getElementById(`flap-${row}-${col}`);
+            if (!module) return;
+
+            const finalChar = character === ' ' ? '&nbsp;' : character;
+            const viewSpans = module.querySelectorAll('.char-view');
+            viewSpans.forEach(span => {
+                span.innerHTML = finalChar;
+            });
+        }
+
+        // Handle navigation index stepping across changing dimensional bounds
+        function moveToNextCell(currentRow, currentCol) {
+            let nextRow = currentRow;
+            let nextCol = currentCol + 1;
+
+            // If we fall off the line row width boundary, wrap down to next row tracking position
+            if (nextCol >= gridCols) {
+                nextCol = 0;
+                nextRow++;
+            }
+
+            // Target the newly selected module indices
+            const nextInput = document.querySelector(`.flap-input[data-row="${nextRow}"][data-col="${nextCol}"]`);
+            if (nextInput) {
+                nextInput.focus();
+            }
+        }
+
+        // API interaction bridge running asynchronous updates to FastAPI backends
+        async function sendFlapUpdate(row, col, character) {
+            try {
+                await fetch('/api/v1/modules/flap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        location: {
+                            row: row,
+                            column: col,
+                        },
+                        flap: character
+                    })
+                });
+            } catch (err) {
+                console.error(`Failed pushing coordinates [${row},${col}] payload:`, err);
+            }
+        }
+
+        // Boot system when DOM elements clear safely
+        document.addEventListener('DOMContentLoaded', initializeDynamicDisplay);
+    </script>
+</body>
+</html>

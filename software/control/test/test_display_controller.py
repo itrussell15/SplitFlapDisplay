@@ -14,7 +14,7 @@ from source.bus_controller import BusController
 from source.display_controller import DisplayController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
 from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
-from source.utils import create_logger
+from utils import create_logger
 
 SLEEP_TIME_S = 1.0
 PORT = "/dev/ttyACM0"

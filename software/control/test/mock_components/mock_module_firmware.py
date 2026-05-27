@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from source.dataclasses_ import IncomingMessage, OutgoingMessage
 from source.module_controller import ModuleCommand, ModuleController
 from source.serial_processor import SerialProcessor
-from source.utils import create_logger
+from utils import create_logger
 
 
 EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(row=0, column=0, command=ModuleCommand.HOME)

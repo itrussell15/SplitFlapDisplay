@@ -7,7 +7,7 @@ from typing import Optional
 
 import serial
 
-from .dataclasses_ import BaseMessage
+from .dataclasses_ import BaseMessage, LatencyMs
 
 
 class SerialControl:
@@ -137,17 +137,15 @@ class SerialProcessor(ABC, SerialControl):
                 read_time = time.time()
                 self.logger.debug(f"Response: {response}")
                 result = self._handle_response(response, item, sequence_id)
-                handle_time = time.time()
+                result.latency_ms = self._get_latency(start_time, send_time, read_time)
                 future.set_result(result)
                 self.queue.task_done()
                 sequence_id += 1
                 if sequence_id > 255:
                     sequence_id = 0
-                self._collect_stats(start_time, send_time, read_time, handle_time)
             except Exception as e:
                 future.set_exception(e)
                 self.logger.error(str(e))
-            
 
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")
@@ -169,14 +167,12 @@ class SerialProcessor(ABC, SerialControl):
     ) -> None:
         pass
 
-    def _collect_stats(self, start_time: float, send_time: float, read_time: float, handle_time: float) -> None:
-        total_time = time.time() - start_time
-        total_send_time = send_time - start_time
-        total_read_time = read_time - send_time
-        total_handle_time = handle_time - read_time
-        self.logger.debug(
-            f"Processing Time: {total_time:.4f} - Send: {total_send_time:.4f} - Read: {total_read_time:.4f} - Handle: {total_handle_time:.4f}"
-        )
+    def _get_latency(
+        self, start_time: float, send_time: float, read_time: float
+    ) -> LatencyMs:
+        send = (send_time - start_time) * 1e3
+        receive = (read_time - send_time) * 1e3
+        return LatencyMs(send=send, receive=receive, total=send + receive)
 
     def close(self) -> None:
         if not self.queue.empty():

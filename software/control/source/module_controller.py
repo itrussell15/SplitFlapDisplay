@@ -85,9 +85,8 @@ class ModuleController:
         # Move to a stored EEPROM position
         if not self.is_valid_position(position):
             raise ValueError(
-                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+                f"Position value: {position} must be between 0-{NUM_POSITIONS}"
             )
-
         result = self._send_packet(ModuleCommand.MOVE_TO_POSITION, value=position)
         self._current_position = position
         self._current_step = result.data_value
@@ -105,7 +104,7 @@ class ModuleController:
     def get_position(self, position: int) -> IncomingMessage:
         if not self.is_valid_position(position):
             raise ValueError(
-                f"Step value: {position} must be between 0-{MOTOR_RESOLUTION}"
+                f"Position value: {position} must be between 0-{NUM_POSITIONS}"
             )
         result = self._send_packet(ModuleCommand.GET_POSITION, value=position)
         self._positions_to_steps[position] = result.data_value
@@ -139,13 +138,16 @@ class ModuleController:
     def is_moving(self) -> None:
         return self._send_packet(ModuleCommand.IS_MOVING)
 
-    def is_valid_position(self, position_id: int) -> bool:
+    @staticmethod
+    def is_valid_position(position_id: int) -> bool:
         return position_id >= 0 and position_id <= NUM_POSITIONS
 
-    def is_valid_step(self, step: int) -> bool:
+    @staticmethod
+    def is_valid_step(step: int) -> bool:
         return step >= 0 and step <= MOTOR_RESOLUTION
 
-    def is_valid_speed(self, speed: int) -> bool:
+    @staticmethod
+    def is_valid_speed(speed: int) -> bool:
         return speed > 0 and speed <= MAX_SPEED
 
     def _send_packet(
@@ -162,6 +164,8 @@ class ModuleController:
         future = Future()
         self._command_queue.put((future, message))
         result = future.result()
+        if result is None:
+            raise ConnectionError(f"No response after sending message: {message}")
         if not result.status:
             self._handle_bad_status(result)
 

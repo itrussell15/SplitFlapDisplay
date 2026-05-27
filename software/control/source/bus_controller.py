@@ -59,20 +59,17 @@ class BusController(SerialProcessor):
 
         self.processor = self.start_processor()
 
-    def discover(self, max_row_value: int, max_column_value: int, timeout: float = 0.05) -> None:
+    def discover(self, row_range: List[int], column_range: List[int], timeout: float = 0.05) -> None:
         tmp = self.timeout
         self.timeout = timeout
 
-        if max_row_value < 0 or max_row_value > MAX_ROW_VALUE:
-            raise ValueError(f"Discover row value must be betweeen 0-{MAX_ROW_VALUE} - Not {max_row_value}")
-
-        if max_column_value < 0 or max_column_value > MAX_COLUMN_VALUE:
-            raise ValueError(f"Discover column value must be betweeen 0-{MAX_COLUMN_VALUE} - Not {max_column_value}") 
+        self._ensure_valid_discover_args(row_range)
+        self._ensure_valid_discover_args(column_range)
 
         start_time = time.time()
         self.modules = {}
-        for row in range(0, max_row_value):
-            for col in range(0, max_column_value):
+        for row in range(row_range[0], row_range[1]):
+            for col in range(column_range[0], column_range[1]):
                 self.logger.debug(f"Searching for module {(row, col)}")
                 command = OutgoingMessage(
                     row=row, column=col, command=ModuleCommand.PING
@@ -91,6 +88,7 @@ class BusController(SerialProcessor):
         self.timeout = tmp
         self.logger.info(f"{len(self.modules)} modules found in {time.time() - start_time:.2f}s!")
         self.logger.info(f"Module Locations: {self.module_locations}")
+        return self.module_locations
 
     def broadcast(self, command: ModuleCommand, data_value: int = 0) -> None:
         # Send message to ID (0, 0) which all modules will read, but not respond to so we don't overwhelm the bus.
@@ -161,7 +159,7 @@ class BusController(SerialProcessor):
             response.status,
             response.sequence_id
         )
-
+        
         if (
             response.command != ModuleCommand.PING
             and response.location not in self.module_locations
@@ -174,7 +172,18 @@ class BusController(SerialProcessor):
 
         self._processed_commands += 1
         return response
-        
+    
+    def _ensure_valid_discover_args(self, val_range: List[int]) -> None:
+        if len(val_range) != 2:
+            raise ValueError(f"Range input was: {val_range}, should be [MIN_VAL, MAX_VAL]")
+        for val in val_range:
+            if val < 0 or val > 255:
+                raise ValueError(f"Discover value must be betweeen 0-{MAX_ROW_VALUE} - Not {val}")
+            
+        if not val_range[0] < val_range[1]:
+            raise ValueError(f"Range is not increasing - {val_range}")
+
+
     @property
     def processed_commands(self) -> int:
         return self._processed_commands
