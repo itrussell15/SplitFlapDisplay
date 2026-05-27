@@ -1,8 +1,6 @@
+#include <SoftwareSerial.h>
 #include <EEPROM.h>
 #include "Stepper.h"
-
-// TODO: Use this library for stepper control?
-// https://github.com/Stan-Reifel/TinyStepper_28BYJ_48
 
 // ##### PIN DEFINITIONS #####
 const int RS485_RX = 3;
@@ -10,11 +8,14 @@ const int RS485_TX = 1;
 const int RS485_DE = 2;
 const int SERIAL_DELAY_MS = 50;
 
+SoftwareSerial rs485(RS485_RX, RS485_TX);
+
 const int HALL_PIN = 4;
 const int IN4 = 6;
 const int IN3 = 7;
 const int IN2 = 8;
 const int IN1 = 9;
+const int STATUS_LED_PIN = PIN_PA3;
 // ##########################
 
 const int INCOMING_SIZE = 9;
@@ -80,18 +81,21 @@ int targetValue;
 
 void setup() {
 
-  // TODO: Convert to RS485
-  Serial.begin(BAUDRATE);
+  rs485.begin(BAUDRATE);
 
-  // Pull from EEPROM;
   MODULE_ROW = 1;
   MODULE_COLUMN = 1;
-  
-  pinMode(LED_BUILTIN, OUTPUT);
+
+  pinMode(STATUS_LED_PIN, OUTPUT);
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
   digitalWrite(RS485_DE, LOW); 
+
+  for(int i=0; i<5; i++) {
+    digitalWrite(STATUS_LED_PIN, HIGH); delay(100);
+    digitalWrite(STATUS_LED_PIN, LOW);  delay(100);
+  }
 }
 
 void loop() {
@@ -101,12 +105,12 @@ void loop() {
     delay(2);
   }
   
-  if (Serial.available() >= INCOMING_SIZE) {
-    if (Serial.peek() == INCOMING_START_BYTE) {
+  if (rs485.available() >= INCOMING_SIZE) {
+    if (rs485.peek() == INCOMING_START_BYTE) {
       byte incoming_buffer[INCOMING_SIZE];
 
       // TODO: Try to read the IncomingMessage struct
-      Serial.readBytes(incoming_buffer, INCOMING_SIZE);
+      rs485.readBytes(incoming_buffer, INCOMING_SIZE);
       
       // Verify End Byte and Module ID
       if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE && isThisModule(incoming_buffer[1], incoming_buffer[2])) {
@@ -129,10 +133,10 @@ void loop() {
 //        doMove(message, data_value);
       }
     } else {
-      Serial.read(); // Discard trash
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(100);
-      digitalWrite(LED_BUILTIN, LOW);   
+      rs485.read(); // Discard trash
+//      digitalWrite(STATUS_LED_PIN, HIGH);
+//      delay(10);
+//      digitalWrite(STATUS_LED_PIN, LOW);   
     }
   }
 }
@@ -221,30 +225,35 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
   return message;
 }
 
-OutgoingMessage doMove(OutgoingMessage message, int16_t data_value)
-{
-  int step_value;
-  Command command = (Command)message.command_id;
-  switch (command) {
-    case Command::CMD_MOVE_TO_POSITION:
-      step_value = getStepperPosition(data_value);
-      motor.moveToStep(step_value);
-      break;
-    case Command::CMD_MOVE_TO_STEP:
-      motor.moveToStep(data_value);
-      break;
-  }
-}
+// OutgoingMessage doMove(OutgoingMessage message, int16_t data_value)
+// {
+//   int step_value;
+//   Command command = (Command)message.command_id;
+//   switch (command) {
+//     case Command::CMD_MOVE_TO_POSITION:
+//       step_value = getStepperPosition(data_value);
+//       motor.moveToStep(step_value);
+//       break;
+//     case Command::CMD_MOVE_TO_STEP:
+//       motor.moveToStep(data_value);
+//       break;
+//   }
+// }
 
 void SendSerialResponse(OutgoingMessage message) {
-  digitalWrite(RS485_DE, HIGH); // Start transmission
   message.start_val = OUTGOING_START_BYTE;
   message.checksum = calculateOutgoingChecksum(message);
   message.end_val = OUTGOING_END_BYTE;
-  Serial.write((byte*)&message, sizeof(message));
-  Serial.flush();
-  delay(SERIAL_DELAY_MS);
-  digitalWrite(RS485_DE, LOW); // End transmission
+
+  digitalWrite(STATUS_LED_PIN, HIGH);
+  delay(25);                    // Give host USB dongle time to switch to receive mode
+  digitalWrite(RS485_DE, HIGH);
+  delay(10);                    // Let RS485 transceiver stabilize before sending
+
+  rs485.write((byte*)&message, sizeof(message));
+  delay(35);
+  digitalWrite(RS485_DE, LOW);
+  digitalWrite(STATUS_LED_PIN, LOW);
 }
 
 bool validateChecksum(byte* buffer) {
