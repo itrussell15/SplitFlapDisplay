@@ -20,8 +20,8 @@ app = FastAPI(lifespan=lifespan)
 
 base_dir = os.path.join(os.getcwd(), "app")
 
+app.include_router(frontend.router)
 app.include_router(base.router, prefix=f"/api")
-app.include_router(frontend.router, prefix=f"/frontend")
 app.include_router(display.router, prefix=f"/api/{API_VERSION}")
 app.include_router(module.router, prefix=f"/api/{API_VERSION}")
 app.mount("/", StaticFiles(directory=os.path.join(base_dir, "frontend"), html=True), name="frontend")
