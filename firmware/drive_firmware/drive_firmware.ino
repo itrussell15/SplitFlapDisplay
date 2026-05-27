@@ -65,10 +65,11 @@ enum Command {
   CMD_GET_SPEED = 6,
   CMD_SET_SPEED = 7,
   CMD_GET_STEPS = 8,
-  CMD_MOVE_TO_STEP = 9
-  CMD_SET_STEP_TARGET = 10;
-  CMD_SET_POSITION_TARGET = 11;
-  CMD_MOVE_TO_TARGET = 12;
+  CMD_MOVE_TO_STEP = 9,
+  CMD_SET_STEP_TARGET = 10,
+  CMD_SET_POSITION_TARGET = 11,
+  CMD_MOVE_TO_TARGET = 12,
+  CMD_HALL_EFFECT_STATUS = 13
 };
 
 uint8_t MODULE_ROW;
@@ -76,11 +77,16 @@ uint8_t MODULE_COLUMN;
 const int BAUDRATE = 9600;
 
 // ##### MOTOR VALUES #####
+// Locating
 const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
 int targetStep;
 int cachedTargetStep;
+
+// Timing
+unsigned long previousStepMicros = 0;
+const unsigned long STEP_INTERVAL_MICROS = 2000;
 // ########################
 
 void setup() {
@@ -100,14 +106,14 @@ void setup() {
     digitalWrite(STATUS_LED_PIN, HIGH); delay(100);
     digitalWrite(STATUS_LED_PIN, LOW);  delay(100);
   }
+  previousStepMicros = micros();
 }
 
 void loop() {
-
-  if (targetStep != motor.getCurrentStep()){
-    motor.step();
-    delay(2);
-  }
+  
+  // Asynchronously to move to target
+  if (targetStep != motor.getCurrentStep())
+    moveMotorToTarget();
   
   if (rs485.available() >= INCOMING_SIZE) {
     if (rs485.peek() == INCOMING_START_BYTE) {
@@ -117,31 +123,38 @@ void loop() {
       rs485.readBytes(incoming_buffer, INCOMING_SIZE);
       
       // Verify End Byte and Module ID
-      if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE && isThisModule(incoming_buffer[1], incoming_buffer[2])) {
-        OutgoingMessage message;
+      if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE) {
         
-        message.row = incoming_buffer[1];
-        message.column = incoming_buffer[2];
+        int row = incoming_buffer[1];
+        int column = incoming_buffer[2];
+        
+        bool isTargetedMessage = isThisModule(row, column);
+        bool isBroadcastMessage = isBroadcast(row, column);
+        if (!isBroadcastMessage && !isTargetedMessage)
+          return;
+        
+        OutgoingMessage message;
+        message.row = MODULE_ROW;
+        message.column = MODULE_COLUMN;
         message.sequence_id = incoming_buffer[3];
         message.command_id = incoming_buffer[4];
         uint16_t data_value = convertBytesToInt16(incoming_buffer[5], incoming_buffer[6]);
         
-        if (!validateChecksum(incoming_buffer)){
+        // Only validate checksum if its a targeted message
+        if (!validateChecksum(incoming_buffer) && isTargetedMessage){
           message.data_value = ErrorCode::ERROR_BAD_CHECKSUM;
           message.status = false;
           SendSerialResponse(message);
           return;
         }
         message = handleIncomingMessage(message, data_value);
-        SendSerialResponse(message);
-//        doMove(message, data_value);
+
+        // Only respond to targeted messages
+        if (isTargetedMessage)
+          SendSerialResponse(message);
       }
-    } else {
+    } else
       rs485.read(); // Discard trash
-//      digitalWrite(STATUS_LED_PIN, HIGH);
-//      delay(10);
-//      digitalWrite(STATUS_LED_PIN, LOW);   
-    }
   }
 }
 
@@ -217,7 +230,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.status = false;
         break;
       }
-      targetValue = data_value;
+      targetStep = data_value;
       message.data_value = motor.getCurrentStep();
       message.status = true;
       break;
@@ -248,6 +261,10 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = targetStep;
       message.status = true;
       break;
+    case Command::CMD_HALL_EFFECT_STATUS:
+      message.data_value = (int)digitalRead(HALL_PIN);;
+      message.status = true;
+      break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
       message.status = false;
@@ -256,26 +273,12 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
   return message;
 }
 
-// OutgoingMessage doMove(OutgoingMessage message, int16_t data_value)
-// {
-//   int step_value;
-//   Command command = (Command)message.command_id;
-//   switch (command) {
-//     case Command::CMD_MOVE_TO_POSITION:
-//       step_value = getStepperPosition(data_value);
-//       motor.moveToStep(step_value);
-//       break;
-//     case Command::CMD_MOVE_TO_STEP:
-//       motor.moveToStep(data_value);
-//       break;
-//   }
-// }
-
 void SendSerialResponse(OutgoingMessage message) {
   message.start_val = OUTGOING_START_BYTE;
   message.checksum = calculateOutgoingChecksum(message);
   message.end_val = OUTGOING_END_BYTE;
 
+  // TODO: Play with the timing for all these delays
   digitalWrite(STATUS_LED_PIN, HIGH);
   delay(25);                    // Give host USB dongle time to switch to receive mode
   digitalWrite(RS485_DE, HIGH);
@@ -286,6 +289,17 @@ void SendSerialResponse(OutgoingMessage message) {
   digitalWrite(RS485_DE, LOW);
   digitalWrite(STATUS_LED_PIN, LOW);
 }
+
+bool moveMotorToTarget()
+{
+  unsigned long currentMicros = micros();
+  bool shouldStep = currentMicros - previousStepMicros >= STEP_INTERVAL_MICROS;
+  if (shouldStep) {
+    motor.step();
+    previousStepMicros = currentMicros;
+  }
+}
+
 
 bool validateChecksum(byte* buffer) {
   uint8_t row = buffer[1];
@@ -323,6 +337,10 @@ bool isValidPosition(int position)
 
 bool isThisModule(uint8_t row, uint8_t column) {
   return row == MODULE_ROW && column == MODULE_COLUMN;
+}
+
+bool isBroadcast(uint8_t row, uint8_t column) {
+  return row == 0 && column == 0;
 }
 
 uint8_t getModuleRow() {

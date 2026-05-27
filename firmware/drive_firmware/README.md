@@ -36,46 +36,46 @@ Total size of a call and response from the controller to a module is 19 bytes an
 ## Commands
 The following is a list of commands that are currently (or plan to be) supported in the firmware.
 
-### PING - 1
+### PING - 0
 Command to check the existence of a module at a given position.
 
-### HOME - 2
+### HOME - 1
 Starts a homing sequence on the module
 
-### STOP - 3
+### STOP - 2
 > This command is not yet supported
 
-### GET POSITION - 4
+### GET POSITION - 3
 Gets the step value associated with the requested position
 
-### SET POSITION - 5
+### SET POSITION - 4
 Sets the provided position value to the motors current step value
 
-### MOVE TO POSITION - 6
+### MOVE TO POSITION - 5
 
-### GET SPEED - 7
+### GET SPEED - 6
 > This command is not yet supported
 
-### SET SPEED - 8
+### SET SPEED - 7
 > This command is not yet supported
 
-### GET STEPS - 9
+### GET STEPS - 8
 Returns the current step value for the stepper motor
 
-### MOVE TO STEP - 10
+### MOVE TO STEP - 9
 Moves the motor to the provided step value
 
-### SET STEP TARGET - 11
+### SET STEP TARGET - 10
 Stores a target step value to be moved to later with `MOVE_TO_TARGET`
 
-### SET POSITION TARGET - 12
+### SET POSITION TARGET - 11
 Stores a target position to be moved to later with `MOVE_TO_TARGET`
 
-### MOVE TO TARGET - 13
+### MOVE TO TARGET - 12
 > Requires a previous call to `SET_POSITION_TARGET` or `SET_STEP_TARGET`
 Executes a move to a previously cached target location 
 
-### HALL_EFFECT_STATUS - 14
+### HALL EFFECT STATUS - 13
 > This command is not yet supported
 
 Gets the current status of the hall effect sensor. This will return 0 for open, and 1 for closed.
