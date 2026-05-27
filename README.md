@@ -82,44 +82,13 @@ The communication between the controller and the modules is done along a shared 
 
 > There is a potential for using a "broadcast" packet, which all devices would accept and process.
 
-### Module Packets
-This is the packet that comes out of the Raspberry Pi (or other controller) and into the modules via the bus. These packets have the following structure:
-| Position | # Bytes | Description |
-|-|-|-|
-|Start Value | 1 | Fixed value byte to signal that this is the start of a packet |
-|Module Row | 1 | The row that the target module lives on |
-|Module Column | 1 | The column that target module lives on |
-|Sequence ID | 1 | Sequence value assigned when packet gets put into queue |
-|Command Value | 1 | Command that is being sent to the module |
-|Data Value | 2 | Payload associated with command |
-|Checksum | 1 | Checksum of all value besides this one and start and end values  |
-|End Value | 1 | Fixed value byte to signal that this is the end of a packet |
-> 9 bytes total
-
-### Controller Packets
-This is the packet that comes out of the a module and responds to the controller. These packets have the following structure:
-| Position | # Bytes | Description |
-|-|-|-|
-|Start Value | 1 | Fixed value byte to signal that this is the start of a packet |
-|Module Row | 1 | The row that this module lives on |
-|Module Column | 1 | The column that this module lives on |
-|Sequence ID | 1 | The sequence value that the module is responding to |
-|Command Value | 1 | Command that the module is responding to |
-|Data Value | 2 | Payload associated with command |
-|Status | 1 | Whether the command was successful or not |
-|Checksum | 1 | Checksum of all value besides this one and start and end values  |
-|End Value | 1 | Fixed value byte to signal that this is the end of a packet |
-> 10 bytes total
-
-Total size of a call and response from the controller to a module is 19 bytes and takes roughly 23ms to send, process and respond at a baudrate of 9600. This would result in *~1 second* of latency for the whole set of modules (currently planning on 45) using a single serial bus. 
-> As I am still working on getting the hardware fully up and running. I am testing this via a "normal" serial port and not a software serial port, so the 23ms time could change as I get further. 
+See more details about the communication in [firmware section](firmware/drive_firmware/README.md)
 
 ### Ideas/Investigations
 - The controller packet may be a little bit overkill and can potentially be reduced to transmit less data, but I wanted a robust solution to ensure that packets are being received and executed properly. It may be worth investigating if smaller ones can be sent because smaller packets mean quicker communications and quicker communications means more responsiveness when you send commands to the display.
 - Using multiple RS485 controllers to be able to isolate each row into its own bus, this would limit the latency to just the number of modules that you have on that column.
 - Send a "queuing" command that will tell which position the module should move to when it receives the go-ahead, and then broadcast a move command to all modules.
   - This doesn't get around the communication latency, but it will make all the modules synchronized and moving at the same time.
----
 
 ## Idea Wishlist
 I am storing ideas of things that I would like to do at some point here for reference.

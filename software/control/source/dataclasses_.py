@@ -19,7 +19,8 @@ class ModuleCommand(enum.IntEnum):
     SET_SPEED = 7
     GET_STEPS = 8
     MOVE_TO_STEP = 9
-    IS_MOVING = 10
+    SET_STEP_TARGET = 10
+    SET_POSITION_TARGET = 11
     BAD_COMMAND = 99
 
 

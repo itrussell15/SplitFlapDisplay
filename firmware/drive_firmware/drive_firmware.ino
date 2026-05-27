@@ -66,6 +66,9 @@ enum Command {
   CMD_SET_SPEED = 7,
   CMD_GET_STEPS = 8,
   CMD_MOVE_TO_STEP = 9
+  CMD_SET_STEP_TARGET = 10;
+  CMD_SET_POSITION_TARGET = 11;
+  CMD_MOVE_TO_TARGET = 12;
 };
 
 uint8_t MODULE_ROW;
@@ -76,7 +79,8 @@ const int BAUDRATE = 9600;
 const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
-int targetValue;
+int targetStep;
+int cachedTargetStep;
 // ########################
 
 void setup() {
@@ -100,7 +104,7 @@ void setup() {
 
 void loop() {
 
-  if (targetValue != motor.getCurrentStep()){
+  if (targetStep != motor.getCurrentStep()){
     motor.step();
     delay(2);
   }
@@ -215,6 +219,33 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       }
       targetValue = data_value;
       message.data_value = motor.getCurrentStep();
+      message.status = true;
+      break;
+    case Command::CMD_SET_STEP_TARGET:
+      if (!motor.isValidStep(data_value))
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_STEP;
+        message.status = false;
+        break;
+      }
+      cachedTargetStep = data_value;
+      message.data_value = cachedTargetStep;
+      message.status = true;
+      break;
+    case Command::CMD_SET_POSITION_TARGET:
+      if (!isValidPosition(data_value))
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_POSITION;
+        message.status = false;
+        break;
+      }
+      cachedTargetStep = getStepperPosition(data_value);
+      message.data_value = cachedTargetStep;
+      message.status = true;
+      break;
+    case Command::CMD_MOVE_TO_TARGET:
+      targetStep = cachedTargetStep;
+      message.data_value = targetStep;
       message.status = true;
       break;
     default:
