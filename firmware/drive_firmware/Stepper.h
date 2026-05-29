@@ -12,6 +12,7 @@ public:
     int getCurrentStep();
     void step();
     bool isValidStep(int step_value);
+    void release();
 
     int currentStep;
 

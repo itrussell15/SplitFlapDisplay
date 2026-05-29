@@ -12,6 +12,8 @@ const int STEP_SEQUENCES[8][4] = {
     {1, 0, 0, 1}  // Phase 7
 };
 
+const int RELEASE_SEQUENCE[4] = {0, 0, 0, 0};
+
 int RESOLUTION = 4096; // Default steps per revolution for 28BYJ-48
 int NUM_PHASES = 8;
 int STEP_DELAY = 1;
@@ -62,6 +64,10 @@ void Stepper::step() {
     writePins(STEP_SEQUENCES[stepPhase]);
     this->currentStep = (currentStep + 1) % RESOLUTION;
     this->stepPhase = (stepPhase + 1) % NUM_PHASES;
+}
+
+void Stepper::release() {
+    writePins(RELEASE_SEQUENCE);
 }
 
 bool Stepper::isValidStep(int step_value)

@@ -39,11 +39,13 @@ class TestBusController(unittest.TestCase):
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
         cls.bus = BusController(port=PORT, modules=cls.modules)
+        cls.latencies = []
 
     @classmethod
     def tearDownClass(cls):
         # Runs once after ALL tests in this class
         cls.bus.close()
+        print(f"Average Latency: {sum([i.total for i in cls.latencies]) / len(cls.latencies):.2f}ms")
 
     def setUp(self):
         self.timeout = 0.5
@@ -67,24 +69,36 @@ class TestBusController(unittest.TestCase):
         message = self.modules[self.test_location].get_steps()
         self.assertEqual(message.command, ModuleCommand.GET_STEPS)
         self.assertTrue(message.status)
-        print(message)
+        self.latencies.append(message.latency_ms)
 
     def test_get_speed(self) -> None:
         message = self.modules[self.test_location].get_speed()
         self.assertEqual(message.command, ModuleCommand.GET_SPEED)
         self.assertTrue(message.status)
-        print(message)
+        self.latencies.append(message.latency_ms)
 
     def test_move_steps(self) -> None:
-        message = self.modules[self.test_location].move_to_step(100)
+        message = self.modules[self.test_location].move_to_step(4000)
         self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
         self.assertTrue(message.status)
-        print(message)
+        self.latencies.append(message.latency_ms)
+        time.sleep(10)
+        message = self.modules[self.test_location].get_steps()
+
+        message = self.modules[self.test_location].move_to_step(2000)
+        self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
+        self.assertTrue(message.status)
+        self.latencies.append(message.latency_ms)
+        # message = self.modules[self.test_location].move_to_step(1000)
+        # self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
+        # self.assertTrue(message.status)
+        # self.latencies.append(message.latency_ms)
 
     def test_get_position(self) -> None:
         message = self.modules[self.test_location].get_position(15)
         self.assertEqual(message.command, ModuleCommand.GET_POSITION)
         self.assertTrue(message.status)
+        self.latencies.append(message.latency_ms)
 
     # def test_get_all_positions(self) -> None:
     #     positions = self.modules[self.test_location].get_all_positions()
@@ -115,5 +129,23 @@ class TestBusController(unittest.TestCase):
     #     self.assertEqual(len(self.bus.modules), 1)
 
     def test_broadcast(self) -> None:
-        self.bus.broadcast(ModuleCommand.GET_STEPS)
+        self.bus.broadcast(ModuleCommand.MOVE_TO_STEP, 1000)
         self.assertEqual(self.bus.queue.qsize(), 1)
+
+    def test_hall_effect_status(self) -> None:
+        message = self.modules[self.test_location].get_hall_effect_status()
+        self.assertEqual(message.command, ModuleCommand.GET_HALL_EFFECT_STATUS)
+        self.assertTrue(message.status)
+        self.latencies.append(message.latency_ms)
+
+    def test_is_moving(self) -> None:
+        message = self.modules[self.test_location].is_moving()
+        self.assertEqual(message.command, ModuleCommand.IS_MOVING)
+        self.assertTrue(message.status)
+        self.assertFalse(bool(message.data_value))
+        self.latencies.append(message.latency_ms)
+
+        message = self.modules[self.test_location].move_to_step(3000)
+        message = self.modules[self.test_location].is_moving()
+        self.assertTrue(bool(message.data_value))
+        self.latencies.append(message.latency_ms)

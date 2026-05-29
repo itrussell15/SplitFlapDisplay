@@ -68,7 +68,7 @@ class ModuleController:
         self.logger.info(f"Command queue unregistered")
         return queue
 
-    def move_to_step(self, step: int) -> None:
+    def move_to_step(self, step: int) -> IncomingMessage:
         self.logger.info(f"Moving to {step}")
         if not self.is_valid_step(step):
             raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
@@ -76,12 +76,12 @@ class ModuleController:
         self._current_step = result.data_value
         return result
 
-    def get_steps(self) -> int:
+    def get_steps(self) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.GET_STEPS)
         self._current_step = result.data_value
         return result
 
-    def move_to_position(self, position: int) -> None:
+    def move_to_position(self, position: int) -> IncomingMessage:
         # Move to a stored EEPROM position
         if not self.is_valid_position(position):
             raise ValueError(
@@ -92,7 +92,7 @@ class ModuleController:
         self._current_step = result.data_value
         return result
 
-    def set_position(self, position: int) -> None:
+    def set_position(self, position: int) -> IncomingMessage:
         # Update the motors steps in EEPROM position to current location
         if not self.is_valid_position(position):
             raise ValueError(
@@ -115,7 +115,7 @@ class ModuleController:
             result = self.get_position(position)
         return self._positions_to_steps
 
-    def home(self) -> None:
+    def home(self) -> IncomingMessage:
         self.logger.info(f"Homing")
         output = self._send_packet(ModuleCommand.HOME)
         self.is_homed = True
@@ -123,20 +123,23 @@ class ModuleController:
         self._current_step = 0
         return output
 
-    def stop(self) -> None:
+    def stop(self) -> IncomingMessage:
         return self._send_packet(ModuleCommand.STOP)
 
-    def set_speed(self, value: int) -> None:
+    def set_speed(self, value: int) -> IncomingMessage:
         self.logger.info(f"Setting speed to {value}")
         if not self.is_valid_speed(value):
             raise ValueError(f"Speed value: {value} must be between 0-{MAX_SPEED}")
         return self._send_packet(ModuleCommand.SET_SPEED, value=value)
 
-    def get_speed(self) -> None:
+    def get_speed(self) -> IncomingMessage:
         return self._send_packet(ModuleCommand.GET_SPEED)
 
-    def is_moving(self) -> None:
+    def is_moving(self) -> IncomingMessage:
         return self._send_packet(ModuleCommand.IS_MOVING)
+
+    def get_hall_effect_status(self) -> IncomingMessage:
+        return self._send_packet(ModuleCommand.GET_HALL_EFFECT_STATUS)
 
     @staticmethod
     def is_valid_position(position_id: int) -> bool:

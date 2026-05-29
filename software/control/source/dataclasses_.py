@@ -21,6 +21,9 @@ class ModuleCommand(enum.IntEnum):
     MOVE_TO_STEP = 9
     SET_STEP_TARGET = 10
     SET_POSITION_TARGET = 11
+    MOVE_TO_TARGET = 12
+    GET_HALL_EFFECT_STATUS = 13
+    IS_MOVING = 14
     BAD_COMMAND = 99
 
 

@@ -69,7 +69,8 @@ enum Command {
   CMD_SET_STEP_TARGET = 10,
   CMD_SET_POSITION_TARGET = 11,
   CMD_MOVE_TO_TARGET = 12,
-  CMD_HALL_EFFECT_STATUS = 13
+  CMD_HALL_EFFECT_STATUS = 13,
+  CMD_IS_MOVING = 14
 };
 
 uint8_t MODULE_ROW;
@@ -95,6 +96,18 @@ void setup() {
 
   MODULE_ROW = 1;
   MODULE_COLUMN = 1;
+  const int HOME_OFFSET = 0;
+
+  EEPROM.put(0, MODULE_ROW);
+  EEPROM.put(1, MODULE_COLUMN);
+
+  int step_offset = MOTOR_RESOLUTION / NUM_POSITIONS;
+  for (int pos = 0; pos < NUM_POSITIONS; pos++)
+  {
+    unsigned long value = (unsigned long)((unsigned long)pos * step_offset) + HOME_OFFSET;
+    value = value % MOTOR_RESOLUTION;
+    saveStepperPosition(pos, value);
+  }
 
   pinMode(STATUS_LED_PIN, OUTPUT);
 
@@ -110,13 +123,19 @@ void setup() {
 }
 
 void loop() {
-  
+
+ 
   // Asynchronously to move to target
   if (targetStep != motor.getCurrentStep())
     moveMotorToTarget();
+  else
+  {
+    motor.release();
+  }
   
   if (rs485.available() >= INCOMING_SIZE) {
     if (rs485.peek() == INCOMING_START_BYTE) {
+      digitalWrite(STATUS_LED_PIN, LOW);
       byte incoming_buffer[INCOMING_SIZE];
 
       // TODO: Try to read the IncomingMessage struct
@@ -152,6 +171,9 @@ void loop() {
         // Only respond to targeted messages
         if (isTargetedMessage)
           SendSerialResponse(message);
+
+        if (isBroadcastMessage)
+          doBroadcastResponse(message);
       }
     } else
       rs485.read(); // Discard trash
@@ -262,7 +284,11 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_HALL_EFFECT_STATUS:
-      message.data_value = (int)digitalRead(HALL_PIN);;
+      message.data_value = (int)!digitalRead(HALL_PIN);
+      message.status = true;
+      break;
+    case Command::CMD_IS_MOVING:
+      message.data_value = (int)isMoving();
       message.status = true;
       break;
     default:
@@ -279,15 +305,22 @@ void SendSerialResponse(OutgoingMessage message) {
   message.end_val = OUTGOING_END_BYTE;
 
   // TODO: Play with the timing for all these delays
-  digitalWrite(STATUS_LED_PIN, HIGH);
-  delay(25);                    // Give host USB dongle time to switch to receive mode
+  //delay(5);                    // Give host USB dongle time to switch to receive mode
   digitalWrite(RS485_DE, HIGH);
-  delay(10);                    // Let RS485 transceiver stabilize before sending
+  delay(5);                    // Let RS485 transceiver stabilize before sending
 
   rs485.write((byte*)&message, sizeof(message));
-  delay(35);
+  delay(5);
   digitalWrite(RS485_DE, LOW);
-  digitalWrite(STATUS_LED_PIN, LOW);
+}
+
+void doBroadcastResponse(OutgoingMessage message)
+{
+  // Turn LED on if bad status
+  if (!message.status)
+  {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+  }
 }
 
 bool moveMotorToTarget()
@@ -343,10 +376,14 @@ bool isBroadcast(uint8_t row, uint8_t column) {
   return row == 0 && column == 0;
 }
 
+bool isMoving() {
+  return motor.getCurrentStep() != targetStep;
+}
+
 uint8_t getModuleRow() {
   // Pulls the module row from EEPROM address 0. 
   // Should be between 0-255
-  int id;
+  uint8_t id;
   EEPROM.get(0, id);
   return id;
 }
@@ -354,7 +391,7 @@ uint8_t getModuleRow() {
 uint8_t getModuleColumn() {
   // Pulls the module column from EEPROM address 0. 
   // Should be between 0-255
-  int id;
+  uint8_t id;
   EEPROM.get(1, id);
   return id;
 }
