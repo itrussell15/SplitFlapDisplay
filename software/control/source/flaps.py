@@ -1,5 +1,6 @@
 import enum
 
+
 class Flap(enum.IntEnum):
     BLANK = 0
     A = 1
@@ -37,7 +38,7 @@ class Flap(enum.IntEnum):
     SEVEN = 33
     EIGHT = 34
     NINE = 35
-    ZERO = 36 
+    ZERO = 36
     EXCLAIMATION = 37
     QUESTION_MARK = 38
     AT = 39
@@ -54,13 +55,14 @@ class Flap(enum.IntEnum):
     MINUS = 50
     SLASH = 51
     DIVISION = 52
-    STAR = 53
-    PERIOD = 54
-    COMMA = 55
-    COLON = 56
-    SEMICOLON = 57
+    COMMA = 53
+    COLON = 54
+    SEMICOLON = 55
+    STAR = 56
+    HEART = 57
     RED = 58
     GREEN = 59
     BLUE = 60
     YELLOW = 61
     ORANGE = 62
+    WHITE = 63

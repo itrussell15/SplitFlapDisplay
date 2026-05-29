@@ -3,7 +3,7 @@ import logging
 import struct
 from concurrent.futures import Future
 from queue import Queue
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from .dataclasses_ import (
     IncomingMessage,
@@ -48,7 +48,7 @@ class ModuleController:
         self._command_queue = None
         self._is_homed: bool = False
         self._current_step: int = 0
-        self._current_position: int = None
+        self._current_position: int = 0
 
         # Have to initialize before calling `get_all_positions` otherwise no positions to request for
         self._positions_to_steps = {i: None for i in range(NUM_POSITIONS)}
@@ -192,6 +192,10 @@ class ModuleController:
 
     def positions_known(self) -> bool:
         return None in list(self._positions_to_steps.values())
+
+    @property
+    def current_position(self) -> int:
+        return self._current_position
 
     @property
     def location(self) -> Tuple[int, int]:

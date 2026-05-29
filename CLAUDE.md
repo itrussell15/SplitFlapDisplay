@@ -4,32 +4,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A 45-module (3 rows x 15 columns) split-flap display. Each module has an Arduino driving a 28BYJ-48 stepper motor with a hall-effect sensor for homing. A Raspberry Pi acts as the controller, communicating over RS485 half-duplex serial at 9600 baud.
+A 45-module (3 rows x 15 columns) split-flap display. Each module has an ATtiny1616 driving a 28BYJ-48 stepper motor with a hall-effect sensor for homing. A Raspberry Pi acts as the controller, communicating over RS485 half-duplex serial at 9600 baud.
 
-There are two firmware generations in use:
-- `firmware/drive_firmware/` — binary packet protocol (struct-based, 9-byte outgoing / 10-byte incoming), addressed by (row, column). This is what the `control/` Python code targets.
-- `firmware/splitflapfirmwarev6/` — text-based protocol (e.g. `m04-A\n`), addressed by a flat module ID (0–44). This is what the `frontend/app.py` Flask app targets.
+There are three firmware generations:
+- `firmware/drive_firmware/` — binary packet protocol (struct-based, 9-byte outgoing / 10-byte incoming), addressed by (row, column). This is what the `software/control/` Python code targets.
+- `firmware/splitflapfirmwarev6/` — text-based protocol (e.g. `m04-A\n`), addressed by a 2-digit module ID (0–44). This is what the `frontend/app.py` Flask app targets. Protocol documented in `firmware/splitflapfirmwarev6/RS485.MD`.
+- `firmware/splitflapfirmwarev7/` — text-based protocol with variable-length IDs (1–3 digits) and new `+` command for index-based flap moves. Includes `splitflap_test.py` interactive test tool.
 
 ## Commands
 
-### Python control layer
+### Software layer (FastAPI + binary protocol)
 ```bash
-pip install -r control/requirements.txt   # just pyserial
-python -m pytest control/test/            # run all tests
+cd software
+pip install -r requirements.txt
+uvicorn app.main:app --reload          # runs FastAPI server
+python -m pytest control/test/         # run all tests
 python -m pytest control/test/test_messages.py  # single test file
 ```
 
-Tests use `unittest`. Some tests in `test_bus_controller.py` require physical hardware connected (hardcoded port `/dev/cu.usbmodem1101`).
+Tests use `unittest`. Some tests in `test_bus_controller.py` require physical hardware connected (hardcoded port `/dev/ttyACM0`).
 
-### Frontend (Flask web UI)
+### Frontend (Flask web UI — standalone)
 ```bash
 pip install flask pyserial requests pytz yfinance
 python frontend/app.py                    # runs on 0.0.0.0:80
 ```
-The frontend is a standalone Flask app (`frontend/app.py` + `frontend/templates/index.html`) that talks directly to hardware via the v6 text protocol. It does not use the `control/` Python package.
+The frontend is a standalone Flask app (`frontend/app.py` + `frontend/templates/index.html`) that talks directly to hardware via the v6 text protocol. It does not use the `software/control/` Python package.
+
+### Firmware v7 test tool
+```bash
+pip install pyserial
+python firmware/splitflapfirmwarev7/splitflap_test.py --port /dev/ttyUSB0
+```
+Interactive menu-driven RS485 test tool for the v7 text protocol.
+
+### Firmware barebones comms test
+```bash
+# Flash test_comms/test_comms.ino, then:
+python firmware/drive_firmware/test_comms/test_comms.py /dev/ttyUSB0
+```
+Sends a single byte and categorizes the response to isolate physical layer issues. See `firmware/drive_firmware/TROUBLESHOOTING.md` for step-by-step debugging.
 
 ### Firmware
-Arduino IDE. Upload `firmware/flash_eeprom/flash_eeprom.ino` first to set a module's row/column and initialize EEPROM positions, then upload `firmware/drive_firmware/drive_firmware.ino` (or `splitflapfirmwarev6/` for the text protocol). Programming is done via UPDI using a modified USB-TTL board connected to the J1 header.
+Arduino IDE or `arduino-cli`. Upload `firmware/flash_eeprom/flash_eeprom.ino` first to set a module's row/column and initialize EEPROM positions, then upload the target firmware. Programming is done via UPDI using a modified USB-TTL board connected to the J1 header.
 
 ## PCB and Pin Mapping
 
@@ -72,22 +89,35 @@ The status LED (D1) is on PA3 via R2 (60Ω). Use `PIN_PA3` in code — do NOT us
 
 ## Architecture
 
-### control/ — Python control layer (binary packet protocol)
+### software/ — FastAPI app + Python control layer (binary packet protocol)
+
+The `software/` directory is a FastAPI application that wraps the binary protocol control layer:
 
 ```
-SerialControl          — low-level serial read/write/read_packet
-    └─ SerialProcessor — threaded queue worker, encodes+sends messages, reads+dispatches responses (abstract)
-        └─ BusController — concrete processor for one RS485 bus; owns a dict of ModuleControllers keyed by (row, col)
-            └─ DisplayController — (WIP) wraps BusController, auto-discovers modules on init
-
-ModuleController — generates OutgoingMessage packets and pushes them onto BusController's queue; tracks module state
+software/
+├── app/
+│   ├── main.py          — FastAPI app, mounts routers and static files
+│   ├── context.py       — lifespan handler: creates DisplayController, discovers modules on startup
+│   ├── api/             — REST API routers (display, module, base) with Pydantic models
+│   └── frontend/        — static frontend served by FastAPI
+├── control/             — Python control layer (binary packet protocol)
+│   ├── source/
+│   │   ├── bus_controller.py      — concrete RS485 bus processor, owns ModuleControllers
+│   │   ├── display_controller.py  — wraps BusController(s), auto-discovers modules
+│   │   ├── serial_processor.py    — threaded queue worker, abstract base
+│   │   ├── module_controller.py   — generates OutgoingMessage packets, tracks state
+│   │   ├── dataclasses_.py        — OutgoingMessage/IncomingMessage structs
+│   │   └── flaps.py               — Flap IntEnum (character set)
+│   └── test/                      — unittest tests + mock firmware
+├── requirements.txt
+└── utils.py             — logging setup, timestamp helpers
 ```
 
 Key data flow: `ModuleController._create_packet()` → `Queue` → `SerialProcessor.worker()` encodes with sequence ID → serial TX → serial RX → `BusController._handle_response()` decodes `IncomingMessage` → dispatches by command type.
 
 ### Packet format (binary protocol)
 
-Defined in `control/source/dataclasses_.py`. All packets use `struct.pack("<BBBBBHBB")` / `"<BBBBBH?BB"`:
+Defined in `software/control/source/dataclasses_.py`. All packets use `struct.pack("<BBBBBHBB")` / `"<BBBBBH?BB"`:
 - **OutgoingMessage** (controller→module): start=0x02, row, col, seq_id, cmd, data(2B), checksum, end=0x03 (9 bytes)
 - **IncomingMessage** (module→controller): start=0x04, row, col, seq_id, cmd, data(2B), status, checksum, end=0x05 (10 bytes)
 - Checksum: XOR of row, col, cmd, seq_id, data_low, data_high (and status for incoming)
@@ -95,11 +125,16 @@ Defined in `control/source/dataclasses_.py`. All packets use `struct.pack("<BBBB
 ### Module addressing
 
 - Binary protocol: (row, column), each 0–255. EEPROM bytes 0–1 store row/column.
-- Text protocol (v6): flat module ID 0–44, stored in EEPROM byte 5.
+- Text protocol (v6): flat module ID 0–44 (2-digit, zero-padded), stored in EEPROM byte 5.
+- Text protocol (v7): variable-length module ID (1–3 digits), stored in EEPROM byte 5. Broadcast with `*` or `**`.
 
 ### EEPROM layout (drive_firmware)
 
 Bytes 0–1: row, column. Bytes 2–129: 64 positions × 2 bytes each (step values for each flap position).
+
+### EEPROM layout (v6/v7 firmware)
+
+Byte 0: init flag (0x5D). Bytes 1–2: home offset. Bytes 3–4: total steps/rev. Byte 5: module ID. Byte 6: auto-home flag. Bytes 7–8: saved step position. Byte 9: saved flap index. Bytes 12–139: 64-entry position map (2 bytes each, 0xFFFF = uncalibrated).
 
 ### Motor constants
 
@@ -112,4 +147,4 @@ Monolithic Flask app. Runs a background `playlist_loop` thread that cycles throu
 
 ### Flap character set
 
-Defined in `control/source/flaps.py` as a `Flap` IntEnum (56 values: blank, A–Z, symbols, colors). The v6 firmware uses the string `" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;q:%'.,/?*roygbpw"` (64 chars).
+Defined in `software/control/source/flaps.py` as a `Flap` IntEnum (56 values: blank, A–Z, symbols, colors). The v6/v7 firmware uses the string `" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;q:%'.,/?*roygbpw"` (64 chars).

@@ -1,8 +1,10 @@
 from dataclasses import asdict
-from fastapi import HTTPException, status
+from typing import Any, Dict
 
 from app.api.models.responses import ModuleResponse
 from control.source.dataclasses_ import IncomingMessage
+from fastapi import HTTPException, status
+
 
 def exception_response(e: Exception) -> HTTPException:
     return HTTPException(
@@ -10,7 +12,10 @@ def exception_response(e: Exception) -> HTTPException:
         detail=f"Error while communicating with display. Error: {str(e)}",
     )
 
-def package_incoming_message_as_module_response(message: IncomingMessage) -> Dict[str, Any]:
+
+def package_incoming_message_as_module_response(
+    message: IncomingMessage,
+) -> Dict[str, Any]:
     json_data = asdict(message)
     json_data["location"] = message.location_map
     json_data["latency_ms"] = asdict(message.latency_ms)

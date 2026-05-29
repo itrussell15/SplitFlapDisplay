@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple
 
 from .bus_controller import BusController
 from .flaps import Flap
+from .module_controller import ModuleController
 
 
 class DisplayController:
@@ -36,14 +37,14 @@ class DisplayController:
             module_locations = bus.discover(row_value, column_value)
             modules.extend(module_locations)
             self._update_modules(bus)
-        return modules            
+        return modules
 
     def home_all(self) -> None:
         values = []
         self.logger.info("Homing all modules")
         for location, module in self.modules.items():
             values.append(module.home(position))
-        return values  
+        return values
 
     def move_all_to_position(self, position: int) -> List[int]:
         values = []
@@ -57,6 +58,12 @@ class DisplayController:
         for location, module in self.modules.items():
             values.append(module.get_steps())
         return values
+
+    def get_current_positions(self):
+        return {
+            location: module.current_position
+            for location, module in self.modules.items()
+        }
 
     def get_position_steps(self, position: int) -> List[int]:
         values = []

@@ -1,0 +1,353 @@
+:root {
+  --bg: #121212;
+  --panel: #1e1e1e;
+  --border: #333;
+  --accent: #00ff66;
+  --accent-dim: rgba(0, 255, 102, 0.15);
+  --text: #e0e0e0;
+  --text-muted: #888;
+  --flap-bg: #1a1a1a;
+  --flap-grad-top: #2a2a2a;
+  --flap-grad-bot: #1e1e1e;
+  --red: #dc3545;
+  --green: #28a745;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* ── TOP BAR ── */
+.top-bar {
+  position: sticky;
+  top: 0;
+  height: 52px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 100;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.top-bar-title {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 1px;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  transition: background 0.3s;
+}
+
+.status-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+
+/* ── MAIN CONTENT ── */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px 16px;
+}
+
+/* ── DISPLAY PREVIEW ── */
+.preview-wrapper {
+  background: #000;
+  padding: 16px;
+  border-radius: 10px;
+  border: 2px solid #444;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.preview-grid {
+  display: grid;
+  gap: 4px;
+}
+
+/* ── FLAP MODULE ── */
+.flap-module {
+  aspect-ratio: 2 / 3;
+  position: relative;
+  cursor: pointer;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.flap-module.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-dim);
+}
+
+.flap-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flap-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--flap-grad-top), var(--flap-grad-bot));
+  border-bottom: 1px solid #111;
+  border-radius: 3px 3px 0 0;
+}
+
+.flap-bottom {
+  bottom: 0;
+  background: linear-gradient(to bottom, var(--flap-grad-bot), #191919);
+  border-top: 1px solid #2a2a2a;
+  border-radius: 0 0 3px 3px;
+}
+
+.flap-char {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 200%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  font-size: clamp(0.8rem, 4vw, 2.5rem);
+  color: #fff;
+  line-height: 1;
+  user-select: none;
+}
+
+.flap-top .flap-char { top: 0; }
+.flap-bottom .flap-char { bottom: 0; }
+
+.flap-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: #000;
+  z-index: 3;
+}
+
+/* ── FLIP ANIMATION ── */
+.flip-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  z-index: 4;
+  backface-visibility: hidden;
+}
+
+.flip-panel .flap-char {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  font-size: clamp(0.8rem, 4vw, 2.5rem);
+  color: #fff;
+}
+
+.flip-down {
+  top: 0;
+  background: linear-gradient(to bottom, var(--flap-grad-top), var(--flap-grad-bot));
+  border-radius: 3px 3px 0 0;
+  transform-origin: bottom center;
+  animation: flipDown var(--flip-speed, 60ms) ease-in forwards;
+}
+
+.flip-down .flap-char { top: 0; }
+
+.flip-up {
+  bottom: 0;
+  background: linear-gradient(to bottom, var(--flap-grad-bot), #191919);
+  border-radius: 0 0 3px 3px;
+  transform-origin: top center;
+  transform: rotateX(90deg);
+  animation: flipUp var(--flip-speed, 60ms) ease-out forwards;
+  animation-delay: var(--flip-speed, 60ms);
+}
+
+.flip-up .flap-char { bottom: 0; }
+
+@keyframes flipDown {
+  from { transform: rotateX(0deg); }
+  to   { transform: rotateX(-90deg); }
+}
+
+@keyframes flipUp {
+  from { transform: rotateX(90deg); }
+  to   { transform: rotateX(0deg); }
+}
+
+/* ── COMPOSE SECTION ── */
+.section-label {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.section-hint {
+  font-weight: 400;
+  font-size: 0.7rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ── COLOR PALETTE ── */
+.color-palette {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+  background: #080808;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.15s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+  border-color: #fff;
+}
+
+.color-swatch.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 6px var(--accent-dim);
+}
+
+/* ── BUTTONS ── */
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.btn {
+  padding: 14px 24px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  letter-spacing: 0.5px;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  flex: 1;
+  background: var(--accent);
+  color: #121212;
+}
+
+.btn-primary:hover { background: #00cc55; }
+
+.btn-secondary {
+  background: #333;
+  color: #fff;
+}
+
+.btn-secondary:hover { background: #444; }
+
+.btn-danger {
+  background: var(--red);
+  color: #fff;
+}
+
+.btn-danger:hover { background: #c82333; }
+
+/* ── TOAST ── */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--green);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.error { background: var(--red); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .container { padding: 12px 8px; }
+  .preview-wrapper { padding: 8px; }
+  .preview-grid { gap: 2px; }
+  .controls { flex-direction: column; }
+  .btn { width: 100%; }
+}
