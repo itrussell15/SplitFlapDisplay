@@ -45,7 +45,9 @@ class TestBusController(unittest.TestCase):
     def tearDownClass(cls):
         # Runs once after ALL tests in this class
         cls.bus.close()
-        print(f"Average Latency: {sum([i.total for i in cls.latencies]) / len(cls.latencies):.2f}ms")
+        print(
+            f"Average Latency: {sum([i.total for i in cls.latencies]) / len(cls.latencies):.2f}ms"
+        )
 
     def setUp(self):
         self.timeout = 0.5
@@ -113,20 +115,20 @@ class TestBusController(unittest.TestCase):
                 ModuleCommand.BAD_COMMAND
             )
 
-    # def test_discover(self) -> None:
-    #     # Test all bad values
-    #     with self.assertRaises(ValueError):
-    #         self.bus.discover([0, 5], [0, -1])
-    #     with self.assertRaises(ValueError):
-    #         self.bus.discover([0, -1], [0, 5])
-    #     with self.assertRaises(ValueError):
-    #         self.bus.discover([0, 500], [0, 10])
-    #     with self.assertRaises(ValueError):
-    #         self.bus.discover([0, 4], [0, 500])
+    def test_discover(self) -> None:
+        # Test all bad values
+        with self.assertRaises(ValueError):
+            self.bus.discover([0, 5], [0, -1])
+        with self.assertRaises(ValueError):
+            self.bus.discover([0, -1], [0, 5])
+        with self.assertRaises(ValueError):
+            self.bus.discover([0, 500], [0, 10])
+        with self.assertRaises(ValueError):
+            self.bus.discover([0, 4], [0, 500])
 
-    #     # Actually search for 1 module
-    #     self.bus.discover([1, 3], [1, 3], 0.1)
-    #     self.assertEqual(len(self.bus.modules), 1)
+        # Actually search for 1 module
+        self.bus.discover([1, 5], [1, 3], 0.2)
+        self.assertEqual(len(self.bus.modules), 1)
 
     def test_broadcast(self) -> None:
         self.bus.broadcast(ModuleCommand.MOVE_TO_STEP, 1000)

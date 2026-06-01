@@ -2,8 +2,8 @@ import logging
 import struct
 import threading
 import time
-from queue import Queue
 from concurrent.futures import Future
+from queue import Queue
 from typing import Dict, List, Optional, Tuple
 
 import serial
@@ -59,7 +59,9 @@ class BusController(SerialProcessor):
 
         self.processor = self.start_processor()
 
-    def discover(self, row_range: List[int], column_range: List[int], timeout: float = 0.05) -> None:
+    def discover(
+        self, row_range: List[int], column_range: List[int], timeout: float = 0.05
+    ) -> None:
         tmp = self.timeout
         self.timeout = timeout
 
@@ -70,6 +72,10 @@ class BusController(SerialProcessor):
         self.modules = {}
         for row in range(row_range[0], row_range[1]):
             for col in range(column_range[0], column_range[1]):
+                if row == 0 or col == 0:
+                    self.logger.warning(
+                        f"Skipping ({row}, {col}) as it is reserved for broadcasts"
+                    )
                 self.logger.debug(f"Searching for module {(row, col)}")
                 command = OutgoingMessage(
                     row=row, column=col, command=ModuleCommand.PING
@@ -86,7 +92,9 @@ class BusController(SerialProcessor):
         while not self.queue.empty():
             time.sleep(0.1)
         self.timeout = tmp
-        self.logger.info(f"{len(self.modules)} modules found in {time.time() - start_time:.2f}s!")
+        self.logger.info(
+            f"{len(self.modules)} modules found in {time.time() - start_time:.2f}s!"
+        )
         self.logger.info(f"Module Locations: {self.module_locations}")
         return self.module_locations
 
@@ -94,13 +102,10 @@ class BusController(SerialProcessor):
         # Send message to ID (0, 0) which all modules will read, but not respond to so we don't overwhelm the bus.
         # Could even do (0, i) to broadcast to a single column or (i, 0) for a whole row
         message = OutgoingMessage(
-            row=0, 
-            column=0,
-            command=command,
-            data_value=data_value
+            row=0, column=0, command=command, data_value=data_value
         )
         future = self._send_message(message)
-    
+
     def reset_processed_commands(self) -> None:
         self._processed_commands = 0
 
@@ -142,7 +147,9 @@ class BusController(SerialProcessor):
             response = IncomingMessage.decode(incoming)
             self.logger.debug(f"Incoming Message: {response}")
         except Exception as e:
-            self.logger.error(f"Unable to decode incoming message {incoming} - {str(e)}")
+            self.logger.error(
+                f"Unable to decode incoming message {incoming} - {str(e)}"
+            )
             raise e
 
         if sequence_id != response.sequence_id:
@@ -151,15 +158,6 @@ class BusController(SerialProcessor):
             )
             self.error_queue(outgoing)
 
-        checksum = IncomingMessage.checksum(
-            response.data_value,
-            response.command.value,
-            response.row,
-            response.column,
-            response.status,
-            response.sequence_id
-        )
-        
         if (
             response.command != ModuleCommand.PING
             and response.location not in self.module_locations
@@ -172,17 +170,20 @@ class BusController(SerialProcessor):
 
         self._processed_commands += 1
         return response
-    
+
     def _ensure_valid_discover_args(self, val_range: List[int]) -> None:
         if len(val_range) != 2:
-            raise ValueError(f"Range input was: {val_range}, should be [MIN_VAL, MAX_VAL]")
+            raise ValueError(
+                f"Range input was: {val_range}, should be [MIN_VAL, MAX_VAL]"
+            )
         for val in val_range:
             if val < 0 or val > 255:
-                raise ValueError(f"Discover value must be betweeen 0-{MAX_ROW_VALUE} - Not {val}")
-            
+                raise ValueError(
+                    f"Discover value must be betweeen 0-{MAX_ROW_VALUE} - Not {val}"
+                )
+
         if not val_range[0] < val_range[1]:
             raise ValueError(f"Range is not increasing - {val_range}")
-
 
     @property
     def processed_commands(self) -> int:
@@ -190,8 +191,6 @@ class BusController(SerialProcessor):
 
     @property
     def module_locations(self) -> List[int]:
-        if self.num_modules <= 0:
-            raise ValueError("No modules currently attached.")
         return list(self.modules.keys())
 
     @property

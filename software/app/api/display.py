@@ -52,7 +52,7 @@ def get_display_info(display=Depends(get_display)):
 @router.post("/discover", response_model=DiscoverResponse)
 def discover(display=Depends(get_display)):
     try:
-        response = display.discover([0, 2], [0, 2])
+        response = display.discover([1, 5], [1, 5], timeout=0.2)
     except Exception as e:
         raise exception_response(e)
 
