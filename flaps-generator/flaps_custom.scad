@@ -29,7 +29,7 @@ grid_cols = 6;           // Number of columns (e.g., 4, 5, 6, 8)
 //   Plate 2: start_char = 16  (chars 16-31)
 //   Plate 3: start_char = 32  (chars 32-47)
 //   Plate 4: start_char = 48  (chars 48-63)
-start_char = 0;
+start_char = 48;
 
 // Spacing between flaps (mm) - adjust if flaps are too close/far
 x_spacing = 34;          // Horizontal spacing (34mm is safe, 32mm is tight)
@@ -46,7 +46,7 @@ y_spacing = 43;          // Vertical spacing (43mm is safe, 40mm is tight)
 // PreviewFlaps();
 
 // Generate flaps for export
-MakeFlaps(0);
+MakeFlaps(1);
 
 
 
@@ -100,7 +100,7 @@ charYposOffset = [
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 0-15: A-P (all centered)
     -3.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 16: Q (descender), 17-31: R-Z, 0-5
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,  // 32-47: 6-9, ?, !, @, #, $, &, [, ], -, +, =, :
-    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0   // 48-63: %, ', ", €, ", ↑, ↓, ₿, °, ☺, ., ♥, spaces
+    0,9,0,0,0,0,0,9,0,0,0,0,0,0,0,0   // 48-63: %, ', ", €, ", ↑, ↓, ₿, °, ☺, ., ♥, spaces
     // 48:% 49:' 50:" 51:€ 52:" 53:↑ 54:↓ 55:₿ 56:° 57:☺ 58:. 59:♥ 60-63:spaces
 ];
 
