@@ -21,7 +21,7 @@ blackmargin = 3;
 
 // Grid dimensions - ADJUST THESE TO FIT YOUR PRINTER
 grid_rows = 4;           // Number of rows (e.g., 4, 5, 6, 8)
-grid_cols = 5;           // Number of columns (e.g., 4, 5, 6, 8)
+grid_cols = 6;           // Number of columns (e.g., 4, 5, 6, 8)
 
 // Starting character index (0-63)
 // Use this to create multiple plates:
@@ -43,7 +43,7 @@ y_spacing = 43;          // Vertical spacing (43mm is safe, 40mm is tight)
 //MakeFlaps(0);
 
 // Show Preview of all the flaps - NOT FOR PRINTING
-//PreviewFlaps();
+// PreviewFlaps();
 
 // Generate flaps for export
 MakeFlaps(0);
@@ -51,17 +51,42 @@ MakeFlaps(0);
 
 
 // Fonts to use
-fonts = ["Consolas:style=bold", "Arial:style=Narrow Bold"];
-charFont = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+fonts = ["Consolas:style=bold", "Apple Symbols", "Arial Unicode MS"];
+charFont = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1,1,0,0,1,0,0,0,1,1,1,0,0];
 
-// 64 Characters you want to use
-chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!@#$&[]-+=:%'\"\u20AC\"\u2191\u2193\u20BF\u00b0\u263A.♥    ";
+// 64 Characters you want to use (indices 0-63)
+// Note: Use actual Unicode characters or \uXXXX escapes (single backslash)
+// For quotes: use "'" for single quote, "\"" for double quote
+chars = [
+"A", "B", "C", "D", "E", "F", "G", "H",  // 0-7
+"I", "J", "K", "L", "M", "N", "O", "P",  // 8-15
+"Q", "R", "S", "T", "U", "V", "W", "X",  // 16-23
+"Y", "Z", "0", "1", "2", "3", "4", "5",  // 24-31
+"6", "7", "8", "9", "?", "!", "@", "#",  // 32-39
+"$", "&", "[", "]", "-", "+", "=", ":",  // 40-47
+"%",
+"'",
+"\u2709", // Message
+"\u2605", // Star
+"\u2600", // Sun 
+"\u2191", // Down Arrow
+"\u2193", // Up Arrow
+"\u00B0", // Degree
+"\u263A", // Empty Smiley
+"\u263B", // Filled Smiley
+"♥",
+"\u266B", // Music Note
+"\u2614", // Umbrella
+"\u26A1", // Lightning
+" ", // 
+" "  // 
+];
 
 // Flap Color layer, to generate as individual colors for each flap background
-flapColor = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,3,2,1,0];
+flapColor = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0];
 
 // Color layer, to generate as individual colors
-charColorLayer = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,4,1,4,4,4,1,1,1,1,1,1,1,1,3,2,4,1,4,1,2,1,1,1,1,1];
+charColorLayer = [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1];
 
 // Per Character Font Size overwrite
 // Index 37 (@) is reduced by 4 points to fit better
