@@ -22,16 +22,16 @@ blackmargin = 3;
 // 2 = Plate 2 (chars 16-31)  
 // 3 = Plate 3 (chars 32-47)
 // 4 = Plate 4 (chars 48-63)
-plate = 0;
+plate = 1;
 
 // Make the individual color layer
 //MakeFlaps(0);
 
 // Show Preview of all the flaps - NOT FOR PRINTING
-//PreviewFlaps();
+// PreviewFlaps();
 
 // Generate flaps for selected plate
-MakeFlaps(0);
+MakeFlaps(1);
 
 
 
