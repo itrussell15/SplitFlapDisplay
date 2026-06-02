@@ -29,7 +29,13 @@ grid_cols = 6;           // Number of columns (e.g., 4, 5, 6, 8)
 //   Plate 2: start_char = 16  (chars 16-31)
 //   Plate 3: start_char = 32  (chars 32-47)
 //   Plate 4: start_char = 48  (chars 48-63)
-start_char = 48;
+start_char = 0;
+
+// Character step - use 1 for all characters, 2 for every other character
+// Set to 2 to print half the flaps (e.g., chars 0, 2, 4...), then print again
+// with start_char=1 to get the other half (chars 1, 3, 5...)
+// This is useful if you want to put alternate characters on the back of flaps
+char_step = 2;           // 1 = sequential, 2 = every other
 
 // Spacing between flaps (mm) - adjust if flaps are too close/far
 x_spacing = 34;          // Horizontal spacing (34mm is safe, 32mm is tight)
@@ -46,7 +52,7 @@ y_spacing = 43;          // Vertical spacing (43mm is safe, 40mm is tight)
 // PreviewFlaps();
 
 // Generate flaps for export
-MakeFlaps(1);
+MakeFlaps(0);
 
 
 
@@ -113,13 +119,13 @@ colors = ["black", "white", "red", "green", "yellow"];
 
 // Calculate total flaps and validate
 total_flaps = grid_rows * grid_cols;
-end_char = start_char + total_flaps - 1;
+end_char = start_char + (total_flaps - 1) * char_step;
 
 module PreviewFlaps(){
     // Preview the current grid configuration
     for ( y = [0 : grid_rows-1] ){
         for ( x = [0 : grid_cols-1] ){
-            char_idx = start_char + (y*grid_cols)+x;
+            char_idx = start_char + ((y*grid_cols)+x) * char_step;
             if (char_idx < 64) {
                 translate([34+(x*x_spacing), 22+(y*y_spacing), 0])
                 flapPreview(char_idx);
@@ -138,7 +144,7 @@ module PreviewFlaps(){
 module MakeFlaps(part){
     for ( y = [0 : grid_rows-1] ){
         for ( x = [0 : grid_cols-1] ){
-            char_idx = start_char + (y*grid_cols)+x;
+            char_idx = start_char + ((y*grid_cols)+x) * char_step;
             
             // Only generate if within valid character range
             if (char_idx < 64) {
@@ -400,10 +406,11 @@ module char3(c){
 // Display current configuration in console
 echo(str("Grid: ", grid_rows, " rows × ", grid_cols, " cols"));
 echo(str("Total flaps: ", total_flaps));
-echo(str("Characters: ", start_char, " to ", min(end_char, 63)));
+echo(str("Character step: ", char_step, " (", char_step == 1 ? "sequential" : "every other", ")"));
+echo(str("Characters: ", start_char, " to ", min(end_char, 63), " step ", char_step));
 echo(str("Plate size estimate: ", grid_cols * x_spacing + 20, "mm × ", grid_rows * y_spacing + 30, "mm"));
 
 if (end_char >= 64) {
     echo("WARNING: end_char exceeds 63! Some flaps will not be generated.");
-    echo(str("Reduce grid size or start_char. Max start_char for this grid: ", 64 - total_flaps));
+    echo(str("Reduce grid size or start_char. Max start_char for this grid: ", 64 - total_flaps * char_step));
 }
