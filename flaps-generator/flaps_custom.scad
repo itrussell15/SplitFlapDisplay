@@ -23,12 +23,6 @@ blackmargin = 3;
 grid_rows = 4;           // Number of rows (e.g., 4, 5, 6, 8)
 grid_cols = 6;           // Number of columns (e.g., 4, 5, 6, 8)
 
-// Starting character index (0-63)
-// Use this to create multiple plates:
-//   Plate 1: start_char = 0   (chars 0-15 for 4x4 grid)
-//   Plate 2: start_char = 16  (chars 16-31)
-//   Plate 3: start_char = 32  (chars 32-47)
-//   Plate 4: start_char = 48  (chars 48-63)
 start_char = 0;
 
 // Character step - use 1 for all characters, 2 for every other character
