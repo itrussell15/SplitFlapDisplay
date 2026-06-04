@@ -24,8 +24,6 @@ EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
 )
 EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(row=0, column=0, command=ModuleCommand.HOME)
 
-BUS_SLEEP_TIME_MS = 1
-
 
 class BusController(SerialProcessor):
     """
@@ -83,7 +81,7 @@ class BusController(SerialProcessor):
                 )
                 future = self._send_message(command)
                 try:
-                    future.result(self.timeout)
+                    future.result()
                 except TimeoutError:
                     self.logger.warning(f"Timeout at {(row, col)}")
                     continue
@@ -118,15 +116,6 @@ class BusController(SerialProcessor):
 
     def _read_serial_response(self) -> bytes:
         # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
-        # Poll for data instead of waiting a fixed time
-        start_time = time.time()
-
-        while time.time() - start_time < self.timeout:
-            if self.connection.in_waiting > 0:
-                # Data arrived, start reading immediately
-                break
-            time.sleep(BUS_SLEEP_TIME_MS / 1000)  # Small sleep to not overwhelm the bus
-
         incoming_packet = self.read_packet(
             start_value=struct.pack("B", EXAMPLE_INCOMING_MESSAGE.start_value),
             end_value=struct.pack("B", EXAMPLE_INCOMING_MESSAGE.end_value),

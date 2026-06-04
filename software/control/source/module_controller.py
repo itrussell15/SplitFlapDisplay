@@ -173,7 +173,7 @@ class ModuleController:
             self._handle_bad_status(result)
 
         if future.exception() is not None:
-            raise e
+            raise future.exception()
 
         return future.result()
 

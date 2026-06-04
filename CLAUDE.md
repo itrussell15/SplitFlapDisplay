@@ -113,7 +113,18 @@ software/
 └── utils.py             — logging setup, timestamp helpers
 ```
 
-Key data flow: `ModuleController._create_packet()` → `Queue` → `SerialProcessor.worker()` encodes with sequence ID → serial TX → serial RX → `BusController._handle_response()` decodes `IncomingMessage` → dispatches by command type.
+Key data flow: `ModuleController._send_packet()` builds an `OutgoingMessage` → puts `(Future, message)` on the bus `Queue` → `SerialProcessor.worker()` encodes with a sequence ID → serial TX → serial RX → `BusController._handle_response()` decodes the `IncomingMessage` → `future.set_result(response)`.
+
+### Control layer concurrency model
+
+This is the heart of `control/` and spans `serial_processor.py`, `bus_controller.py`, and `module_controller.py`:
+
+- **One worker thread per bus.** `BusController` (a `SerialProcessor`) starts a single daemon thread (`worker()`) that drains a `Queue`. The bus is half-duplex, so only **one command is in flight at a time** — the worker sends, blocks on the response, resolves the `Future`, then takes the next item. There is no pipelining.
+- **Synchronous API over async transport.** Every `ModuleController` method (`home()`, `move_to_position()`, etc.) is blocking: it enqueues `(Future, message)` and calls `future.result()`, so callers experience a normal synchronous call while the actual serial I/O happens on the worker thread.
+- **Sequence IDs** are assigned by the worker (not the message), increment per command, and **wrap at 255**. `_handle_response()` warns if the response's `sequence_id` doesn't match the outgoing one.
+- **Latency** (send/receive/total ms) is measured by the worker and attached to each `IncomingMessage`.
+- **`status` field drives errors.** A response with `status=False` carries a `ModuleErrorCodes` value in `data_value`; `ModuleController._handle_bad_status()` raises `FirmwareException`.
+- **`DisplayController`** is a thin façade over one or more `BusController`s, flattening their `modules` dicts into a single `(row, col) → ModuleController` map and fanning batch operations (`move_to_flaps`, `move_all_to_position`) out to each module sequentially.
 
 ### Packet format (binary protocol)
 
@@ -124,7 +135,8 @@ Defined in `software/control/source/dataclasses_.py`. All packets use `struct.pa
 
 ### Module addressing
 
-- Binary protocol: (row, column), each 0–255. EEPROM bytes 0–1 store row/column.
+- Binary protocol: (row, column), each 0–255. EEPROM bytes 0–1 store row/column. **Row 0 or column 0 is reserved for broadcast** — modules act on a `(0,0)` message but do not reply (so the bus isn't flooded). `BusController.broadcast()` sends to `(0,0)`; the firmware's `isBroadcast()` matches `row==0 && column==0`.
+- `BusController.discover(row_range, column_range)` PINGs every `(row, col)` in the **half-open ranges** `range(min, max)` (upper bound exclusive — e.g. `ROWS=[1,3]` probes rows 1–2), skipping any with row 0 or col 0, and registers a `ModuleController` for each that replies before a short timeout (default 0.05s).
 - Text protocol (v6): flat module ID 0–44 (2-digit, zero-padded), stored in EEPROM byte 5.
 - Text protocol (v7): variable-length module ID (1–3 digits), stored in EEPROM byte 5. Broadcast with `*` or `**`.
 
@@ -148,3 +160,20 @@ Monolithic Flask app. Runs a background `playlist_loop` thread that cycles throu
 ### Flap character set
 
 Defined in `software/control/source/flaps.py` as a `Flap` IntEnum (56 values: blank, A–Z, symbols, colors). The v6/v7 firmware uses the string `" ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$&()-+=;q:%'.,/?*roygbpw"` (64 chars).
+
+## Current state & known rough edges
+
+The control library works against hardware, but the FastAPI wrapper around it is mid-refactor. Verify these before relying on them:
+
+- **The FastAPI app does not start a display.** `app/context.py`'s `lifespan` has the `DisplayController`/`BusController`/`discover` setup commented out, so `app.state.display` is never created. Every `/api/v1` module/display endpoint (which depends on `get_display`) will fail, and teardown calls `app.state.display.close()` which will `AttributeError`. Uncomment and wire up `lifespan` to actually run the REST API.
+- **Hardware-coupled defaults.** Port `/dev/ttyACM0` and the `ROWS=[1,3]/COLUMNS=[1,3]` discovery window are hardcoded in `context.py`; `drive_firmware.ino`'s `setup()` also hardcodes `MODULE_ROW=1, MODULE_COLUMN=1` and rewrites EEPROM on every boot rather than reading the flashed values via `getModuleRow()/getModuleColumn()`.
+- **Known bugs in the control layer** (small, isolated — fix in place when touched): `DisplayController.home_all()` passes an undefined `position` to `module.home()`; `ModuleController._send_packet()` does `raise e` with `e` undefined on the exception path; `BusController._handle_response()` calls `self.error_queue(outgoing)` instead of `.put()` on a sequence-ID mismatch; `ModuleController.positions_known()` returns inverted logic; `control/test/mock_components/mock_module_firmware.py` references undefined `EXAMPLE_MESSAGE`/`message`.
+
+### RS485 read/timeout behavior (control layer)
+
+Notes from debugging `discover()` dropping modules that responded slightly late (logged in `software/discover_logs.txt`):
+
+- **FIXED — discover producer/consumer race.** `discover()` used `future.result(self.timeout)`, a *producer-side* clock racing the worker's serial-read timeout. When a real module replied just after the producer gave up, the worker's later `set_result` landed on an abandoned future and the module was silently dropped. Fix: `discover()` now blocks on `future.result()` (no timeout), so it always waits for the worker's actual verdict — the single source of timeout truth — exactly like the normal `ModuleController._send_packet()` path. Do not reintroduce a producer-side timeout here.
+- **FIXED — double timeout.** `_read_serial_response()` had a redundant poll loop that waited `self.timeout` *before* calling `read_packet()` (which waits another `self.timeout`), making every no-response read cost ~2× the configured timeout and causing the worker to lag the producer. The pre-poll was removed; `read_packet()` is now the single wait.
+- **DEFERRED — `read_packet()` framing is fragile.** It gates on `in_waiting >= size` before reading, so it only starts parsing once a *full* packet is buffered. This works today only because the DTECH dongle echoes the 9-byte TX, padding the buffer right to the boundary when the real `0x04` start byte arrives. A byte-short or garbled reply will time out instead of being read. Robust fix (not yet applied): sync to the start byte gated on `in_waiting > 0`, then `connection.read(size - 1)` and validate length — **but** if switching to `connection.read(n)`, also make the `timeout` property setter (`serial_processor.py`) propagate to `self.connection.timeout`, which it currently does not (so a dynamically lowered `self.timeout` in `discover()` won't reach the serial port).
+- **DEFERRED — worker counters only advance on success.** In `SerialProcessor.worker()`, `sequence_id += 1` and `queue.task_done()` run only in the success branch, not on the exception path. Latent risk of a late response being matched to the wrong command (PING responses skip the location sanity check in `_handle_response`). Fix: move both into a `finally`.
