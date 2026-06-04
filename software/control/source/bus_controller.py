@@ -76,6 +76,7 @@ class BusController(SerialProcessor):
                     self.logger.warning(
                         f"Skipping ({row}, {col}) as it is reserved for broadcasts"
                     )
+                    continue
                 self.logger.debug(f"Searching for module {(row, col)}")
                 command = OutgoingMessage(
                     row=row, column=col, command=ModuleCommand.PING
@@ -84,6 +85,7 @@ class BusController(SerialProcessor):
                 try:
                     future.result(self.timeout)
                 except TimeoutError:
+                    self.logger.warning(f"Timeout at {(row, col)}")
                     continue
                 self.modules[(row, col)] = ModuleController(row, col)
                 self.modules[(row, col)].register_command_queue(self.queue)

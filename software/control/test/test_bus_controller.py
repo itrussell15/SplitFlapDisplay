@@ -127,7 +127,7 @@ class TestBusController(unittest.TestCase):
             self.bus.discover([0, 4], [0, 500])
 
         # Actually search for 1 module
-        self.bus.discover([1, 5], [1, 3], 0.2)
+        self.bus.discover([1, 2], [1, 6], 0.2)
         self.assertEqual(len(self.bus.modules), 1)
 
     def test_broadcast(self) -> None:
