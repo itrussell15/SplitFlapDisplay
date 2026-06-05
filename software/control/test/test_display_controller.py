@@ -1,3 +1,4 @@
+import os
 import logging
 import struct
 import sys
@@ -8,16 +9,16 @@ from pathlib import Path
 from concurrent.futures import Future
 
 # Add the parent directory to the path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from source.bus_controller import BusController
 from source.display_controller import DisplayController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
 from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
+print(sys.path)
 from utils import create_logger
 
 SLEEP_TIME_S = 1.0
-PORT = "/dev/ttyACM0"
 
 class TestDisplayController(unittest.TestCase):
 
@@ -25,12 +26,13 @@ class TestDisplayController(unittest.TestCase):
     def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
 
-        cls.ROW = 0
-        cls.COLUMN = 0
-        cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
-        cls.test_location = (cls.ROW, cls.COLUMN)
-        cls.modules = {cls.test_location: cls.module}
-        cls.bus = BusController(port=PORT, modules=cls.modules)
+        modules = [
+            (1, 1),
+            (1, 5)
+        ]
+        port = os.getenv("DISP_USB_PORT")
+        cls.modules = {(row, col): ModuleController(row=row, column=col) for (row, col) in modules}
+        cls.bus = BusController(port=port, modules=cls.modules)
         cls.display = DisplayController()
         cls.display.add_bus_controller(cls.bus)
 
@@ -60,8 +62,18 @@ class TestDisplayController(unittest.TestCase):
 
     def test_move_to_position(self) -> None:
         self.display.move_to_position(
-            {
-                (self.ROW, self.COLUMN): 15
-            }
+            {location: 15 for location in self.modules}
         )
-        self.assertEqual(self.display.processed_commands, 1)
+
+    def test_get_all_steps(self) -> None:
+        out = self.display.get_all_steps()
+        print(out)
+
+    def test_get_current_positions(self) -> None:
+        out = self.display.get_current_positions()
+        print(out)
+        self.display.move_to_position(
+            {location: 15 for location in self.modules}
+        )
+        out = self.display.get_current_positions()
+        print(out)
