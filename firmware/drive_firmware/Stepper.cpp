@@ -18,8 +18,6 @@ int RESOLUTION = 4096; // Default steps per revolution for 28BYJ-48
 int NUM_PHASES = 8;
 int STEP_DELAY = 1;
 
-int currentStep;
-
 Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     pins[0] = p1;
     pins[1] = p2;
@@ -27,7 +25,8 @@ Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     pins[3] = p4;
     this->hallPin = hallPin;
     currentStep = 0;
-    stepPhase = 0;
+    stepPhase = 7;
+    stepDirection = 1;
     
     // Set as output
     pinMode(p1, OUTPUT);
@@ -35,6 +34,14 @@ Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     pinMode(p3, OUTPUT); 
     pinMode(p4, OUTPUT);
     pinMode(hallPin, INPUT_PULLUP);
+}
+
+void Stepper::setDirection(int direction) {
+    this->stepDirection = direction >= 0 ? 1 : -1;
+}
+
+void Stepper::reverseDirection() {
+    this->stepDirection = -this->stepDirection;
 }
 
 void Stepper::home() {
@@ -62,8 +69,13 @@ int Stepper::getCurrentStep() {
 
 void Stepper::step() {
     writePins(STEP_SEQUENCES[stepPhase]);
-    this->currentStep = (currentStep + 1) % RESOLUTION;
-    this->stepPhase = (stepPhase + 1) % NUM_PHASES;
+    if (stepDirection > 0) {
+        this->currentStep = (currentStep + 1) % RESOLUTION;
+        this->stepPhase = (stepPhase - 1 + NUM_PHASES) % NUM_PHASES;
+    } else {
+        this->currentStep = (currentStep - 1 + RESOLUTION) % RESOLUTION;
+        this->stepPhase = (stepPhase + 1) % NUM_PHASES;
+    }
 }
 
 void Stepper::release() {
@@ -83,5 +95,5 @@ void Stepper::writePins(const int* signals) {
 }
 
 bool Stepper::isHallPinActive() {
-    return digitalRead(hallPin);
+    return !digitalRead(hallPin);
 }

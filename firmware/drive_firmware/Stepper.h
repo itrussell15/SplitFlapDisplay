@@ -11,6 +11,8 @@ public:
     void moveToStep(int step_value);
     int getCurrentStep();
     void step();
+    void setDirection(int direction);
+    void reverseDirection();
     bool isValidStep(int step_value);
     void release();
 
@@ -21,6 +23,7 @@ private:
     int pins[4];
     int hallPin;
     int stepPhase;
+    int stepDirection;
     
     // Internal helper to set pin states
     void writePins(const int* signals);

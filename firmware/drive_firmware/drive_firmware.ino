@@ -95,7 +95,7 @@ void setup() {
   rs485.begin(BAUDRATE);
 
   MODULE_ROW = 1;
-  MODULE_COLUMN = 1;
+  MODULE_COLUMN = 3;
   const int HOME_OFFSET = 0;
 
   EEPROM.put(0, MODULE_ROW);
@@ -132,6 +132,16 @@ void loop() {
   {
     motor.release();
   }
+
+  if (!digitalRead(HALL_PIN))
+  {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+  }
+  else
+  {
+    digitalWrite(STATUS_LED_PIN, LOW);
+  }
+    
   
   if (rs485.available() >= INCOMING_SIZE) {
     if (rs485.peek() == INCOMING_START_BYTE) {
@@ -170,7 +180,11 @@ void loop() {
 
         // Only respond to targeted messages
         if (isTargetedMessage)
+        {
           SendSerialResponse(message);
+          performMessageAction(message);
+        }
+          
 
         if (isBroadcastMessage)
           doBroadcastResponse(message);
@@ -314,6 +328,20 @@ void SendSerialResponse(OutgoingMessage message) {
   digitalWrite(RS485_DE, LOW);
 }
 
+void performMessageAction(OutgoingMessage message)
+{
+  Command command = (Command)message.command_id;
+  switch (command) {
+    case Command::CMD_HOME:
+      motor.home();
+      break;
+         default:
+      message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
+      message.status = false;
+      break;
+  }
+}
+
 void doBroadcastResponse(OutgoingMessage message)
 {
   // Turn LED on if bad status
@@ -323,7 +351,7 @@ void doBroadcastResponse(OutgoingMessage message)
   }
 }
 
-bool moveMotorToTarget()
+void moveMotorToTarget()
 {
   unsigned long currentMicros = micros();
   bool shouldStep = currentMicros - previousStepMicros >= STEP_INTERVAL_MICROS;

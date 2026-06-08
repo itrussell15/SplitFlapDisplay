@@ -28,7 +28,7 @@ class TestDisplayController(unittest.TestCase):
 
         modules = [
             (1, 1),
-            (1, 5)
+            (1, 2)
         ]
         port = os.getenv("DISP_USB_PORT")
         cls.modules = {(row, col): ModuleController(row=row, column=col) for (row, col) in modules}
@@ -67,6 +67,10 @@ class TestDisplayController(unittest.TestCase):
 
     def test_get_all_steps(self) -> None:
         out = self.display.get_all_steps()
+        print(out)
+
+    def test_home_all(self) -> None:
+        out = self.display.home_all()
         print(out)
 
     def test_get_current_positions(self) -> None:

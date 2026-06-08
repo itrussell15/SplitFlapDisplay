@@ -42,8 +42,8 @@ class DisplayController:
     def home_all(self) -> None:
         values = []
         self.logger.info("Homing all modules")
-        for location, module in self.modules.items():
-            values.append(module.home(position))
+        for _, module in self.modules.items():
+            values.append(module.home())
         return values
 
     def move_all_to_position(self, position: int) -> List[int]:

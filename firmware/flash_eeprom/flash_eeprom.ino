@@ -1,8 +1,8 @@
 #include <EEPROM.h>
 
 // CHANGE THIS VALUE PER MODULE
-const int MODULE_ROW = 0;
-const int MODULE_COLUMN = 0;
+const int MODULE_ROW = 1;
+const int MODULE_COLUMN = 3;
 const int NUM_FLAPS = 64;
 const int MOTOR_RESOLUTION = 4096;
 const int HOME_OFFSET = 0;

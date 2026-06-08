@@ -1,3 +1,4 @@
+import os
 import logging
 import struct
 import sys
@@ -33,7 +34,7 @@ class TestBusController(unittest.TestCase):
         create_logger(level=logging.DEBUG, spacing=23)
 
         cls.ROW = 1
-        cls.COLUMN = 1
+        cls.COLUMN = 3
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
@@ -76,6 +77,12 @@ class TestBusController(unittest.TestCase):
     def test_get_speed(self) -> None:
         message = self.modules[self.test_location].get_speed()
         self.assertEqual(message.command, ModuleCommand.GET_SPEED)
+        self.assertTrue(message.status)
+        self.latencies.append(message.latency_ms)
+
+    def test_home(self) -> None:
+        message = self.modules[self.test_location].home()
+        self.assertEqual(message.command, ModuleCommand.HOME)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
 
