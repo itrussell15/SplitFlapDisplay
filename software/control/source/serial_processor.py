@@ -19,6 +19,21 @@ class SerialControl:
         self.timeout = timeout
         self.connection = None
         self.bad_packets = []
+        # Guard time between receiving a module's reply and sending the next
+        # command. RS485 is half-duplex: while a module transmits its response
+        # it cannot receive (SoftwareSerial bit-bangs TX with interrupts off,
+        # plus the DE turnaround delays in firmware). Sending the next command
+        # too soon lands inside that deaf window and the module silently misses
+        # it, producing an "every other command fails" pattern. ~15ms covers
+        # the firmware's DE HIGH + TX + DE LOW + return-to-listen window.
+        self.command_interval = 0.02
+        # Number of extra attempts per command if the first send times out or
+        # the reply is malformed. Catches transient misses (e.g. the cold-start
+        # "first ping after the bus was idle" drop). The retry re-sends the same
+        # command with the SAME sequence_id after flushing the input buffer; all
+        # current module commands are idempotent (absolute moves, gets, ping,
+        # home), so re-sending is safe.
+        self.max_retries = 2
 
     @property
     def timeout(self) -> float:
@@ -124,9 +139,30 @@ class SerialProcessor(ABC, SerialControl):
         self.logger.debug("Processor started")
         while True:
             future, item = self.queue.get()
-            start_time = time.time()
             self.logger.debug(f"Sequence ID {sequence_id}: {item}")
             try:
+                self._process_command(future, item, sequence_id)
+            finally:
+                # task_done and the sequence_id bump happen once per command,
+                # regardless of success/failure, so a timed-out command can't
+                # desync the sequence numbering of the commands that follow.
+                self.queue.task_done()
+                sequence_id = (sequence_id + 1) % 256
+
+    def _process_command(self, future, item, sequence_id: int) -> None:
+        """Send one command and resolve its future, retrying transient failures.
+
+        The same command (same sequence_id) is re-sent up to self.max_retries
+        times after flushing the input buffer. This recovers transient single
+        misses (e.g. the cold-start drop) without surfacing them to the caller.
+        """
+        start_time = time.time()
+        for attempt in range(self.max_retries + 1):
+            try:
+                # Discard any stale bytes (e.g. a late reply from a previous
+                # command, or noise) so they can't misalign this read.
+                if self.connection and self.connection.is_open:
+                    self.connection.reset_input_buffer()
                 if isinstance(item, BaseMessage):
                     self._send_serial_command(item.encode(sequence_id))
                 else:
@@ -137,15 +173,33 @@ class SerialProcessor(ABC, SerialControl):
                 read_time = time.time()
                 self.logger.debug(f"Response: {response}")
                 result = self._handle_response(response, item, sequence_id)
-                result.latency_ms = self._get_latency(start_time, send_time, read_time)
+                result.latency_ms = self._get_latency(
+                    start_time, send_time, read_time
+                )
+                if attempt:
+                    self.logger.info(
+                        f"Command {item} succeeded on retry {attempt}"
+                    )
                 future.set_result(result)
-                self.queue.task_done()
-                sequence_id += 1
-                if sequence_id > 255:
-                    sequence_id = 0
+                return
             except Exception as e:
-                future.set_exception(e)
-                self.logger.error(str(e))
+                if attempt < self.max_retries:
+                    self.logger.warning(
+                        f"Attempt {attempt + 1}/{self.max_retries + 1} for "
+                        f"{item} failed ({e}); retrying"
+                    )
+                    # loop continues to the next attempt; the finally below
+                    # provides the inter-attempt settle delay.
+                else:
+                    self.logger.error(
+                        f"{item} failed after {attempt + 1} attempts: {e}"
+                    )
+                    future.set_exception(e)
+            finally:
+                # Let the just-addressed module finish its half-duplex
+                # turnaround and return to listening before the next transmit.
+                if self.command_interval:
+                    time.sleep(self.command_interval)
 
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")
