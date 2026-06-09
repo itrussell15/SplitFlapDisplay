@@ -34,12 +34,12 @@ class TestBusController(unittest.TestCase):
         create_logger(level=logging.DEBUG, spacing=23)
 
         cls.ROW = 1
-        cls.COLUMN = 3
+        cls.COLUMN = 4
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
         port = os.getenv("DISP_USB_PORT")
-        cls.bus = BusController(port=port, modules=cls.modules)
+        cls.bus = BusController(port=port, modules=cls.modules, timeout=0.75)
         cls.latencies = []
 
     @classmethod
@@ -87,27 +87,35 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_steps(self) -> None:
-        message = self.modules[self.test_location].move_to_step(4000)
+        message = self.modules[self.test_location].move_to_step(2750)
         self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
-        time.sleep(10)
+        time.sleep(1)
         message = self.modules[self.test_location].get_steps()
-
-        message = self.modules[self.test_location].move_to_step(2000)
-        self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
-        self.assertTrue(message.status)
-        self.latencies.append(message.latency_ms)
-        # message = self.modules[self.test_location].move_to_step(1000)
-        # self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
-        # self.assertTrue(message.status)
-        # self.latencies.append(message.latency_ms)
 
     def test_get_position(self) -> None:
         message = self.modules[self.test_location].get_position(15)
         self.assertEqual(message.command, ModuleCommand.GET_POSITION)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
+    
+    def test_set_position(self) -> None:
+        message = self.modules[self.test_location].set_position(0)
+        self.assertEqual(message.command, ModuleCommand.SET_POSITION)
+        self.assertTrue(message.status)
+        self.latencies.append(message.latency_ms)
+
+    def test_move_to_position(self) -> None:
+        message = self.modules[self.test_location].move_to_position(10)
+        self.assertTrue(message.status)
+        self.latencies.append(message.latency_ms)
+        time.sleep(10)
+        message = self.modules[self.test_location].get_steps()
+        step_value = message.data_value
+        message = self.modules[self.test_location].get_position(10)
+        postion_value = message.data_value
+        print(f"Position: {postion_value} Step: {step_value}")
 
     # def test_get_all_positions(self) -> None:
     #     positions = self.modules[self.test_location].get_all_positions()

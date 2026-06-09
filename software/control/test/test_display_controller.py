@@ -15,7 +15,6 @@ from source.bus_controller import BusController
 from source.display_controller import DisplayController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
 from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
-print(sys.path)
 from utils import create_logger
 
 SLEEP_TIME_S = 1.0
@@ -28,11 +27,11 @@ class TestDisplayController(unittest.TestCase):
 
         modules = [
             (1, 1),
-            (1, 2)
+            (1, 2),
         ]
         port = os.getenv("DISP_USB_PORT")
         cls.modules = {(row, col): ModuleController(row=row, column=col) for (row, col) in modules}
-        cls.bus = BusController(port=port, modules=cls.modules)
+        cls.bus = BusController(port=port, modules=cls.modules, timeout=0.75)
         cls.display = DisplayController()
         cls.display.add_bus_controller(cls.bus)
 
@@ -56,8 +55,8 @@ class TestDisplayController(unittest.TestCase):
         self.assertEqual(self.display.num_modules, 1)
         self.assertEqual(self.display.processed_commands, 1)
 
-    def test_move_all(self) -> None:
-        self.display.move_all_to_position(10)
+    def test_move_all_position(self) -> None:
+        self.display.move_all_to_position(1)
         self.assertEqual(self.display.processed_commands, 1)
 
     def test_move_to_position(self) -> None:
@@ -67,6 +66,23 @@ class TestDisplayController(unittest.TestCase):
 
     def test_get_all_steps(self) -> None:
         out = self.display.get_all_steps()
+        print(out)
+
+    def test_move_all_to_step(self) -> None:
+        out = self.display.move_all_to_step(2850)
+        print(out)
+
+    def test_move_to_step(self) -> None:
+        value = 2800
+        steps = {
+            (1, 1): value,
+            (1, 2): value - 100,
+        }
+        out = self.display.move_to_steps(steps)
+        print(out)
+
+    def test_set_all_position(self) -> None:
+        out = self.display.set_all_position_steps(0)
         print(out)
 
     def test_home_all(self) -> None:

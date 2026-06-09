@@ -76,6 +76,12 @@ class ModuleController:
         self._current_step = result.data_value
         return result
 
+    def move_steps(self, value: int) -> IncomingMessage:
+        self.logger.info(f"Moving {value} steps")
+        result = self._send_packet(ModuleCommand.MOVE_STEPS, step)
+        self._current_step = result.data_value
+        return result
+
     def get_steps(self) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.GET_STEPS)
         self._current_step = result.data_value

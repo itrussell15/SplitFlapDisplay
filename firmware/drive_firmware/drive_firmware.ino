@@ -66,11 +66,12 @@ enum Command {
   CMD_SET_SPEED = 7,
   CMD_GET_STEPS = 8,
   CMD_MOVE_TO_STEP = 9,
-  CMD_SET_STEP_TARGET = 10,
-  CMD_SET_POSITION_TARGET = 11,
-  CMD_MOVE_TO_TARGET = 12,
-  CMD_HALL_EFFECT_STATUS = 13,
-  CMD_IS_MOVING = 14
+  CMD_MOVE_REL_STEPS = 10,
+  CMD_SET_STEP_TARGET = 11,
+  CMD_SET_POSITION_TARGET = 12,
+  CMD_MOVE_TO_TARGET = 13,
+  CMD_HALL_EFFECT_STATUS = 14,
+  CMD_IS_MOVING = 15
 };
 
 uint8_t MODULE_ROW;
@@ -142,7 +143,6 @@ void loop() {
     digitalWrite(STATUS_LED_PIN, LOW);
   }
     
-  
   if (rs485.available() >= INCOMING_SIZE) {
     if (rs485.peek() == INCOMING_START_BYTE) {
       digitalWrite(STATUS_LED_PIN, LOW);
@@ -169,6 +169,9 @@ void loop() {
         message.command_id = incoming_buffer[4];
         uint16_t data_value = convertBytesToInt16(incoming_buffer[5], incoming_buffer[6]);
         
+        // When procesing, turn on light
+        digitalWrite(STATUS_LED_PIN, HIGH);
+
         // Only validate checksum if its a targeted message
         if (!validateChecksum(incoming_buffer) && isTargetedMessage){
           message.data_value = ErrorCode::ERROR_BAD_CHECKSUM;
@@ -185,9 +188,11 @@ void loop() {
           performMessageAction(message);
         }
           
-
         if (isBroadcastMessage)
           doBroadcastResponse(message);
+        
+        // Turn off light
+        digitalWrite(STATUS_LED_PIN, LOW);
       }
     } else
       rs485.read(); // Discard trash
@@ -206,7 +211,6 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
     case Command::CMD_HOME:
       // May need to respond and then move
       message.status = true;
-      motor.home();
       break;
     case Command::CMD_STOP:
       message.data_value = 2;
@@ -268,6 +272,12 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       }
       targetStep = data_value;
       message.data_value = motor.getCurrentStep();
+      message.status = true;
+      break;
+    case Command::CMD_MOVE_REL_STEPS:
+      tmp = motor.getCurrentStep() + data_value;
+      targetStep = tmp % MOTOR_RESOLUTION;
+      message.data_value = targetStep;
       message.status = true;
       break;
     case Command::CMD_SET_STEP_TARGET:

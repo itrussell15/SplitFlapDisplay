@@ -123,7 +123,9 @@ class SerialProcessor(ABC, SerialControl):
         sequence_id: int = 0
         self.logger.debug("Processor started")
         while True:
+            self.connection.reset_input_buffer()
             future, item = self.queue.get()
+            self.logger.debug(f"in_waiting before send: {self.connection.in_waiting}")
             start_time = time.time()
             self.logger.debug(f"Sequence ID {sequence_id}: {item}")
             try:

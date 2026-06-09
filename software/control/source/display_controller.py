@@ -64,11 +64,31 @@ class DisplayController:
             location: module.current_position
             for location, module in self.modules.items()
         }
+    
+    def move_all_to_step(self, position: int):
+        return {
+            location: module.move_to_step(position)
+            for location, module in self.modules.items()
+        }
+
+    def move_to_steps(self, steps: Dict[Tuple[int, int], int]) -> List[int]:
+        values = []
+        for module_location, step in steps.items():
+            self._is_valid_module(module_location, throw_error=True)
+            response = self.modules[module_location].move_to_step(step)
+            values.append(response)
+        return values
 
     def get_position_steps(self, position: int) -> List[int]:
         values = []
         for location, module in self.modules.items():
             values.append(module.get_position(position))
+        return values
+
+    def set_all_position_steps(self, position: int) -> List[int]:
+        values = []
+        for location, module in self.modules.items():
+            values.append(module.set_position(position))
         return values
 
     def move_to_position(self, positions: Dict[Tuple[int, int], int]) -> List[int]:
