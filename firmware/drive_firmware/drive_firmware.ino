@@ -103,18 +103,11 @@ void setup() {
   EEPROM.put(1, MODULE_COLUMN);
 
   int step_offset = MOTOR_RESOLUTION / NUM_POSITIONS;
-  for (int pos = 0; pos < NUM_POSITIONS; pos++)
-  {
-    unsigned long value = (unsigned long)((unsigned long)pos * step_offset) + HOME_OFFSET;
-    value = value % MOTOR_RESOLUTION;
-    saveStepperPosition(pos, value);
-  }
-
   pinMode(STATUS_LED_PIN, OUTPUT);
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
-  digitalWrite(RS485_DE, LOW); 
+  digitalWrite(RS485_DE, LOW);
 
   for(int i=0; i<5; i++) {
     digitalWrite(STATUS_LED_PIN, HIGH); delay(100);
@@ -125,7 +118,7 @@ void setup() {
 
 void loop() {
 
- 
+
   // Asynchronously to move to target
   if (targetStep != motor.getCurrentStep())
     moveMotorToTarget();
@@ -142,61 +135,89 @@ void loop() {
   {
     digitalWrite(STATUS_LED_PIN, LOW);
   }
-    
-  if (rs485.available() >= INCOMING_SIZE) {
-    if (rs485.peek() == INCOMING_START_BYTE) {
-      digitalWrite(STATUS_LED_PIN, LOW);
-      byte incoming_buffer[INCOMING_SIZE];
 
-      // TODO: Try to read the IncomingMessage struct
-      rs485.readBytes(incoming_buffer, INCOMING_SIZE);
-      
-      // Verify End Byte and Module ID
-      if (incoming_buffer[INCOMING_SIZE - 1] == INCOMING_END_BYTE) {
-        
-        int row = incoming_buffer[1];
-        int column = incoming_buffer[2];
-        
-        bool isTargetedMessage = isThisModule(row, column);
-        bool isBroadcastMessage = isBroadcast(row, column);
-        if (!isBroadcastMessage && !isTargetedMessage)
-          return;
-        
-        OutgoingMessage message;
-        message.row = MODULE_ROW;
-        message.column = MODULE_COLUMN;
-        message.sequence_id = incoming_buffer[3];
-        message.command_id = incoming_buffer[4];
-        uint16_t data_value = convertBytesToInt16(incoming_buffer[5], incoming_buffer[6]);
-        
-        // When procesing, turn on light
-        digitalWrite(STATUS_LED_PIN, HIGH);
 
-        // Only validate checksum if its a targeted message
-        if (!validateChecksum(incoming_buffer) && isTargetedMessage){
-          message.data_value = ErrorCode::ERROR_BAD_CHECKSUM;
-          message.status = false;
-          SendSerialResponse(message);
-          return;
-        }
-        message = handleIncomingMessage(message, data_value);
+  // Drain and frame incoming bytes. Self-resyncing so a stray start byte (0x02)
+  // embedded in another module's reply -- notably column 2's address byte -- can
+  // no longer eat the command that follows it on the shared bus.
+  serviceIncomingSerial();
+}
 
-        // Only respond to targeted messages
-        if (isTargetedMessage)
-        {
-          SendSerialResponse(message);
-          performMessageAction(message);
-        }
-          
-        if (isBroadcastMessage)
-          doBroadcastResponse(message);
-        
-        // Turn off light
-        digitalWrite(STATUS_LED_PIN, LOW);
-      }
-    } else
-      rs485.read(); // Discard trash
+// Incrementally read the RS485 bus one byte at a time, syncing on the start byte
+// and validating the end byte before acting on a frame. Every module hears every
+// other module's replies, and those replies can contain 0x02 as a payload byte
+// (e.g. the column field of module 2). The previous parser trusted any 0x02 and
+// read a full 9-byte frame, swallowing the real start byte of the next command
+// and silently dropping it. Here a mis-framed candidate fails the end-byte check
+// and we resync by a single byte, so a command packed right behind the noise is
+// recovered instead of lost.
+void serviceIncomingSerial() {
+  static byte frame[INCOMING_SIZE];
+  static uint8_t frame_len = 0;
+
+  while (rs485.available() > 0) {
+    byte b = rs485.read();
+
+    if (frame_len == 0) {
+      // Hunting for a start byte; ignore replies and line noise.
+      if (b == INCOMING_START_BYTE)
+        frame[frame_len++] = b;
+      continue;
+    }
+
+    frame[frame_len++] = b;
+    if (frame_len < INCOMING_SIZE)
+      continue;
+
+    if (frame[INCOMING_SIZE - 1] == INCOMING_END_BYTE) {
+      processIncomingFrame(frame);
+      frame_len = 0;
+    } else {
+      // False start byte: drop it and re-scan the bytes we already buffered for
+      // the next start byte, so a real frame behind it isn't discarded too.
+      uint8_t i = 1;
+      while (i < frame_len && frame[i] != INCOMING_START_BYTE)
+        i++;
+      frame_len -= i;
+      for (uint8_t j = 0; j < frame_len; j++)
+        frame[j] = frame[j + i];
+    }
   }
+}
+
+void processIncomingFrame(byte* incoming_buffer) {
+  int row = incoming_buffer[1];
+  int column = incoming_buffer[2];
+
+  bool isTargetedMessage = isThisModule(row, column);
+  bool isBroadcastMessage = isBroadcast(row, column);
+  if (!isBroadcastMessage && !isTargetedMessage)
+    return;
+
+  OutgoingMessage message;
+  message.row = MODULE_ROW;
+  message.column = MODULE_COLUMN;
+  message.sequence_id = incoming_buffer[3];
+  message.command_id = incoming_buffer[4];
+  uint16_t data_value = convertBytesToInt16(incoming_buffer[5], incoming_buffer[6]);
+
+  // Only validate checksum if its a targeted message
+  if (!validateChecksum(incoming_buffer) && isTargetedMessage) {
+    message.data_value = ErrorCode::ERROR_BAD_CHECKSUM;
+    message.status = false;
+    SendSerialResponse(message);
+    return;
+  }
+  message = handleIncomingMessage(message, data_value);
+
+  // Only respond to targeted messages
+  if (isTargetedMessage) {
+    SendSerialResponse(message);
+    performMessageAction(message);
+  }
+
+  if (isBroadcastMessage)
+    doBroadcastResponse(message);
 }
 
 OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_value)
@@ -274,12 +295,6 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = motor.getCurrentStep();
       message.status = true;
       break;
-    case Command::CMD_MOVE_REL_STEPS:
-      tmp = motor.getCurrentStep() + data_value;
-      targetStep = tmp % MOTOR_RESOLUTION;
-      message.data_value = targetStep;
-      message.status = true;
-      break;
     case Command::CMD_SET_STEP_TARGET:
       if (!motor.isValidStep(data_value))
       {
@@ -344,6 +359,7 @@ void performMessageAction(OutgoingMessage message)
   switch (command) {
     case Command::CMD_HOME:
       motor.home();
+      targetStep = 0;
       break;
          default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -438,7 +454,7 @@ uint8_t getModuleColumn() {
 void saveStepperPosition(int index, uint16_t stepValue) {
   index = constrain(index, 0, NUM_POSITIONS - 1);
   // Shift 1 to reserve byte 0 for "Module ID"
-  index += 1;
+  index += 2;
   int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
   EEPROM.put(address, stepValue);
 }
@@ -446,7 +462,7 @@ void saveStepperPosition(int index, uint16_t stepValue) {
 // Retrieve a position from EEPROM
 uint16_t getStepperPosition(int index) {
   if (index >= 0 && index < NUM_POSITIONS) {
-      index += 1;
+      index += 2;
       uint16_t stepValue;
       EEPROM.get(index * sizeof(uint16_t), stepValue);
       return stepValue;
