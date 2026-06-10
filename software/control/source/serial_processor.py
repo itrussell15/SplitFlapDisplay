@@ -114,10 +114,12 @@ class SerialProcessor(ABC, SerialControl):
         port: str,
         baudrate: int = 9600,
         timeout: int = 1,
+        num_retries: int = 3,
         max_queue_size: int = 64,
     ) -> None:
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
+        self.num_retries = num_retries
 
     def worker(self):
         sequence_id: int = 0
@@ -126,15 +128,19 @@ class SerialProcessor(ABC, SerialControl):
             if self.connection and self.connection.is_open:
                 self.connection.reset_input_buffer()
             future, item = self.queue.get()
-            self.logger.debug(f"in_waiting before send: {self.connection.in_waiting}")
-            start_time = time.time()
-            self.logger.debug(f"Sequence ID {sequence_id}: {item}")
             try:
-                if isinstance(item, BaseMessage):
-                    self._send_serial_command(item.encode(sequence_id))
-                else:
-                    self.logger.info(f"Packet doesn't need encoding: {item}")
-                    self._send_serial_command(item)
+                self.process_command(sequence_id, item, future)
+            finally:
+                sequence_id += 1
+                sequence_id = sequence_id % 256
+                self.queue.task_done()
+
+    def process_command(self, sequence_id: int, item: OutgoingMessage, future: Future) -> None:
+        start_time = time.time()
+        attempt = 0
+        while True:
+            try:
+                self._send_serial_command(item.encode(sequence_id))
                 send_time = time.time()
                 response = self._read_serial_response()
                 read_time = time.time()
@@ -142,13 +148,16 @@ class SerialProcessor(ABC, SerialControl):
                 result = self._handle_response(response, item, sequence_id)
                 result.latency_ms = self._get_latency(start_time, send_time, read_time)
                 future.set_result(result)
-                self.queue.task_done()
-                sequence_id += 1
-                if sequence_id > 255:
-                    sequence_id = 0
+                return
             except Exception as e:
+                attempt += 1
+                if attempt <= self.num_retries:
+                    self.logger.debug(f"Attempt {attempt} failed - retrying")
+                    continue
                 future.set_exception(e)
                 self.logger.error(str(e))
+                return
+            
 
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")

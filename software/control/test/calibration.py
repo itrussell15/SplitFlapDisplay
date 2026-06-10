@@ -16,24 +16,23 @@ from control.source.module_controller import MAX_SPEED, ModuleController, MOTOR_
 from utils import create_logger
 
 def main():
-    move_offset = 25
-    modules = [
-        (1, 1),
-        (1, 2)
-    ]
+    move_offset = 50
     port = os.getenv("DISP_USB_PORT")
-    modules = {(row, col): ModuleController(row=row, column=col) for (row, col) in modules}
-    bus = BusController(port=port, modules=modules, timeout=0.75)
+    bus = BusController(port=port, timeout=0.75)
+    bus.discover([1, 2], [1, 10], 0.1)
+    display = DisplayController()
+    display.add_bus_controller(bus)
 
     while True:
         flap = Flap[input("What flap are you calibrating? - ")]
         step_value = int(input(f"Starting step value for {flap.name}? - "))
-        done_mask = {location: False for location in modules}
+        done_mask = {location: False for location in bus.modules}
+        display.move_all_to_step(step_value)
         while not all(done_mask.values()):
-            for location, module in modules.items():
+            for location, module in bus.modules.items():
                 if done_mask[location]:
                     continue
-                module.move_to_step(step_value)
+                module.move_to_step(step_value)    
                 correct = input(f"Is module {location} at the desired position? [y/n] - ").strip().lower() == "y"
                 done_mask[location] = correct
                 if correct:

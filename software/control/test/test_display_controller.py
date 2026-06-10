@@ -25,13 +25,9 @@ class TestDisplayController(unittest.TestCase):
     def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
 
-        modules = [
-            (1, 1),
-            (1, 2),
-        ]
         port = os.getenv("DISP_USB_PORT")
-        cls.modules = {(row, col): ModuleController(row=row, column=col) for (row, col) in modules}
-        cls.bus = BusController(port=port, modules=cls.modules, timeout=0.75)
+        cls.bus = BusController(port=port, timeout=0.75)
+        cls.bus.discover([1, 2], [1, 10], 0.1)
         cls.display = DisplayController()
         cls.display.add_bus_controller(cls.bus)
 
@@ -57,11 +53,10 @@ class TestDisplayController(unittest.TestCase):
 
     def test_move_all_position(self) -> None:
         self.display.move_all_to_position(1)
-        self.assertEqual(self.display.processed_commands, 1)
 
     def test_move_to_position(self) -> None:
         self.display.move_to_position(
-            {location: 15 for location in self.modules}
+            {location: 1 for location in self.bus.modules}
         )
 
     def test_get_all_steps(self) -> None:

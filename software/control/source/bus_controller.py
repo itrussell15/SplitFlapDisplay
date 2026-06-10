@@ -34,11 +34,18 @@ class BusController(SerialProcessor):
         self,
         port: str,
         modules: Optional[Dict[Tuple[int, int], ModuleController]] = None,
-        max_queue_size: int = 64,
-        baudrate: int = 9600,
         timeout: int = 2,
+        num_retries: int = 3,
+        baudrate: int = 9600,
+        max_queue_size: int = 64,
     ) -> None:
-        super().__init__(port, baudrate, timeout, max_queue_size)
+        super().__init__(
+            port,
+            baudrate,
+            timeout,
+            num_retries,
+            max_queue_size
+        )
         self.modules = {} if modules is None else modules
         self.error_queue = Queue()
         self._processed_commands = 0
