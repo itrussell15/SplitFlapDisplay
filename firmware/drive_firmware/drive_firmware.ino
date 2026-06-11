@@ -95,12 +95,13 @@ void setup() {
 
   rs485.begin(BAUDRATE);
 
-  MODULE_ROW = 1;
-  MODULE_COLUMN = 3;
+  // MODULE_ROW = 1;
+  // MODULE_COLUMN = 3;
   const int HOME_OFFSET = 0;
 
-  EEPROM.put(0, MODULE_ROW);
-  EEPROM.put(1, MODULE_COLUMN);
+  // Pull from EEPROM;
+  MODULE_ROW = getModuleRow();
+  MODULE_COLUMN = getModuleColumn();
 
   int step_offset = MOTOR_RESOLUTION / NUM_POSITIONS;
   pinMode(STATUS_LED_PIN, OUTPUT);

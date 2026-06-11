@@ -34,7 +34,7 @@ class TestBusController(unittest.TestCase):
         create_logger(level=logging.DEBUG, spacing=23)
 
         cls.ROW = 1
-        cls.COLUMN = 4
+        cls.COLUMN = 1
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
@@ -87,7 +87,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_steps(self) -> None:
-        message = self.modules[self.test_location].move_to_step(2750)
+        message = self.modules[self.test_location].move_to_step(0)
         self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
@@ -95,7 +95,7 @@ class TestBusController(unittest.TestCase):
         message = self.modules[self.test_location].get_steps()
 
     def test_get_position(self) -> None:
-        message = self.modules[self.test_location].get_position(15)
+        message = self.modules[self.test_location].get_position(0)
         self.assertEqual(message.command, ModuleCommand.GET_POSITION)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
@@ -107,22 +107,23 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_to_position(self) -> None:
-        message = self.modules[self.test_location].move_to_position(10)
+        message = self.modules[self.test_location].move_to_position(30)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
-        time.sleep(10)
-        message = self.modules[self.test_location].get_steps()
-        step_value = message.data_value
-        message = self.modules[self.test_location].get_position(10)
-        postion_value = message.data_value
-        print(f"Position: {postion_value} Step: {step_value}")
+        # time.sleep(10)
+        # message = self.modules[self.test_location].get_steps()
+        # step_value = message.data_value
+        # message = self.modules[self.test_location].get_position(10)
+        # postion_value = message.data_value
+        # print(f"Position: {postion_value} Step: {step_value}")
 
-    # def test_get_all_positions(self) -> None:
-    #     positions = self.modules[self.test_location].get_all_positions()
-    #     self.assertEqual(len(positions), NUM_POSITIONS)
-    #     self.assertTrue(self.modules[self.test_location].positions_known)
-    #     # self.assertEqual(message.command, ModuleCommand.GET_SPEED)
-    #     # self.assertTrue(message.status)
+    def test_get_all_positions(self) -> None:
+        positions = self.modules[self.test_location].get_all_positions()
+        self.assertEqual(len(positions), NUM_POSITIONS)
+        self.assertTrue(self.modules[self.test_location].positions_known)
+        print(positions)
+        # self.assertEqual(message.command, ModuleCommand.GET_SPEED)
+        # self.assertTrue(message.status)
 
     def test_bad_command(self) -> None:
         with self.assertRaises(FirmwareException):
@@ -166,3 +167,7 @@ class TestBusController(unittest.TestCase):
         message = self.modules[self.test_location].is_moving()
         self.assertTrue(bool(message.data_value))
         self.latencies.append(message.latency_ms)
+
+    def test_get_total_steps(self) -> None:
+        message = self.modules[self.test_location].get_drum_steps()
+        print(f"TOTAL MOTOR STEPS: {message.data_value}")

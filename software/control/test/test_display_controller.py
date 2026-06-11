@@ -52,7 +52,7 @@ class TestDisplayController(unittest.TestCase):
         self.assertEqual(self.display.processed_commands, 1)
 
     def test_move_all_position(self) -> None:
-        self.display.move_all_to_position(1)
+        self.display.move_all_to_position(0)
 
     def test_move_to_position(self) -> None:
         self.display.move_to_position(

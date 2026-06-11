@@ -70,8 +70,8 @@ class ModuleController:
 
     def move_to_step(self, step: int) -> IncomingMessage:
         self.logger.info(f"Moving to {step}")
-        if not self.is_valid_step(step):
-            raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
+        # if not self.is_valid_step(step):
+        #     raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
         result = self._send_packet(ModuleCommand.MOVE_TO_STEP, step)
         self._current_step = result.data_value
         return result
@@ -85,6 +85,10 @@ class ModuleController:
     def get_steps(self) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.GET_STEPS)
         self._current_step = result.data_value
+        return result
+
+    def get_drum_steps(self) -> IncomingMessage:
+        result = self._send_packet(ModuleCommand.MOTOR_NUM_STEPS)
         return result
 
     def move_to_position(self, position: int) -> IncomingMessage:

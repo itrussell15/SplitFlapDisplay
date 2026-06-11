@@ -158,7 +158,6 @@ class SerialProcessor(ABC, SerialControl):
                 self.logger.error(str(e))
                 return
             
-
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")
         processor = threading.Thread(target=self.worker, daemon=True)

@@ -46,8 +46,8 @@ void loop() {}
 
 void saveStepperPosition(int index, uint16_t stepValue) {
   index = constrain(index, 0, NUM_FLAPS - 1);
-  // Shift 2 to reserve byte 0 and 1 for ROW and COLUMN
-  index += 2;
+  // Shift 1 to reserve bytes 0 and 1 for ROW and COLUMN (matches drive_firmware)
+  index += 1;
   int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
   EEPROM.put(address, stepValue);
 }
@@ -55,8 +55,8 @@ void saveStepperPosition(int index, uint16_t stepValue) {
 // Retrieve a position from EEPROM
 uint16_t getStepperPosition(int index) {
   if (index >= 0 && index < NUM_FLAPS) {
-      // Shift 2 to reserve byte 0 and 1 for ROW and COLUMN
-      index += 2;
+      // Shift 1 to reserve bytes 0 and 1 for ROW and COLUMN (matches drive_firmware)
+      index += 1;
       uint16_t stepValue;
       EEPROM.get(index * sizeof(uint16_t), stepValue);
       return stepValue;

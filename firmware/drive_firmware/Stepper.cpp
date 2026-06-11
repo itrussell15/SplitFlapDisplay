@@ -14,7 +14,7 @@ const int STEP_SEQUENCES[8][4] = {
 
 const int RELEASE_SEQUENCE[4] = {0, 0, 0, 0};
 
-int RESOLUTION = 4096; // Default steps per revolution for 28BYJ-48
+int RESOLUTION = 12288; // 4096 * 3
 int NUM_PHASES = 8;
 int STEP_DELAY = 1;
 

@@ -25,6 +25,7 @@ class ModuleCommand(enum.IntEnum):
     MOVE_TO_TARGET = 13
     GET_HALL_EFFECT_STATUS = 14
     IS_MOVING = 15
+    MOTOR_NUM_STEPS = 16
     BAD_COMMAND = 99
 
 
