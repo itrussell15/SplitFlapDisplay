@@ -27,6 +27,7 @@ class ModuleCommand(enum.IntEnum):
     IS_MOVING = 15
     MOTOR_NUM_STEPS = 16
     SET_HOME_OFFSET = 17
+    SET_AUTO_HOME = 18
     BAD_COMMAND = 99
 
 

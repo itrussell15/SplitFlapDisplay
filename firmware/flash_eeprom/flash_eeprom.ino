@@ -1,5 +1,13 @@
 #include <EEPROM.h>
 
+// ########## EEPROM LOCATIONS ################
+const int MODULE_ROW_LOCATION = 0;
+const int MODULE_COLUMN_LOCATION = 1;
+const int AUTO_HOME_LOCATION = 2;
+const int HOME_OFFSET_VALUE_LOCATION = 3;
+const int POSITION_VALUES_START_LOCATION = 5;
+// ###########################################
+
 // CHANGE THIS VALUE PER MODULE
 const int MODULE_ROW = 1;
 const int MODULE_COLUMN = 3;

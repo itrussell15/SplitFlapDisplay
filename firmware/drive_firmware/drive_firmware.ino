@@ -21,8 +21,9 @@ const int STATUS_LED_PIN = PIN_PA3;
 // ########## EEPROM LOCATIONS ################
 const int MODULE_ROW_LOCATION = 0;
 const int MODULE_COLUMN_LOCATION = 1;
-const int HOME_OFFSET_VALUE_LOCATION = 2;
-const int POSITION_VALUES_START_LOCATION = 4;
+const int AUTO_HOME_LOCATION = 2;
+const int HOME_OFFSET_VALUE_LOCATION = 3;
+const int POSITION_VALUES_START_LOCATION = 5;
 // ###########################################
 
 const int INCOMING_SIZE = 9;
@@ -60,6 +61,7 @@ enum ErrorCode {
   ERROR_COMMAND_NOT_FOUND = 2,
   ERROR_INVALID_POSITION = 3,
   ERROR_INVALID_STEP = 4
+  ERROR_INVALID_VALUE = 5
 };
 
 enum Command {
@@ -79,12 +81,15 @@ enum Command {
   CMD_MOVE_TO_TARGET = 13,
   CMD_HALL_EFFECT_STATUS = 14,
   CMD_IS_MOVING = 15,
-  CMD_SET_HOME_OFFSET = 16
+  CMD_MOTOR_NUM_STEPS = 16,
+  CMD_SET_HOME_OFFSET = 17
+  CMD_SET_AUTO_HOME = 18
 };
 
 uint8_t MODULE_ROW;
 uint8_t MODULE_COLUMN;
 uint16_t HOME_OFFSET;
+bool AUTO_HOME = true;
 const int BAUDRATE = 9600;
 
 // ##### MOTOR VALUES #####
@@ -124,6 +129,11 @@ void setup() {
     digitalWrite(STATUS_LED_PIN, LOW);  delay(100);
   }
   previousStepMicros = micros();
+
+  AUTO_HOME = getAutoHome();
+  if (AUTO_HOME)
+    motor.home();
+  
 }
 
 void loop() {
@@ -146,11 +156,10 @@ void loop() {
     digitalWrite(STATUS_LED_PIN, LOW);
   }
 
-
   // Drain and frame incoming bytes. Self-resyncing so a stray start byte (0x02)
   // embedded in another module's reply -- notably column 2's address byte -- can
   // no longer eat the command that follows it on the shared bus.
-  serviceIncomingSerial();
+  ParseIncomingSerial();
 }
 
 // Incrementally read the RS485 bus one byte at a time, syncing on the start byte
@@ -161,7 +170,7 @@ void loop() {
 // and silently dropping it. Here a mis-framed candidate fails the end-byte check
 // and we resync by a single byte, so a command packed right behind the noise is
 // recovered instead of lost.
-void serviceIncomingSerial() {
+void ParseIncomingSerial() {
   static byte frame[INCOMING_SIZE];
   static uint8_t frame_len = 0;
 
@@ -180,7 +189,7 @@ void serviceIncomingSerial() {
       continue;
 
     if (frame[INCOMING_SIZE - 1] == INCOMING_END_BYTE) {
-      processIncomingFrame(frame);
+      processIncomingMessage(frame);
       frame_len = 0;
     } else {
       // False start byte: drop it and re-scan the bytes we already buffered for
@@ -195,7 +204,7 @@ void serviceIncomingSerial() {
   }
 }
 
-void processIncomingFrame(byte* incoming_buffer) {
+void processIncomingMessage(byte* incoming_buffer) {
   int row = incoming_buffer[1];
   int column = incoming_buffer[2];
 
@@ -340,9 +349,52 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = (int)isMoving();
       message.status = true;
       break;
-    case Command::CMD_SET_HOME_OFFSET:
+    case Command::CMD_MOTOR_NUM_STEPS:
+      // Test to determine the number of steps it takes to return to the hall sensor. ie a full rotation
+      motor.home();
+      delay(500);
+
+      int step_count = 0;
       
+      // Move until off hall sensor
+      while (isHallPinActive())
+      {
+        motor.step();
+        step_count += 1;
+        delay(1);
+      }
+
+      // Move until back on to hall sensor
+      while (!isHallPinActive())
+      {
+        motor.step();
+        step_count += 1;
+        delay(1);
+      }
       message.status = true;
+      message.data_value = step_count;
+      break;
+    case Command::CMD_SET_HOME_OFFSET:
+      if (!motor.isValidStep(data_value))
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_STEP;
+        message.status = false;
+        break;
+      }
+      message.data_value = data_value
+      message.status = true;
+      HOME_OFFSET = data_value;
+      break;
+    case Command::CMD_SET_AUTO_HOME:
+      if (data_value != 0 || data_value != 1)
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_VALUE;
+        message.status = false;
+        break;
+      }
+      message.data_value = data_value
+      message.status = true;
+      setAutoHome(data_value);
       break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -372,14 +424,43 @@ void performMessageAction(OutgoingMessage message)
   Command command = (Command)message.command_id;
   switch (command) {
     case Command::CMD_HOME:
+      // Home
       motor.home();
-      targetStep = 0;
+      delay(500);
+
+      // Move to offset
+      while (int i = 0; ; i < HOME_OFFSET; i++)
+      {
+        motor.step();
+        delay(1);
+      }
+
+      // Set offset position to 0 and stay at that position
+      motor.currentStep = 0;
+      targetStep = motor.getCurrentStep();
       break;
-         default:
+    case Command::CMD_MOTOR_NUM_STEPS:
+      // Home
+      motor.home();
+      delay(500);
+
+      // Move to offset
+      while (int i = 0; ; i < HOME_OFFSET; i++)
+      {
+        motor.step();
+        delay(1);
+      }
+
+      // Set offset position to 0 and stay at that position
+      motor.currentStep = 0;
+      targetStep = motor.getCurrentStep();
+      break;
+    default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
       message.status = false;
       break;
   }
+  
 }
 
 void doBroadcastResponse(OutgoingMessage message)
@@ -468,6 +549,16 @@ uint16_t getHomeOffset() {
   uint16_t offset;
   EEPROM.get(index * sizeof(uint16_t), offset);
   return offset;
+}
+
+bool getAutoHome() { 
+  bool value;
+  EEPROM.get(AUTO_HOME_LOCATION, value);
+  return (bool)value;
+}
+
+void setAutoHome(bool value) {
+  EEPROM.put(AUTO_HOME_LOCATION, value);
 }
 
 // Save a position (0-4096) to a specific index (0-63)

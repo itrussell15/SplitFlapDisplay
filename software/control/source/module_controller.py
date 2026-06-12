@@ -137,6 +137,10 @@ class ModuleController:
         output = self._send_packet(ModuleCommand.SET_HOME_OFFSET)
         return output
 
+    def set_auto_home(self, on: bool) -> IncomingMessage:
+        output = self._send_packet(ModuleCommand.SET_AUTO_HOME, value=on)
+        return output
+
     def stop(self) -> IncomingMessage:
         return self._send_packet(ModuleCommand.STOP)
 
