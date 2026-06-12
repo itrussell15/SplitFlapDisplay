@@ -11,7 +11,7 @@ const int POSITION_VALUES_START_LOCATION = 5;
 // CHANGE THESE VALUES PER MODULE
 const int MODULE_ROW = 1;
 const int MODULE_COLUMN = 1;
-const int HOME_OFFSET = 0;
+const int HOME_OFFSET = 1000;
 const bool AUTO_HOME = true;
 
 // MODULE PROPERTIES
@@ -22,14 +22,14 @@ void setup() {
 
   EEPROM.update(MODULE_ROW_LOCATION, MODULE_ROW);
   EEPROM.update(MODULE_COLUMN_LOCATION, MODULE_COLUMN);
-  EEPROM.update(AUTO_HOME_LOCATION, value);
+  EEPROM.update(AUTO_HOME_LOCATION, AUTO_HOME);
   saveHomeOffset(HOME_OFFSET);
   
   // Set Positions;
   int evenStep = MOTOR_RESOLUTION / NUM_FLAPS;
   for(int i = 0; i < NUM_FLAPS; i++)
   {
-    int value = (i * evenStep) + HOME_OFFSET;
+    int value = (i * evenStep);
     value = value % MOTOR_RESOLUTION;
     saveStepperPosition(i, value);
   }
