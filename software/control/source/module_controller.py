@@ -132,6 +132,10 @@ class ModuleController:
         self._current_position = 0
         self._current_step = 0
         return output
+    
+    def set_home_offset(self) -> IncomingMessage:
+        output = self._send_packet(ModuleCommand.SET_HOME_OFFSET)
+        return output
 
     def stop(self) -> IncomingMessage:
         return self._send_packet(ModuleCommand.STOP)

@@ -18,6 +18,13 @@ const int IN1 = 9;
 const int STATUS_LED_PIN = PIN_PA3;
 // ##########################
 
+// ########## EEPROM LOCATIONS ################
+const int MODULE_ROW_LOCATION = 0;
+const int MODULE_COLUMN_LOCATION = 1;
+const int HOME_OFFSET_VALUE_LOCATION = 2;
+const int POSITION_VALUES_START_LOCATION = 4;
+// ###########################################
+
 const int INCOMING_SIZE = 9;
 const byte INCOMING_START_BYTE = 2;
 const byte INCOMING_END_BYTE = 3;
@@ -71,11 +78,13 @@ enum Command {
   CMD_SET_POSITION_TARGET = 12,
   CMD_MOVE_TO_TARGET = 13,
   CMD_HALL_EFFECT_STATUS = 14,
-  CMD_IS_MOVING = 15
+  CMD_IS_MOVING = 15,
+  CMD_SET_HOME_OFFSET = 16
 };
 
 uint8_t MODULE_ROW;
 uint8_t MODULE_COLUMN;
+uint16_t HOME_OFFSET;
 const int BAUDRATE = 9600;
 
 // ##### MOTOR VALUES #####
@@ -102,8 +111,8 @@ void setup() {
   // Pull from EEPROM;
   MODULE_ROW = getModuleRow();
   MODULE_COLUMN = getModuleColumn();
+  HOME_OFFSET = getHomeOffset();
 
-  int step_offset = MOTOR_RESOLUTION / NUM_POSITIONS;
   pinMode(STATUS_LED_PIN, OUTPUT);
 
   // SERIAL COMMS
@@ -331,6 +340,10 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = (int)isMoving();
       message.status = true;
       break;
+    case Command::CMD_SET_HOME_OFFSET:
+      
+      message.status = true;
+      break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
       message.status = false;
@@ -439,23 +452,29 @@ uint8_t getModuleRow() {
   // Pulls the module row from EEPROM address 0. 
   // Should be between 0-255
   uint8_t id;
-  EEPROM.get(0, id);
+  EEPROM.get(MODULE_ROW_LOCATION, id);
   return id;
 }
 
-uint8_t getModuleColumn() {
-  // Pulls the module column from EEPROM address 0. 
+uint8_t getModuleColumn() { 
   // Should be between 0-255
   uint8_t id;
-  EEPROM.get(1, id);
+  EEPROM.get(MODULE_COLUMN_LOCATION, id);
   return id;
+}
+
+uint16_t getHomeOffset() { 
+  // Should be between 0-255
+  uint16_t offset;
+  EEPROM.get(index * sizeof(uint16_t), offset);
+  return offset;
 }
 
 // Save a position (0-4096) to a specific index (0-63)
 void saveStepperPosition(int index, uint16_t stepValue) {
   index = constrain(index, 0, NUM_POSITIONS - 1);
-  // Shift 1 to reserve byte 0 for "Module ID"
-  index += 2;
+  // Shift to correct location
+  index += POSITION_VALUES_START_LOCATION;
   int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
   EEPROM.put(address, stepValue);
 }
@@ -463,7 +482,8 @@ void saveStepperPosition(int index, uint16_t stepValue) {
 // Retrieve a position from EEPROM
 uint16_t getStepperPosition(int index) {
   if (index >= 0 && index < NUM_POSITIONS) {
-      index += 2;
+    // Shift to correct location
+      index += POSITION_VALUES_START_LOCATION;
       uint16_t stepValue;
       EEPROM.get(index * sizeof(uint16_t), stepValue);
       return stepValue;

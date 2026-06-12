@@ -87,7 +87,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_steps(self) -> None:
-        message = self.modules[self.test_location].move_to_step(0)
+        message = self.modules[self.test_location].move_to_step(15)
         self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
@@ -107,7 +107,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_to_position(self) -> None:
-        message = self.modules[self.test_location].move_to_position(30)
+        message = self.modules[self.test_location].move_to_position(3)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
         # time.sleep(10)

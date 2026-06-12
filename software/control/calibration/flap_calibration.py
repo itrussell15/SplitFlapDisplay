@@ -20,18 +20,21 @@ def main():
     small_adjust = 10
     port = os.getenv("DISP_USB_PORT")
     bus = BusController(port=port, timeout=0.75)
-    bus.discover([1, 2], [1, 2], 0.1)
+    bus.discover([1, 2], [1, 5], 0.1)  # probe columns 1-4 (empty columns just time out)
     display = DisplayController()
     display.add_bus_controller(bus)
+
+    # Home to get everything in the right place
+    display.home_all()
 
     flap = Flap[input("What flap are you start at? - ")]
     init_step_value = int(input(f"Starting step value for {flap.name}? - "))
     step_values = {location: init_step_value for location in bus.modules}
+
     display.move_to_steps(step_values)
     for position in range(flap.value, NUM_POSITIONS):
         flap = Flap(position)
         done_mask = {location: False for location in bus.modules}
-        step_values = {location: value + move_offset for (location, value) in step_values.items()}
         while not all(done_mask.values()):
             display.move_to_steps(step_values)
             for location, module in bus.modules.items():
@@ -42,16 +45,10 @@ def main():
                 if correct:
                     module.set_position(flap.value)
                 else:
-                    step_values[location] = (step_values[location] + small_adjust) % 4096
+                    step_values[location] = (step_values[location] + small_adjust) % MOTOR_RESOLUTION
 
                 print(f"Moving {location} {move_offset} steps - Current Step: {step_values[location]}")
-
-            
-
-
-
-
-
+        step_values = {location: (value + move_offset) % MOTOR_RESOLUTION for (location, value) in step_values.items()}
 
 if __name__ == "__main__":
     create_logger()
