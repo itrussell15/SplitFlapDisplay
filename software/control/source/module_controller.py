@@ -21,6 +21,8 @@ MAX_ROW_VALUE = 255
 MIN_COLUMN_VALUE = 0
 MAX_COLUMN_VALUE = 255
 
+NUM_EEPROM_BYTES = 256
+
 
 class FirmwareException(Exception):
     pass
@@ -158,6 +160,11 @@ class ModuleController:
 
     def get_hall_effect_status(self) -> IncomingMessage:
         return self._send_packet(ModuleCommand.GET_HALL_EFFECT_STATUS)
+
+    def get_eeprom_value(self, location: int) -> IncomingMessage:
+        if location < 0 or location > NUM_EEPROM_BYTES:
+            raise ValueError(f"Unable to get EEPROM location {location} - EPPROM locations are between 0-{NUM_EEPROM_BYTES}")
+        return self._send_packet(ModuleCommand.GET_EEPROM_VALUE, value=location)
 
     @staticmethod
     def is_valid_position(position_id: int) -> bool:

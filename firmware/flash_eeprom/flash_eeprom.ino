@@ -8,25 +8,23 @@ const int HOME_OFFSET_VALUE_LOCATION = 3;
 const int POSITION_VALUES_START_LOCATION = 5;
 // ###########################################
 
-// CHANGE THIS VALUE PER MODULE
+// CHANGE THESE VALUES PER MODULE
 const int MODULE_ROW = 1;
-const int MODULE_COLUMN = 3;
+const int MODULE_COLUMN = 1;
+const int HOME_OFFSET = 0;
+const bool AUTO_HOME = true;
+
+// MODULE PROPERTIES
 const int NUM_FLAPS = 64;
 const int MOTOR_RESOLUTION = 4096;
-const int HOME_OFFSET = 0;
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
-  // Set Module ID
- EEPROM.update(0, MODULE_ROW);
- EEPROM.update(1, MODULE_COLUMN); 
- Serial.print("Module row: ");
- Serial.print(MODULE_ROW);
- Serial.print("Module column: ");
- Serial.println(MODULE_COLUMN);
- Serial.println();
 
+  EEPROM.update(MODULE_ROW_LOCATION, MODULE_ROW);
+  EEPROM.update(MODULE_COLUMN_LOCATION, MODULE_COLUMN);
+  EEPROM.update(AUTO_HOME_LOCATION, value);
+  saveHomeOffset(HOME_OFFSET);
+  
   // Set Positions;
   int evenStep = MOTOR_RESOLUTION / NUM_FLAPS;
   for(int i = 0; i < NUM_FLAPS; i++)
@@ -34,40 +32,35 @@ void setup() {
     int value = (i * evenStep) + HOME_OFFSET;
     value = value % MOTOR_RESOLUTION;
     saveStepperPosition(i, value);
-    Serial.print("Position ");
-    Serial.print(i);
-    Serial.print(" set to ");
-    Serial.println(value);
   }
 
-  for(int i = 0; i < NUM_FLAPS; i++)
-  {
-    int value = getStepperPosition(i);
-    Serial.print("Position ");
-    Serial.print(i);
-    Serial.print(" set to ");
-    Serial.println(value);
+  for(int i=0; i<3; i++) {
+    digitalWrite(STATUS_LED_PIN, HIGH); delay(500);
+    digitalWrite(STATUS_LED_PIN, LOW);  delay(100);
   }
 }
 
 void loop() {}
 
-void saveStepperPosition(int index, uint16_t stepValue) {
-  index = constrain(index, 0, NUM_FLAPS - 1);
-  // Shift 1 to reserve bytes 0 and 1 for ROW and COLUMN (matches drive_firmware)
-  index += 1;
-  int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
-  EEPROM.put(address, stepValue);
+void saveInt16ToEeprom(int start_location, uint16_t value)
+{
+  // Shift to correct location
+  int address = start_location * sizeof(uint16_t);
+  EEPROM.put(address, value);
 }
 
-// Retrieve a position from EEPROM
-uint16_t getStepperPosition(int index) {
-  if (index >= 0 && index < NUM_FLAPS) {
-      // Shift 1 to reserve bytes 0 and 1 for ROW and COLUMN (matches drive_firmware)
-      index += 1;
-      uint16_t stepValue;
-      EEPROM.get(index * sizeof(uint16_t), stepValue);
-      return stepValue;
-  }
-  return 0; // Return 0 if index is out of bounds
+void saveInt16ToEeprom(int address, uint16_t value)
+{
+    EEPROM.put(address, value); // Writes 2 bytes starting at 'address'
+}
+
+void saveHomeOffset(uint16_t stepValue) {
+  saveInt16ToEeprom(HOME_OFFSET_VALUE_LOCATION, stepValue);
+}
+
+// Save a position to a specific index (0-63)
+void saveStepperPosition(int index, uint16_t stepValue) {
+  index = constrain(index, 0, NUM_POSITIONS - 1);
+  int address = POSITION_VALUES_START_LOCATION + (index * sizeof(uint16_t));
+  saveInt16ToEeprom(address, stepValue);
 }

@@ -83,7 +83,8 @@ enum Command {
   CMD_IS_MOVING = 15,
   CMD_MOTOR_NUM_STEPS = 16,
   CMD_SET_HOME_OFFSET = 17
-  CMD_SET_AUTO_HOME = 18
+  CMD_SET_AUTO_HOME = 18,
+  CMD_GET_EEPROM_VALUE = 19,
 };
 
 uint8_t MODULE_ROW;
@@ -109,28 +110,24 @@ void setup() {
 
   rs485.begin(BAUDRATE);
 
-  // MODULE_ROW = 1;
-  // MODULE_COLUMN = 3;
-  const int HOME_OFFSET = 0;
-
   // Pull from EEPROM;
   MODULE_ROW = getModuleRow();
   MODULE_COLUMN = getModuleColumn();
   HOME_OFFSET = getHomeOffset();
-
-  pinMode(STATUS_LED_PIN, OUTPUT);
+  AUTO_HOME = getAutoHome();
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
   digitalWrite(RS485_DE, LOW);
 
+  // Status Light
+  pinMode(STATUS_LED_PIN, OUTPUT);
   for(int i=0; i<5; i++) {
     digitalWrite(STATUS_LED_PIN, HIGH); delay(100);
     digitalWrite(STATUS_LED_PIN, LOW);  delay(100);
   }
   previousStepMicros = micros();
 
-  AUTO_HOME = getAutoHome();
   if (AUTO_HOME)
     motor.home();
   
@@ -383,6 +380,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       }
       message.data_value = data_value
       message.status = true;
+      saveHomeOffset(data_value);
       HOME_OFFSET = data_value;
       break;
     case Command::CMD_SET_AUTO_HOME:
@@ -395,6 +393,17 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = data_value
       message.status = true;
       setAutoHome(data_value);
+    case Command::CMD_GET_EEPROM_VALUE:
+      if (data_value < 0 || data_value > 256)
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_EEPROM_LOCATION;
+        message.status = false;
+        break;
+      }
+      uint8_t value;
+      EEPROM.get(AUTO_HOME_LOCATION, value);
+      message.data_value = value;
+      message.status = true;
       break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -544,13 +553,6 @@ uint8_t getModuleColumn() {
   return id;
 }
 
-uint16_t getHomeOffset() { 
-  // Should be between 0-255
-  uint16_t offset;
-  EEPROM.get(index * sizeof(uint16_t), offset);
-  return offset;
-}
-
 bool getAutoHome() { 
   bool value;
   EEPROM.get(AUTO_HOME_LOCATION, value);
@@ -561,23 +563,46 @@ void setAutoHome(bool value) {
   EEPROM.put(AUTO_HOME_LOCATION, value);
 }
 
-// Save a position (0-4096) to a specific index (0-63)
-void saveStepperPosition(int index, uint16_t stepValue) {
-  index = constrain(index, 0, NUM_POSITIONS - 1);
-  // Shift to correct location
-  index += POSITION_VALUES_START_LOCATION;
-  int address = index * sizeof(uint16_t); // Each index is 2 bytes apart
-  EEPROM.put(address, stepValue);
+uint16_t getInt16FromEeprom(int address)
+{
+    uint16_t value;
+    EEPROM.get(address, value); // Reads 2 bytes starting at 'address'
+    return value;
+}
+
+uint16_t getInt16FromEeprom(int address)
+{
+    uint16_t value;
+    EEPROM.get(address, value); // Reads 2 bytes starting at 'address'
+    return value;
+}
+
+uint16_t getHomeOffset() { 
+  return getInt16FromEeprom(HOME_OFFSET_VALUE_LOCATION);
 }
 
 // Retrieve a position from EEPROM
 uint16_t getStepperPosition(int index) {
   if (index >= 0 && index < NUM_POSITIONS) {
-    // Shift to correct location
-      index += POSITION_VALUES_START_LOCATION;
-      uint16_t stepValue;
-      EEPROM.get(index * sizeof(uint16_t), stepValue);
-      return stepValue;
+      // Calculate byte address: Start + (index * 2 bytes per int)
+      int address = POSITION_VALUES_START_LOCATION + (index * sizeof(uint16_t));
+      return getInt16FromEeprom(address);
   }
-  return 0; // Return 0 if index is out of bounds
+  return 0;
+}
+
+void saveInt16ToEeprom(int address, uint16_t value)
+{
+    EEPROM.put(address, value); // Writes 2 bytes starting at 'address'
+}
+
+void saveHomeOffset(uint16_t stepValue) {
+  saveInt16ToEeprom(HOME_OFFSET_VALUE_LOCATION, stepValue);
+}
+
+// Save a position to a specific index (0-63)
+void saveStepperPosition(int index, uint16_t stepValue) {
+  index = constrain(index, 0, NUM_POSITIONS - 1);
+  int address = POSITION_VALUES_START_LOCATION + (index * sizeof(uint16_t));
+  saveInt16ToEeprom(address, stepValue);
 }
