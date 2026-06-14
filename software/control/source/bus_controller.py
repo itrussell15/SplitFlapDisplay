@@ -175,7 +175,7 @@ class BusController(SerialProcessor):
                 f"Range input was: {val_range}, should be [MIN_VAL, MAX_VAL]"
             )
         for val in val_range:
-            if val < 0 or val > 255:
+            if val < 0 or val > 256:
                 raise ValueError(
                     f"Discover value must be betweeen 0-{MAX_ROW_VALUE} - Not {val}"
                 )

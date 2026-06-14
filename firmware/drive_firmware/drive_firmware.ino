@@ -434,18 +434,7 @@ void performMessageAction(OutgoingMessage message)
   switch (command) {
     case Command::CMD_HOME:
       // Home
-      motor.home();
-      delay(500);
-
-      // Move to offset
-      while (int i = 0; ; i < HOME_OFFSET; i++)
-      {
-        motor.step();
-        delay(1);
-      }
-
-      // Set offset position to 0 and stay at that position
-      motor.currentStep = 0;
+      motor.home(HOME_OFFSET);
       targetStep = motor.getCurrentStep();
       break;
     case Command::CMD_MOTOR_NUM_STEPS:

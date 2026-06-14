@@ -12,6 +12,7 @@ from concurrent.futures import Future
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from source.bus_controller import BusController
+from source.flaps import Flap
 from source.display_controller import DisplayController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
 from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
@@ -56,7 +57,40 @@ class TestDisplayController(unittest.TestCase):
 
     def test_move_to_position(self) -> None:
         self.display.move_to_position(
-            {location: 1 for location in self.bus.modules}
+            {
+                (1, 1): 25
+            }
+        )
+
+    def test_move_to_flaps(self) -> None:
+        self.display.move_to_flaps(
+            {
+                (1, 1): Flap.B,
+                (1, 2): Flap.O,
+                (1, 3): Flap.O,
+                (1, 4): Flap.B,
+                (1, 5): Flap.S
+            }
+        )
+        time.sleep(10)
+        self.display.move_to_flaps(
+            {
+                (1, 1): Flap.C,
+                (1, 2): Flap.A,
+                (1, 3): Flap.R,
+                (1, 4): Flap.L,
+                (1, 5): Flap.Y
+            }
+        )
+        time.sleep(10)
+        self.display.move_to_flaps(
+            {
+                (1, 1): Flap.I,
+                (1, 2): Flap.HEART,
+                (1, 3): Flap.Y,
+                (1, 4): Flap.O,
+                (1, 5): Flap.U
+            }
         )
 
     def test_get_all_steps(self) -> None:

@@ -7,7 +7,7 @@ public:
     Stepper(int p1, int p2, int p3, int p4, int hallPin);
 
     // Moves the motor one step in the sequence
-    void home();
+    void home(int home_offset);
     void moveToStep(int step_value);
     int getCurrentStep();
     void step();

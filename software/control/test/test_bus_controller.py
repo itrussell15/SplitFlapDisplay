@@ -34,7 +34,7 @@ class TestBusController(unittest.TestCase):
         create_logger(level=logging.DEBUG, spacing=23)
 
         cls.ROW = 1
-        cls.COLUMN = 1
+        cls.COLUMN = 5
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
@@ -46,9 +46,10 @@ class TestBusController(unittest.TestCase):
     def tearDownClass(cls):
         # Runs once after ALL tests in this class
         cls.bus.close()
-        print(
-            f"Average Latency: {sum([i.total for i in cls.latencies]) / len(cls.latencies):.2f}ms"
-        )
+        if len(cls.latencies) > 0:
+            print(
+                f"Average Latency: {sum([i.total for i in cls.latencies]) / len(cls.latencies):.2f}ms"
+            )
 
     def setUp(self):
         self.timeout = 0.5
@@ -87,7 +88,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_steps(self) -> None:
-        message = self.modules[self.test_location].move_to_step(15)
+        message = self.modules[self.test_location].move_to_step(1200)
         self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
@@ -107,7 +108,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_to_position(self) -> None:
-        message = self.modules[self.test_location].move_to_position(3)
+        message = self.modules[self.test_location].move_to_position(1)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
         # time.sleep(10)
@@ -143,7 +144,7 @@ class TestBusController(unittest.TestCase):
             self.bus.discover([0, 4], [0, 500])
 
         # Actually search for 1 module
-        self.bus.discover([1, 2], [1, 6], 1.0)
+        self.bus.discover([1, 2], [1, 10], 0.1)
         self.assertEqual(len(self.bus.modules), 1)
 
     def test_broadcast(self) -> None:
@@ -168,6 +169,31 @@ class TestBusController(unittest.TestCase):
         self.assertTrue(bool(message.data_value))
         self.latencies.append(message.latency_ms)
 
+    def test_set_auto_home(self) -> None:
+        message = self.modules[self.test_location].set_auto_home(True)
+
+    def test_set_home_offset(self) -> None:
+        message = self.modules[self.test_location].set_home_offset(2770)
+
+    def test_get_home_offset(self) -> None:
+        message = self.modules[self.test_location].get_home_offset()
+
+    def test_get_auto_home(self) -> None:
+        message = self.modules[self.test_location].get_home_offset()
+
+    def test_get_eeprom(self) -> None:
+        row = self.modules[self.test_location].get_eeprom_value(0)
+        col = self.modules[self.test_location].get_eeprom_value(1)
+        auto_home = self.modules[self.test_location].get_eeprom_value(2)
+        message1 = self.modules[self.test_location].get_eeprom_value(3)
+        message2 = self.modules[self.test_location].get_eeprom_value(4)
+
+        print(f"ROW: {row.data_value} COLUMN: {col.data_value}")
+        print(f"AUTO HOME: {auto_home.data_value} -> {bool(auto_home.data_value)}")
+        print(f"HOME OFFSET ---- ")
+        print(f"1: {message1.data_value} - 2: {message2.data_value} = {(message2.data_value * 256) + message1.data_value}")
+
     def test_get_total_steps(self) -> None:
+        self.bus.timeout = 6.0
         message = self.modules[self.test_location].get_drum_steps()
         print(f"TOTAL MOTOR STEPS: {message.data_value}")

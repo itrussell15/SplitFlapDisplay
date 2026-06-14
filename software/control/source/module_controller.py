@@ -135,12 +135,16 @@ class ModuleController:
         self._current_step = 0
         return output
     
-    def set_home_offset(self) -> IncomingMessage:
-        output = self._send_packet(ModuleCommand.SET_HOME_OFFSET)
+    def get_home_offset(self) -> IncomingMessage:
+        output = self._send_packet(ModuleCommand.GET_HOME_OFFSET)
+        return output
+
+    def set_home_offset(self, value: int) -> IncomingMessage:
+        output = self._send_packet(ModuleCommand.SET_HOME_OFFSET, value=value)
         return output
 
     def set_auto_home(self, on: bool) -> IncomingMessage:
-        output = self._send_packet(ModuleCommand.SET_AUTO_HOME, value=on)
+        output = self._send_packet(ModuleCommand.SET_AUTO_HOME, value=int(on))
         return output
 
     def stop(self) -> IncomingMessage:

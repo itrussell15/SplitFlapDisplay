@@ -44,12 +44,20 @@ void Stepper::reverseDirection() {
     this->stepDirection = -this->stepDirection;
 }
 
-void Stepper::home() {
+void Stepper::home(int home_offset) {
     while(!isHallPinActive())
     {
         this->step();
         delay(STEP_DELAY);
     }
+
+    delay(500);
+    // Move to offset
+      while (int i = 0; ; i < home_offset; i++)
+      {
+        this->step();
+        delay(STEP_DELAY);
+      }
     currentStep = 0;
 }
 

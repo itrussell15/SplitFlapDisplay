@@ -29,6 +29,7 @@ class ModuleCommand(enum.IntEnum):
     SET_HOME_OFFSET = 17
     SET_AUTO_HOME = 18
     GET_EEPROM_VALUE = 19
+    GET_HOME_OFFSET = 20
     BAD_COMMAND = 99
 
 
