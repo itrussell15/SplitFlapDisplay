@@ -15,9 +15,9 @@ public:
     void reverseDirection();
     bool isValidStep(int step_value);
     void release();
-
+    
     int currentStep;
-
+    int resolution;
 
 private:
     int pins[4];

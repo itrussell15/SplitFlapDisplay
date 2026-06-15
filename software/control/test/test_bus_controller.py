@@ -187,11 +187,15 @@ class TestBusController(unittest.TestCase):
         auto_home = self.modules[self.test_location].get_eeprom_value(2)
         message1 = self.modules[self.test_location].get_eeprom_value(3)
         message2 = self.modules[self.test_location].get_eeprom_value(4)
+        steps1 = self.modules[self.test_location].get_eeprom_value(5)
+        steps2 = self.modules[self.test_location].get_eeprom_value(6)
 
         print(f"ROW: {row.data_value} COLUMN: {col.data_value}")
         print(f"AUTO HOME: {auto_home.data_value} -> {bool(auto_home.data_value)}")
         print(f"HOME OFFSET ---- ")
         print(f"1: {message1.data_value} - 2: {message2.data_value} = {(message2.data_value * 256) + message1.data_value}")
+        print(f"MOTOR STEPS ---- ")
+        print(f"1: {steps1.data_value} - 2: {steps2.data_value} = {(steps2.data_value * 256) + steps1.data_value}")
 
     def test_get_total_steps(self) -> None:
         self.bus.timeout = 6.0

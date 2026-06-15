@@ -23,9 +23,13 @@ const int MODULE_ROW_LOCATION = 0;
 const int MODULE_COLUMN_LOCATION = 1;
 const int AUTO_HOME_LOCATION = 2;
 const int HOME_OFFSET_VALUE_LOCATION = 3;
-const int POSITION_VALUES_START_LOCATION = 5;
+const int MOTOR_NUM_STEPS_LOCATION = 5
+const int MAJOR_FIRMWARE_VERSION_LOCATION = 61;
+const int MINOR_FIRMWARE_VERSION_LOCATION = 62;
+const int POSITION_VALUES_START_LOCATION = 63;
 // ###########################################
 
+// ########## COMMUNICATIONS ################
 const int INCOMING_SIZE = 9;
 const byte INCOMING_START_BYTE = 2;
 const byte INCOMING_END_BYTE = 3;
@@ -85,7 +89,7 @@ enum Command {
   CMD_SET_HOME_OFFSET = 17,
   CMD_SET_AUTO_HOME = 18,
   CMD_GET_EEPROM_VALUE = 19,
-  CMD_TOGGLE_CALIBRATION_MODE = 20,
+  CMD_SET_CALIBRATION_MODE = 20,
 };
 
 uint8_t MODULE_ROW;
@@ -93,21 +97,24 @@ uint8_t MODULE_COLUMN;
 uint16_t HOME_OFFSET;
 bool AUTO_HOME = true;
 const int BAUDRATE = 9600;
+// ###########################################
 
-// ##### MOTOR VALUES #####
+// ########### MOTOR VALUES #################
 // Locating
 const int NUM_POSITIONS = 64;
-const int MOTOR_RESOLUTION = 4096;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN);
 int targetStep;
 int cachedTargetStep;
+// ###########################################
 
-// Timing
+// ########## TIMING ################
 unsigned long previousStepMicros = 0;
-unsigned long STEP_INTERVAL_MICROS = 1000;
+unsigned long NORMAL_STEP_INTERVAL_MICROS = 1000;
+unsigned long CALIBRATION_STEP_INTERVAL_MICROS = 3000;
 const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000;
 static bool CALIBRATION_MODE = false;
-// ########################
+static unsigned long STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
+// #################################
 
 void setup() {
 
@@ -118,6 +125,7 @@ void setup() {
   MODULE_COLUMN = getModuleColumn();
   HOME_OFFSET = getHomeOffset();
   AUTO_HOME = getAutoHome();
+  MOTOR_NUM_STEPS = getMotorNumSteps();
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
@@ -131,14 +139,12 @@ void setup() {
   }
   previousStepMicros = micros();
 
+  motor.resolution = MOTOR_NUM_STEPS;
   if (AUTO_HOME)
     motor.home(HOME_OFFSET);
-
 }
 
 void loop() {
-
-
   // Asynchronously to move to target
   if (targetStep != motor.getCurrentStep())
     motorStepTiming();
@@ -147,7 +153,6 @@ void loop() {
     if (!CALIBRATION_MODE)
       motorHoldTiming();
   }
-
 
   if (!digitalRead(HALL_PIN))
     digitalWrite(STATUS_LED_PIN, HIGH);
@@ -362,7 +367,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       {
         motor.step();
         step_count += 1;
-        delay(1);
+        delay(STEP_INTERVAL_MICROS);
       }
 
       // Move until back on to hall sensor
@@ -370,8 +375,10 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       {
         motor.step();
         step_count += 1;
-        delay(1);
+        delay(STEP_INTERVAL_MICROS);
       }
+      motor.numSteps = step_count;
+      saveMotorNumSteps(motor.numSteps);
       message.status = true;
       message.data_value = step_count;
       break;
@@ -410,20 +417,21 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = value;
       message.status = true;
       break;
-    case Command::CMD_TOGGLE_CALIBRATION_MODE:
-      if (CALIBRATION_MODE)
+    case Command::CMD_SET_CALIBRATION_MODE:
+      if (data_value != 0 || data_value != 1)
       {
-        CALIBRATION_MODE = false;
-        STEP_INTERVAL_MICROS = 1000;
+        message.data_value = ErrorCode::ERROR_INVALID_VALUE;
+        message.status = false;
+        break;
       }
-      else
-      {
-        CALIBRATION_MODE = true;
-        STEP_INTERVAL_MICROS = 3000;
-      }
-
-      message.data_value = (bool)CALIBRATION_MODE;
+      message.data_value = data_value
       message.status = true;
+      CALIBRATION_MODE = data_value;
+
+      if (!CALIBRATION_MODE)
+        STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
+      else
+        STEP_INTERVAL_MICROS = CALIBRATION_STEP_INTERVAL_MICROS;
       break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -570,15 +578,12 @@ uint16_t getInt16FromEeprom(int address)
     return value;
 }
 
-uint16_t getInt16FromEeprom(int address)
-{
-    uint16_t value;
-    EEPROM.get(address, value); // Reads 2 bytes starting at 'address'
-    return value;
-}
-
 uint16_t getHomeOffset() {
   return getInt16FromEeprom(HOME_OFFSET_VALUE_LOCATION);
+}
+
+uint16_t getMotorNumSteps() {
+  return getInt16FromEeprom(MOTOR_NUM_STEPS_LOCATION);
 }
 
 // Retrieve a position from EEPROM
@@ -591,13 +596,16 @@ uint16_t getStepperPosition(int index) {
   return 0;
 }
 
-void saveInt16ToEeprom(int address, uint16_t value)
-{
+void saveInt16ToEeprom(int address, uint16_t value){
     EEPROM.put(address, value); // Writes 2 bytes starting at 'address'
 }
 
 void saveHomeOffset(uint16_t stepValue) {
   saveInt16ToEeprom(HOME_OFFSET_VALUE_LOCATION, stepValue);
+}
+
+void saveMotorNumSteps(uint16_t stepValue) {
+  saveInt16ToEeprom(MOTOR_NUM_STEPS_LOCATION, stepValue);
 }
 
 // Save a position to a specific index (0-63)

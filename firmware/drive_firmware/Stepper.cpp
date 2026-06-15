@@ -14,7 +14,6 @@ const int STEP_SEQUENCES[8][4] = {
 
 const int RELEASE_SEQUENCE[4] = {0, 0, 0, 0};
 
-int RESOLUTION = 12288; // 4096 * 3
 int NUM_PHASES = 8;
 int STEP_DELAY = 1;
 
@@ -78,10 +77,10 @@ int Stepper::getCurrentStep() {
 void Stepper::step() {
     writePins(STEP_SEQUENCES[stepPhase]);
     if (stepDirection > 0) {
-        this->currentStep = (currentStep + 1) % RESOLUTION;
+        this->currentStep = (currentStep + 1) % this->resolution;
         this->stepPhase = (stepPhase - 1 + NUM_PHASES) % NUM_PHASES;
     } else {
-        this->currentStep = (currentStep - 1 + RESOLUTION) % RESOLUTION;
+        this->currentStep = (currentStep - 1 + this->resolution) % this->resolution;
         this->stepPhase = (stepPhase + 1) % NUM_PHASES;
     }
 }
@@ -92,7 +91,7 @@ void Stepper::release() {
 
 bool Stepper::isValidStep(int step_value)
 {
-  return step_value >= 0 && step_value <= RESOLUTION - 1;
+  return step_value >= 0 && step_value <= this->resolution - 1;
 }
 
 void Stepper::writePins(const int* signals) {
