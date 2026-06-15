@@ -23,7 +23,7 @@ const int MODULE_ROW_LOCATION = 0;
 const int MODULE_COLUMN_LOCATION = 1;
 const int AUTO_HOME_LOCATION = 2;
 const int HOME_OFFSET_VALUE_LOCATION = 3;
-const int MOTOR_NUM_STEPS_LOCATION = 5
+const int MOTOR_NUM_STEPS_LOCATION = 5;
 const int MAJOR_FIRMWARE_VERSION_LOCATION = 61;
 const int MINOR_FIRMWARE_VERSION_LOCATION = 62;
 const int POSITION_VALUES_START_LOCATION = 63;
@@ -102,6 +102,7 @@ const int BAUDRATE = 9600;
 // ########### MOTOR VALUES #################
 // Locating
 const int NUM_POSITIONS = 64;
+int MOTOR_NUM_STEPS;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN);
 int targetStep;
 int cachedTargetStep;
@@ -367,7 +368,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       {
         motor.step();
         step_count += 1;
-        delay(STEP_INTERVAL_MICROS);
+        delay(STEP_INTERVAL_MICROS / 1000);
       }
 
       // Move until back on to hall sensor
@@ -375,10 +376,10 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       {
         motor.step();
         step_count += 1;
-        delay(STEP_INTERVAL_MICROS);
+        delay(STEP_INTERVAL_MICROS / 1000);
       }
-      motor.numSteps = step_count;
-      saveMotorNumSteps(motor.numSteps);
+      motor.resolution = step_count;
+      saveMotorNumSteps(motor.resolution);
       message.status = true;
       message.data_value = step_count;
       break;

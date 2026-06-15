@@ -33,6 +33,8 @@ Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     pinMode(p3, OUTPUT); 
     pinMode(p4, OUTPUT);
     pinMode(hallPin, INPUT_PULLUP);
+    
+    this->resolution = 4096;
 }
 
 void Stepper::setDirection(int direction) {
