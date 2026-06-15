@@ -28,6 +28,7 @@ Hardware diagnostics / calibration (run from `software/control/`, binary protoco
 ```bash
 python diagnose_comms.py --port /dev/ttyUSB1 -n 100 [--interleave] [--settle 0.02]  # RS485 reliability harness
 python eeprom_roundtrip.py --port /dev/ttyUSB1 --row 1 --col 1 --index 5            # EEPROM save/retrieve + persistence
+python measure_steps.py --port /dev/ttyUSB1 --addresses 1,1 1,2 1,4 [--repeat 3]   # measure steps/rev via CMD_MOTOR_NUM_STEPS (long timeout)
 python test/calibration.py   # interactive flap calibration (homes first, jog + SET_POSITION per flap)
 ```
 
@@ -158,7 +159,20 @@ Defined in `software/control/source/dataclasses_.py`. All packets use `struct.pa
 
 ### EEPROM layout (drive_firmware)
 
-Byte 0: row. Byte 1: column. Bytes 2–3: unused gap. Bytes 4–131: 64 positions × 2 bytes each (absolute step value for each flap, little-endian `uint16_t`, `0xFFFF` = uncalibrated on a blank chip). The position offset is `(index + 2) * 2` — `flash_eeprom.ino` and `drive_firmware.ino` (`saveStepperPosition`/`getStepperPosition`) **must use the identical `index += 2` offset** or seeded positions read back shifted by one index (this was a real bug: `flash_eeprom` used `index += 1`, fixed 2026-06-15).
+Addresses are named constants shared by `drive_firmware.ino` AND `flash_eeprom.ino` — they **must stay identical between the two files** (a `flash_eeprom` typo `const int.MOTOR_NUM_STEPS_LOCATION` / a missing `;` were real bugs, fixed 2026-06-15):
+
+| Byte(s) | Constant | Contents |
+|---|---|---|
+| 0 | `MODULE_ROW_LOCATION` | row (uint8) |
+| 1 | `MODULE_COLUMN_LOCATION` | column (uint8) |
+| 2 | `AUTO_HOME_LOCATION` | auto-home flag (uint8) |
+| 3–4 | `HOME_OFFSET_VALUE_LOCATION` | home offset (uint16) |
+| 5–6 | `MOTOR_NUM_STEPS_LOCATION` | measured steps/revolution (uint16) |
+| 61 | `MAJOR_FIRMWARE_VERSION_LOCATION` | major version (uint8) |
+| 62 | `MINOR_FIRMWARE_VERSION_LOCATION` | minor version (uint8) |
+| 63–190 | `POSITION_VALUES_START_LOCATION` | 64 positions × 2 bytes (absolute step per flap, `0xFFFF` = uncalibrated) |
+
+Position address = `POSITION_VALUES_START_LOCATION + index*2` in both files (this replaced an earlier `(index+2)*2` scheme that overlapped the config bytes — don't reintroduce a separate offset). `flash_eeprom.ino` seeds row/column/auto-home/versions, evenly-spaced default positions, plus `HOME_OFFSET` and `MOTOR_NUM_STEPS` (= `MOTOR_RESOLUTION`, 4096); it does NOT write the position map shifted. ATtiny1616 has 256 B of EEPROM, so 63–190 fits.
 
 ### EEPROM layout (v6/v7 firmware)
 
@@ -167,15 +181,16 @@ Byte 0: init flag (0x5D). Bytes 1–2: home offset. Bytes 3–4: total steps/rev
 ### Motor constants
 
 - 28BYJ-48: **4096 half-steps = one full revolution** (verified on hardware 2026-06-15 — one rotation shows all 64 characters), 64 flap positions per drum, ~64 steps per flap.
-- **`Stepper.cpp` `RESOLUTION` must be 4096.** It was wrongly set to `12288` (4096×3), which made the step counter span ~3 physical revolutions: every physical flap mapped to 3 different counter values (ambiguous) and moves could spin extra rotations. Fixed to 4096.
-- Hall sensor homing: motor steps until hall pin activates, then resets step counter to 0.
-- **Positions are absolute step counts, only meaningful relative to a homed (hall) zero.** `drive_firmware` does NOT persist `currentStep`, so it **auto-homes on boot** (`motor.home()` in `setup()`) to re-anchor step 0. Without homing, a stored position lands on a different physical flap after any reset (this was the "calibrated spot moved" bug). Calibration must therefore home first (`calibration.py` does), and `CMD_MOVE_TO_POSITION` guards against uncalibrated `0xFFFF` (→ `-1` as a 16-bit int) via `isValidStep` so the motor can't chase an unreachable target forever.
+- **Steps/revolution is per-instance, not a global constant.** `Stepper` has an `int resolution` member (constructor default 4096); `step()` wraps `currentStep` with `% resolution` and `isValidStep` uses `resolution - 1`. `setup()` loads it from EEPROM (`motor.resolution = getMotorNumSteps()`). It was previously a global `RESOLUTION = 12288` (4096×3) — wrong; that made the counter span ~3 revolutions so every flap mapped to 3 ambiguous counter values. **Guard against a blank EEPROM:** `getMotorNumSteps()` returns `0xFFFF` on an unseeded chip, which lands in the 16-bit int as `-1` → `% -1` pins `currentStep` at 0 (motor appears stuck). `flash_eeprom` seeds 4096 so the normal path is fine; a fallback in the getter (return 4096 if value is 0/0xFFFF) is the belt-and-suspenders fix.
+- `CMD_MOTOR_NUM_STEPS` (command 16) **measures** steps/rev: homes to the raw hall (`motor.home(0)`), counts steps for one full rotation back to the hall, sets `motor.resolution`, and persists via `saveMotorNumSteps`. It blocks several seconds, so the controller must use a long read timeout — run it with `software/control/measure_steps.py` (default 12 s timeout, `--repeat` to gauge consistency); the normal 0.75–2 s timeout would expire and retry forever.
+- Hall sensor homing: `motor.home(home_offset)` steps until the hall pin activates, advances `home_offset` more steps, then resets the step counter to 0. `HOME_OFFSET` is loaded from EEPROM; `CMD_SET_HOME_OFFSET` (17) updates it.
+- **Positions are absolute step counts, only meaningful relative to a homed (hall) zero.** `drive_firmware` does NOT persist `currentStep`, so it **auto-homes on boot** (`if (AUTO_HOME) motor.home(HOME_OFFSET)` in `setup()`) to re-anchor step 0. Without homing, a stored position lands on a different physical flap after any reset (this was the "calibrated spot moved" bug). Calibration must therefore home first (`calibration.py` does), and `CMD_MOVE_TO_POSITION` guards against uncalibrated `0xFFFF` (→ `-1` as a 16-bit int) via `isValidStep` so the motor can't chase an unreachable target forever.
 
 ### Motor holding / release (calibration repeatability)
 
 - All firmware generations **de-energize the coils at rest** (`drive_firmware` `motor.release()`, v6/v7 `releaseMotor()`). The original design relies on the magnetic detent to hold position — fine for *displaying* characters, but it costs repeatability: because moves are half-stepped, the rest position is often between full-step detents, so releasing snaps the rotor ±1 half-step. Many small moves (incremental calibration) accumulate this; one large move doesn't — which is why calibrating spot-by-spot landed differently than a single long move.
 - `drive_firmware` now (2026-06-15) holds briefly before releasing: `motorStepTiming()` steps while moving (`STEP_INTERVAL_MICROS`, `micros()` base), and when at target `motorHoldTiming()` keeps the coils energized for `RELEASE_INTERVAL_MICROS` (500 ms) then releases — long enough to settle, short enough to keep aggregate heat/current low across 45 modules. **Both step and hold timers must share the same `micros()` time base** (a `millis()`/`micros()` mix is a silent bug: it makes stepping ~1/s and releases immediately).
-- `CMD_TOGGLE_CALIBRATION_MODE` (command 20): in calibration mode the module **never releases** (holds indefinitely so you judge/teach against the energized position) and uses a slower step rate (~3000 µs vs 1000 µs) for accuracy. `STEP_INTERVAL_MICROS` is therefore mutable at runtime — it must NOT be declared `const`.
+- `CMD_SET_CALIBRATION_MODE` (command 20): in calibration mode the module **never releases** (holds indefinitely so you judge/teach against the energized position) and uses a slower step rate (`CALIBRATION_STEP_INTERVAL_MICROS` ~3000 µs vs `NORMAL_STEP_INTERVAL_MICROS` ~1000 µs) for accuracy. `STEP_INTERVAL_MICROS` is mutable at runtime (selected from those two) — it must NOT be declared `const`.
 - 28BYJ-48 tolerates continuous energization (warm, safe per-motor); the reason to release promptly is **aggregate** power/heat at 45 modules, not single-motor safety.
 
 ### frontend/app.py
