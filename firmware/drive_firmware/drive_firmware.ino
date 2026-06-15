@@ -60,7 +60,7 @@ enum ErrorCode {
   ERROR_BAD_CHECKSUM = 1,
   ERROR_COMMAND_NOT_FOUND = 2,
   ERROR_INVALID_POSITION = 3,
-  ERROR_INVALID_STEP = 4
+  ERROR_INVALID_STEP = 4,
   ERROR_INVALID_VALUE = 5
 };
 
@@ -82,7 +82,7 @@ enum Command {
   CMD_HALL_EFFECT_STATUS = 14,
   CMD_IS_MOVING = 15,
   CMD_MOTOR_NUM_STEPS = 16,
-  CMD_SET_HOME_OFFSET = 17
+  CMD_SET_HOME_OFFSET = 17,
   CMD_SET_AUTO_HOME = 18,
   CMD_GET_EEPROM_VALUE = 19,
   CMD_TOGGLE_CALIBRATION_MODE = 20,
@@ -105,7 +105,7 @@ int cachedTargetStep;
 // Timing
 unsigned long previousStepMicros = 0;
 const unsigned long STEP_INTERVAL_MICROS = 1000;
-const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000; // 100 millis
+const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000;
 static bool CALIBRATION_MODE = false;
 // ########################
 
@@ -408,11 +408,18 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       break;
     case Command::CMD_TOGGLE_CALIBRATION_MODE:
       if (CALIBRATION_MODE)
+      {
         CALIBRATION_MODE = false;
+        STEP_INTERVAL_MICROS = 1000;
+      }
       else
+      {
         CALIBRATION_MODE = true;
+        STEP_INTERVAL_MICROS = 3000;
+      }
+        
       message.data_value = (bool)CALIBRATION_MODE;
-      message.status = 0;
+      message.status = true;
       break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -480,7 +487,7 @@ void doBroadcastResponse(OutgoingMessage message)
 
 void motorStepTiming()
 {
-  unsigned long currentMicros = millis();
+  unsigned long currentMicros = micros();
   bool shouldStep = currentMicros - previousStepMicros >= STEP_INTERVAL_MICROS;
   if (shouldStep) {
     motor.step();
