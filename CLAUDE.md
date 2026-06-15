@@ -24,6 +24,13 @@ python -m pytest control/test/test_messages.py  # single test file
 
 Tests use `unittest`. Some tests in `test_bus_controller.py` require physical hardware connected (hardcoded port `/dev/ttyACM0`).
 
+Hardware diagnostics / calibration (run from `software/control/`, binary protocol):
+```bash
+python diagnose_comms.py --port /dev/ttyUSB1 -n 100 [--interleave] [--settle 0.02]  # RS485 reliability harness
+python eeprom_roundtrip.py --port /dev/ttyUSB1 --row 1 --col 1 --index 5            # EEPROM save/retrieve + persistence
+python test/calibration.py   # interactive flap calibration (homes first, jog + SET_POSITION per flap)
+```
+
 ### Frontend (Flask web UI — standalone)
 ```bash
 pip install flask pyserial requests pytz yfinance
@@ -46,7 +53,7 @@ python firmware/drive_firmware/test_comms/test_comms.py /dev/ttyUSB0
 Sends a single byte and categorizes the response to isolate physical layer issues. See `firmware/drive_firmware/TROUBLESHOOTING.md` for step-by-step debugging.
 
 ### Firmware
-Arduino IDE or `arduino-cli`. Upload `firmware/flash_eeprom/flash_eeprom.ino` first to set a module's row/column and initialize EEPROM positions, then upload the target firmware. Programming is done via UPDI using a modified USB-TTL board connected to the J1 header.
+Arduino IDE or `arduino-cli`. Programming is done via UPDI using a modified USB-TTL board connected to the J1 header. Per module: edit `MODULE_ROW`/`MODULE_COLUMN` in `firmware/flash_eeprom/flash_eeprom.ino`, upload it first (sets row/column + seeds EEPROM positions), then upload `drive_firmware`. **Set "Save EEPROM: EEPROM retained" (Burn Bootloader once to write the EESAVE fuse) before the `drive_firmware` upload**, or the chip-erase wipes the address `flash_eeprom` wrote and the module comes up at `(255,255)` and won't respond. See Known rough edges → Flashing workflow.
 
 ## PCB and Pin Mapping
 
@@ -151,7 +158,7 @@ Defined in `software/control/source/dataclasses_.py`. All packets use `struct.pa
 
 ### EEPROM layout (drive_firmware)
 
-Bytes 0–1: row, column. Bytes 2–129: 64 positions × 2 bytes each (step values for each flap position).
+Byte 0: row. Byte 1: column. Bytes 2–3: unused gap. Bytes 4–131: 64 positions × 2 bytes each (absolute step value for each flap, little-endian `uint16_t`, `0xFFFF` = uncalibrated on a blank chip). The position offset is `(index + 2) * 2` — `flash_eeprom.ino` and `drive_firmware.ino` (`saveStepperPosition`/`getStepperPosition`) **must use the identical `index += 2` offset** or seeded positions read back shifted by one index (this was a real bug: `flash_eeprom` used `index += 1`, fixed 2026-06-15).
 
 ### EEPROM layout (v6/v7 firmware)
 
@@ -159,8 +166,17 @@ Byte 0: init flag (0x5D). Bytes 1–2: home offset. Bytes 3–4: total steps/rev
 
 ### Motor constants
 
-- 28BYJ-48: 4096 half-steps per revolution, 64 flap positions per drum, ~64 steps per flap.
+- 28BYJ-48: **4096 half-steps = one full revolution** (verified on hardware 2026-06-15 — one rotation shows all 64 characters), 64 flap positions per drum, ~64 steps per flap.
+- **`Stepper.cpp` `RESOLUTION` must be 4096.** It was wrongly set to `12288` (4096×3), which made the step counter span ~3 physical revolutions: every physical flap mapped to 3 different counter values (ambiguous) and moves could spin extra rotations. Fixed to 4096.
 - Hall sensor homing: motor steps until hall pin activates, then resets step counter to 0.
+- **Positions are absolute step counts, only meaningful relative to a homed (hall) zero.** `drive_firmware` does NOT persist `currentStep`, so it **auto-homes on boot** (`motor.home()` in `setup()`) to re-anchor step 0. Without homing, a stored position lands on a different physical flap after any reset (this was the "calibrated spot moved" bug). Calibration must therefore home first (`calibration.py` does), and `CMD_MOVE_TO_POSITION` guards against uncalibrated `0xFFFF` (→ `-1` as a 16-bit int) via `isValidStep` so the motor can't chase an unreachable target forever.
+
+### Motor holding / release (calibration repeatability)
+
+- All firmware generations **de-energize the coils at rest** (`drive_firmware` `motor.release()`, v6/v7 `releaseMotor()`). The original design relies on the magnetic detent to hold position — fine for *displaying* characters, but it costs repeatability: because moves are half-stepped, the rest position is often between full-step detents, so releasing snaps the rotor ±1 half-step. Many small moves (incremental calibration) accumulate this; one large move doesn't — which is why calibrating spot-by-spot landed differently than a single long move.
+- `drive_firmware` now (2026-06-15) holds briefly before releasing: `motorStepTiming()` steps while moving (`STEP_INTERVAL_MICROS`, `micros()` base), and when at target `motorHoldTiming()` keeps the coils energized for `RELEASE_INTERVAL_MICROS` (500 ms) then releases — long enough to settle, short enough to keep aggregate heat/current low across 45 modules. **Both step and hold timers must share the same `micros()` time base** (a `millis()`/`micros()` mix is a silent bug: it makes stepping ~1/s and releases immediately).
+- `CMD_TOGGLE_CALIBRATION_MODE` (command 20): in calibration mode the module **never releases** (holds indefinitely so you judge/teach against the energized position) and uses a slower step rate (~3000 µs vs 1000 µs) for accuracy. `STEP_INTERVAL_MICROS` is therefore mutable at runtime — it must NOT be declared `const`.
+- 28BYJ-48 tolerates continuous energization (warm, safe per-motor); the reason to release promptly is **aggregate** power/heat at 45 modules, not single-motor safety.
 
 ### frontend/app.py
 
@@ -175,7 +191,9 @@ Defined in `software/control/source/flaps.py` as a `Flap` IntEnum (56 values: bl
 The control library works against hardware, but the FastAPI wrapper around it is mid-refactor. Verify these before relying on them:
 
 - **The FastAPI app does not start a display.** `app/context.py`'s `lifespan` has the `DisplayController`/`BusController`/`discover` setup commented out, so `app.state.display` is never created. Every `/api/v1` module/display endpoint (which depends on `get_display`) will fail, and teardown calls `app.state.display.close()` which will `AttributeError`. Uncomment and wire up `lifespan` to actually run the REST API.
-- **Hardware-coupled defaults.** Port `/dev/ttyACM0` and the `ROWS=[1,3]/COLUMNS=[1,3]` discovery window are hardcoded in `context.py`; `drive_firmware.ino`'s `setup()` also hardcodes `MODULE_ROW=1, MODULE_COLUMN=3` and rewrites EEPROM on every boot rather than reading the flashed values via `getModuleRow()/getModuleColumn()` (so any module flashed with this exact build self-assigns to (1,3) regardless of what `flash_eeprom.ino` wrote — flash distinct addresses per unit or it won't be reachable).
+- **Hardware-coupled defaults.** Port `/dev/ttyACM0` and the `ROWS=[1,3]/COLUMNS=[1,3]` discovery window are hardcoded in `context.py`. (`drive_firmware.ino`'s `setup()` now correctly reads its address from EEPROM via `getModuleRow()/getModuleColumn()` and no longer overwrites it — fixed 2026-06-15.)
+
+- **Flashing workflow — EEPROM must survive the `drive_firmware` upload.** Because `drive_firmware` now *depends* on the address `flash_eeprom.ino` wrote (it self-assigns nothing), two things must hold: (1) **set distinct `MODULE_ROW`/`MODULE_COLUMN` per unit in `flash_eeprom.ino`** before flashing each module (its defaults are `1,3` — flashing several unmodified makes them all `(1,3)`); and (2) **enable EEPROM retention** so the UPDI chip-erase during the `drive_firmware` upload doesn't wipe what `flash_eeprom` wrote. In the Arduino IDE that's Tools → "Save EEPROM" → "EEPROM retained", then Burn Bootloader (writes the EESAVE fuse), *then* flash `flash_eeprom`, *then* `drive_firmware`. Symptom of a wiped EEPROM: `getModuleRow/Column` read `0xFF` so the module believes it's at `(255,255)` and ignores all commands — looks like a dead/uncommunicative module. Confirm with `bus.discover([255,256],[255,256])`.
 - **Known bugs in the control layer** (small, isolated — fix in place when touched): `DisplayController.home_all()` passes an undefined `position` to `module.home()`; `ModuleController._send_packet()` does `raise e` with `e` undefined on the exception path; `BusController._handle_response()` calls `self.error_queue(outgoing)` instead of `.put()` on a sequence-ID mismatch; `ModuleController.positions_known()` returns inverted logic; `control/test/mock_components/mock_module_firmware.py` references undefined `EXAMPLE_MESSAGE`/`message`.
 
 ### RS485 read/timeout behavior (control layer)

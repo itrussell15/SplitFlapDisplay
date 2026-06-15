@@ -53,11 +53,11 @@ void Stepper::home(int home_offset) {
 
     delay(500);
     // Move to offset
-      while (int i = 0; ; i < home_offset; i++)
-      {
+    for (int i = 0; i < home_offset; i++)
+    {
         this->step();
         delay(STEP_DELAY);
-      }
+    }
     currentStep = 0;
 }
 

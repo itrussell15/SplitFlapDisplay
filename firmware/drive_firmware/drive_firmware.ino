@@ -132,8 +132,8 @@ void setup() {
   previousStepMicros = micros();
 
   if (AUTO_HOME)
-    motor.home();
-  
+    motor.home(HOME_OFFSET);
+
 }
 
 void loop() {
@@ -348,12 +348,15 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_MOTOR_NUM_STEPS:
-      // Test to determine the number of steps it takes to return to the hall sensor. ie a full rotation
-      motor.home();
+    {
+      // Test to determine the number of steps it takes to return to the hall
+      // sensor, i.e. a full rotation. Home to the RAW hall (offset 0) so the
+      // count starts exactly at the hall window.
+      motor.home(0);
       delay(500);
 
       int step_count = 0;
-      
+
       // Move until off hall sensor
       while (isHallPinActive())
       {
@@ -372,6 +375,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       message.data_value = step_count;
       break;
+    }
     case Command::CMD_SET_HOME_OFFSET:
       if (!motor.isValidStep(data_value))
       {
@@ -451,21 +455,6 @@ void performMessageAction(OutgoingMessage message)
     case Command::CMD_HOME:
       // Home
       motor.home(HOME_OFFSET);
-      targetStep = motor.getCurrentStep();
-      break;
-    case Command::CMD_MOTOR_NUM_STEPS:
-      // Home
-      motor.home();
-      delay(500);
-
-      // Move to offset
-      while (int i = 0; ; i < HOME_OFFSET; i++)
-      {
-        motor.step();
-        delay(1);
-      }
-      // Set offset position to 0 and stay at that position
-      motor.currentStep = 0;
       targetStep = motor.getCurrentStep();
       break;
     default:
