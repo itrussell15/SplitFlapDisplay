@@ -40,7 +40,7 @@ struct __attribute__((__packed__)) IncomingMessage {
   uint8_t  sequence_id;// 1
   uint8_t  command_id; // 1
   uint16_t  data_value; // 2
-  uint8_t  checksum;   // 1 
+  uint8_t  checksum;   // 1
   uint8_t  end_val;    // 1
 }; // Total = 9 bytes
 
@@ -52,7 +52,7 @@ struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  command_id; // 1
   int16_t  data_value; // 2
   uint8_t  status;     // 1
-  uint8_t  checksum;   // 1 
+  uint8_t  checksum;   // 1
   uint8_t  end_val;    // 1
 }; // Total = 10 bytes
 
@@ -98,13 +98,13 @@ const int BAUDRATE = 9600;
 // Locating
 const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
-Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
+Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN);
 int targetStep;
 int cachedTargetStep;
 
 // Timing
 unsigned long previousStepMicros = 0;
-const unsigned long STEP_INTERVAL_MICROS = 1000;
+unsigned long STEP_INTERVAL_MICROS = 1000;
 const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000;
 static bool CALIBRATION_MODE = false;
 // ########################
@@ -147,7 +147,7 @@ void loop() {
     if (!CALIBRATION_MODE)
       motorHoldTiming();
   }
-    
+
 
   if (!digitalRead(HALL_PIN))
     digitalWrite(STATUS_LED_PIN, HIGH);
@@ -272,7 +272,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.data_value = ErrorCode::ERROR_INVALID_POSITION;
         message.status = false;
         break;
-      } 
+      }
       step_value = motor.getCurrentStep();
       saveStepperPosition(data_value, step_value);
       message.data_value = 4;
@@ -421,7 +421,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         CALIBRATION_MODE = true;
         STEP_INTERVAL_MICROS = 3000;
       }
-        
+
       message.data_value = (bool)CALIBRATION_MODE;
       message.status = true;
       break;
@@ -462,7 +462,7 @@ void performMessageAction(OutgoingMessage message)
       message.status = false;
       break;
   }
-  
+
 }
 
 void doBroadcastResponse(OutgoingMessage message)
@@ -539,21 +539,21 @@ bool isMoving() {
 }
 
 uint8_t getModuleRow() {
-  // Pulls the module row from EEPROM address 0. 
+  // Pulls the module row from EEPROM address 0.
   // Should be between 0-255
   uint8_t id;
   EEPROM.get(MODULE_ROW_LOCATION, id);
   return id;
 }
 
-uint8_t getModuleColumn() { 
+uint8_t getModuleColumn() {
   // Should be between 0-255
   uint8_t id;
   EEPROM.get(MODULE_COLUMN_LOCATION, id);
   return id;
 }
 
-bool getAutoHome() { 
+bool getAutoHome() {
   bool value;
   EEPROM.get(AUTO_HOME_LOCATION, value);
   return (bool)value;
@@ -577,7 +577,7 @@ uint16_t getInt16FromEeprom(int address)
     return value;
 }
 
-uint16_t getHomeOffset() { 
+uint16_t getHomeOffset() {
   return getInt16FromEeprom(HOME_OFFSET_VALUE_LOCATION);
 }
 
