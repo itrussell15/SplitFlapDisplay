@@ -85,6 +85,7 @@ enum Command {
   CMD_SET_HOME_OFFSET = 17
   CMD_SET_AUTO_HOME = 18,
   CMD_GET_EEPROM_VALUE = 19,
+  CMD_TOGGLE_CALIBRATION_MODE = 20,
 };
 
 uint8_t MODULE_ROW;
@@ -103,7 +104,9 @@ int cachedTargetStep;
 
 // Timing
 unsigned long previousStepMicros = 0;
-const unsigned long STEP_INTERVAL_MICROS = 2000;
+const unsigned long STEP_INTERVAL_MICROS = 1000;
+const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000; // 100 millis
+static bool CALIBRATION_MODE = false;
 // ########################
 
 void setup() {
@@ -138,20 +141,18 @@ void loop() {
 
   // Asynchronously to move to target
   if (targetStep != motor.getCurrentStep())
-    moveMotorToTarget();
+    motorStepTiming();
   else
   {
-    motor.release();
+    if (!CALIBRATION_MODE)
+      motorHoldTiming();
   }
+    
 
   if (!digitalRead(HALL_PIN))
-  {
     digitalWrite(STATUS_LED_PIN, HIGH);
-  }
   else
-  {
     digitalWrite(STATUS_LED_PIN, LOW);
-  }
 
   // Drain and frame incoming bytes. Self-resyncing so a stray start byte (0x02)
   // embedded in another module's reply -- notably column 2's address byte -- can
@@ -405,6 +406,14 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = value;
       message.status = true;
       break;
+    case Command::CMD_TOGGLE_CALIBRATION_MODE:
+      if (CALIBRATION_MODE)
+        CALIBRATION_MODE = false;
+      else
+        CALIBRATION_MODE = true;
+      message.data_value = (bool)CALIBRATION_MODE;
+      message.status = 0;
+      break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
       message.status = false;
@@ -448,7 +457,6 @@ void performMessageAction(OutgoingMessage message)
         motor.step();
         delay(1);
       }
-
       // Set offset position to 0 and stay at that position
       motor.currentStep = 0;
       targetStep = motor.getCurrentStep();
@@ -470,9 +478,9 @@ void doBroadcastResponse(OutgoingMessage message)
   }
 }
 
-void moveMotorToTarget()
+void motorStepTiming()
 {
-  unsigned long currentMicros = micros();
+  unsigned long currentMicros = millis();
   bool shouldStep = currentMicros - previousStepMicros >= STEP_INTERVAL_MICROS;
   if (shouldStep) {
     motor.step();
@@ -480,6 +488,13 @@ void moveMotorToTarget()
   }
 }
 
+void motorHoldTiming()
+{
+  unsigned long currentMicros = micros();
+  bool shouldRelease = (currentMicros - previousStepMicros) >= RELEASE_INTERVAL_MICROS;
+  if (shouldRelease)
+    motor.release();
+}
 
 bool validateChecksum(byte* buffer) {
   uint8_t row = buffer[1];
