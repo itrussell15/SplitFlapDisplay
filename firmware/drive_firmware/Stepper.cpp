@@ -14,7 +14,7 @@ const int STEP_SEQUENCES[8][4] = {
 
 const int RELEASE_SEQUENCE[4] = {0, 0, 0, 0};
 
-int RESOLUTION = 12288; // 4096 * 3
+
 int NUM_PHASES = 8;
 int STEP_DELAY = 1;
 
@@ -27,6 +27,7 @@ Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     currentStep = 0;
     stepPhase = 7;
     stepDirection = 1;
+    this->max_steps = 4096;
     
     // Set as output
     pinMode(p1, OUTPUT);
@@ -44,7 +45,7 @@ void Stepper::reverseDirection() {
     this->stepDirection = -this->stepDirection;
 }
 
-void Stepper::home(int home_offset) {
+void Stepper::home(int home_offset = 0) {
     while(!isHallPinActive())
     {
         this->step();
@@ -52,12 +53,11 @@ void Stepper::home(int home_offset) {
     }
 
     delay(500);
-    // Move to offset
-      while (int i = 0; ; i < home_offset; i++)
-      {
+    for (int i = 0; i < home_offset; i++)
+    {
         this->step();
         delay(STEP_DELAY);
-      }
+    }
     currentStep = 0;
 }
 
@@ -78,10 +78,10 @@ int Stepper::getCurrentStep() {
 void Stepper::step() {
     writePins(STEP_SEQUENCES[stepPhase]);
     if (stepDirection > 0) {
-        this->currentStep = (currentStep + 1) % RESOLUTION;
+        this->currentStep = (currentStep + 1) % this->max_steps;
         this->stepPhase = (stepPhase - 1 + NUM_PHASES) % NUM_PHASES;
     } else {
-        this->currentStep = (currentStep - 1 + RESOLUTION) % RESOLUTION;
+        this->currentStep = (currentStep - 1 + this->max_steps) % this->max_steps;
         this->stepPhase = (stepPhase + 1) % NUM_PHASES;
     }
 }
@@ -92,7 +92,7 @@ void Stepper::release() {
 
 bool Stepper::isValidStep(int step_value)
 {
-  return step_value >= 0 && step_value <= RESOLUTION - 1;
+  return step_value >= 0 && step_value <= this->max_steps - 1;
 }
 
 void Stepper::writePins(const int* signals) {
@@ -104,4 +104,14 @@ void Stepper::writePins(const int* signals) {
 
 bool Stepper::isHallPinActive() {
     return !digitalRead(hallPin);
+}
+
+int Stepper::get_max_steps()
+{
+  return this->max_steps;
+}
+
+void Stepper::set_max_steps(int value)
+{
+   this->max_steps = value;
 }

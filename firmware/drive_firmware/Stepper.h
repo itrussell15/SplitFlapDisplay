@@ -15,6 +15,8 @@ public:
     void reverseDirection();
     bool isValidStep(int step_value);
     void release();
+    int get_max_steps();
+    void set_max_steps(int value);
 
     int currentStep;
 
@@ -24,6 +26,8 @@ private:
     int hallPin;
     int stepPhase;
     int stepDirection;
+    int max_steps;
+    
     
     // Internal helper to set pin states
     void writePins(const int* signals);

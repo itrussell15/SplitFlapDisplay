@@ -20,7 +20,7 @@ def main():
     small_adjust = 10
     port = os.getenv("DISP_USB_PORT")
     bus = BusController(port=port, timeout=0.75)
-    bus.discover([1, 2], [5, 6], 0.1)  # probe columns 1-4 (empty columns just time out)
+    bus.discover([1, 2], [2, 3], 0.1)  # probe columns 1-4 (empty columns just time out)
     display = DisplayController()
     display.add_bus_controller(bus)
 

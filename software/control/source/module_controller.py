@@ -80,10 +80,10 @@ class ModuleController:
 
     def move_steps(self, value: int) -> IncomingMessage:
         self.logger.info(f"Moving {value} steps")
-        result = self._send_packet(ModuleCommand.MOVE_STEPS, step)
+        result = self._send_packet(ModuleCommand.MOVE_STEPS, value)
         self._current_step = result.data_value
         return result
-
+    
     def get_steps(self) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.GET_STEPS)
         self._current_step = result.data_value
@@ -92,6 +92,15 @@ class ModuleController:
     def get_drum_steps(self) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.MOTOR_NUM_STEPS)
         return result
+    
+    def set_max_steps(self, value: int) -> IncomingMessage:
+        result = self._send_packet(ModuleCommand.SET_MAX_STEPS, value)
+        return result
+    
+    def get_max_steps(self) -> int:
+        value1 = self.get_eeprom_value(5)
+        value2 = self.get_eeprom_value(6)
+        return (value2.data_value * 256) + value1.data_value
 
     def move_to_position(self, position: int) -> IncomingMessage:
         # Move to a stored EEPROM position
@@ -125,6 +134,7 @@ class ModuleController:
     def get_all_positions(self) -> Dict[int, int]:
         for position in self._positions_to_steps:
             result = self.get_position(position)
+            time.sleep(0.2)
         return self._positions_to_steps
 
     def home(self) -> IncomingMessage:

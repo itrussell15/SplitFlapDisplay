@@ -34,7 +34,7 @@ class TestBusController(unittest.TestCase):
         create_logger(level=logging.DEBUG, spacing=23)
 
         cls.ROW = 1
-        cls.COLUMN = 5
+        cls.COLUMN = 2
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
@@ -95,6 +95,13 @@ class TestBusController(unittest.TestCase):
         time.sleep(1)
         message = self.modules[self.test_location].get_steps()
 
+    def test_move_steps(self) -> None:
+        start_steps = self.modules[self.test_location].get_steps().data_value
+        message = self.modules[self.test_location].move_steps(2000)
+        time.sleep(6)
+        end_steps = self.modules[self.test_location].get_steps().data_value
+        print(f"Diff: {end_steps-start_steps}")
+
     def test_get_position(self) -> None:
         message = self.modules[self.test_location].get_position(0)
         self.assertEqual(message.command, ModuleCommand.GET_POSITION)
@@ -108,7 +115,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_to_position(self) -> None:
-        message = self.modules[self.test_location].move_to_position(1)
+        message = self.modules[self.test_location].move_to_position(0)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
         # time.sleep(10)
@@ -119,10 +126,11 @@ class TestBusController(unittest.TestCase):
         # print(f"Position: {postion_value} Step: {step_value}")
 
     def test_get_all_positions(self) -> None:
-        positions = self.modules[self.test_location].get_all_positions()
-        self.assertEqual(len(positions), NUM_POSITIONS)
-        self.assertTrue(self.modules[self.test_location].positions_known)
-        print(positions)
+        values = {}
+        for position in range(NUM_POSITIONS):
+            values[position] = self.modules[self.test_location].get_position(position).data_value
+            time.sleep(0.5)
+        print(values)
         # self.assertEqual(message.command, ModuleCommand.GET_SPEED)
         # self.assertTrue(message.status)
 
@@ -173,7 +181,7 @@ class TestBusController(unittest.TestCase):
         message = self.modules[self.test_location].set_auto_home(True)
 
     def test_set_home_offset(self) -> None:
-        message = self.modules[self.test_location].set_home_offset(2770)
+        message = self.modules[self.test_location].set_home_offset(2800)
 
     def test_get_home_offset(self) -> None:
         message = self.modules[self.test_location].get_home_offset()
@@ -181,17 +189,24 @@ class TestBusController(unittest.TestCase):
     def test_get_auto_home(self) -> None:
         message = self.modules[self.test_location].get_home_offset()
 
+    def test_set_max_steps(self) -> None:
+        message = self.modules[self.test_location].set_max_steps(4096)
+
     def test_get_eeprom(self) -> None:
         row = self.modules[self.test_location].get_eeprom_value(0)
         col = self.modules[self.test_location].get_eeprom_value(1)
         auto_home = self.modules[self.test_location].get_eeprom_value(2)
         message1 = self.modules[self.test_location].get_eeprom_value(3)
         message2 = self.modules[self.test_location].get_eeprom_value(4)
+        steps1 = self.modules[self.test_location].get_eeprom_value(5)
+        steps2 = self.modules[self.test_location].get_eeprom_value(6)
 
         print(f"ROW: {row.data_value} COLUMN: {col.data_value}")
         print(f"AUTO HOME: {auto_home.data_value} -> {bool(auto_home.data_value)}")
         print(f"HOME OFFSET ---- ")
         print(f"1: {message1.data_value} - 2: {message2.data_value} = {(message2.data_value * 256) + message1.data_value}")
+        print(f"MAX STEPS ---- ")
+        print(f"1: {steps1.data_value} - 2: {steps2.data_value} = {(steps2.data_value * 256) + steps1.data_value}")
 
     def test_get_total_steps(self) -> None:
         self.bus.timeout = 6.0

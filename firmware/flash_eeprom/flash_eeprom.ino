@@ -5,32 +5,38 @@ const int MODULE_ROW_LOCATION = 0;
 const int MODULE_COLUMN_LOCATION = 1;
 const int AUTO_HOME_LOCATION = 2;
 const int HOME_OFFSET_VALUE_LOCATION = 3;
-const int POSITION_VALUES_START_LOCATION = 5;
+const int MAX_STEP_LOCATION = 5;
+const int POSITION_VALUES_START_LOCATION = 100;
 // ###########################################
 
 // CHANGE THESE VALUES PER MODULE
 const int MODULE_ROW = 1;
-const int MODULE_COLUMN = 1;
-const int HOME_OFFSET = 1000;
+const int MODULE_COLUMN = 6;
+const int HOME_OFFSET = 2000;
 const bool AUTO_HOME = true;
 
 // MODULE PROPERTIES
-const int NUM_FLAPS = 64;
+const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
+const int STATUS_LED_PIN = PIN_PA3;
+
 
 void setup() {
 
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  
   EEPROM.update(MODULE_ROW_LOCATION, MODULE_ROW);
   EEPROM.update(MODULE_COLUMN_LOCATION, MODULE_COLUMN);
   EEPROM.update(AUTO_HOME_LOCATION, AUTO_HOME);
   saveHomeOffset(HOME_OFFSET);
+  saveMaxSteps(4096);
   
   // Set Positions;
-  int evenStep = MOTOR_RESOLUTION / NUM_FLAPS;
-  for(int i = 0; i < NUM_FLAPS; i++)
+  int evenStep = MOTOR_RESOLUTION / NUM_POSITIONS;
+  for(int i = 0; i < NUM_POSITIONS; i++)
   {
     int value = (i * evenStep);
-    value = value % MOTOR_RESOLUTION;
+    value = value;
     saveStepperPosition(i, value);
   }
 
@@ -42,16 +48,13 @@ void setup() {
 
 void loop() {}
 
-void saveInt16ToEeprom(int start_location, uint16_t value)
-{
-  // Shift to correct location
-  int address = start_location * sizeof(uint16_t);
-  EEPROM.put(address, value);
-}
-
 void saveInt16ToEeprom(int address, uint16_t value)
 {
     EEPROM.put(address, value); // Writes 2 bytes starting at 'address'
+}
+
+void saveMaxSteps(uint16_t stepValue) {
+  saveInt16ToEeprom(MAX_STEP_LOCATION, stepValue);
 }
 
 void saveHomeOffset(uint16_t stepValue) {

@@ -23,7 +23,8 @@ const int MODULE_ROW_LOCATION = 0;
 const int MODULE_COLUMN_LOCATION = 1;
 const int AUTO_HOME_LOCATION = 2;
 const int HOME_OFFSET_VALUE_LOCATION = 3;
-const int POSITION_VALUES_START_LOCATION = 5;
+const int MAX_STEP_LOCATION = 5;
+const int POSITION_VALUES_START_LOCATION = 100;
 // ###########################################
 
 const int INCOMING_SIZE = 9;
@@ -60,8 +61,9 @@ enum ErrorCode {
   ERROR_BAD_CHECKSUM = 1,
   ERROR_COMMAND_NOT_FOUND = 2,
   ERROR_INVALID_POSITION = 3,
-  ERROR_INVALID_STEP = 4
-  ERROR_INVALID_VALUE = 5
+  ERROR_INVALID_STEP = 4,
+  ERROR_INVALID_VALUE = 5,
+  ERROR_INVALID_EEPROM_LOCATION = 6
 };
 
 enum Command {
@@ -82,9 +84,11 @@ enum Command {
   CMD_HALL_EFFECT_STATUS = 14,
   CMD_IS_MOVING = 15,
   CMD_MOTOR_NUM_STEPS = 16,
-  CMD_SET_HOME_OFFSET = 17
+  CMD_SET_HOME_OFFSET = 17,
   CMD_SET_AUTO_HOME = 18,
   CMD_GET_EEPROM_VALUE = 19,
+  CMD_GET_HOME_OFFSET = 20,
+  CMD_SET_MAX_STEPS = 21
 };
 
 uint8_t MODULE_ROW;
@@ -100,10 +104,11 @@ const int MOTOR_RESOLUTION = 4096;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
 int targetStep;
 int cachedTargetStep;
+int MAX_MOTOR_STEPS = 4096;
 
 // Timing
 unsigned long previousStepMicros = 0;
-const unsigned long STEP_INTERVAL_MICROS = 2000;
+const unsigned long STEP_INTERVAL_MICROS = 1000;
 // ########################
 
 void setup() {
@@ -115,6 +120,8 @@ void setup() {
   MODULE_COLUMN = getModuleColumn();
   HOME_OFFSET = getHomeOffset();
   AUTO_HOME = getAutoHome();
+  MAX_MOTOR_STEPS = getMaxSteps();
+  motor.set_max_steps(MAX_MOTOR_STEPS);
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
@@ -129,7 +136,7 @@ void setup() {
   previousStepMicros = micros();
 
   if (AUTO_HOME)
-    motor.home();
+    motor.home(HOME_OFFSET);
   
 }
 
@@ -274,7 +281,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       } 
       step_value = motor.getCurrentStep();
       saveStepperPosition(data_value, step_value);
-      message.data_value = 4;
+      message.data_value = step_value;
       message.status = true;
       break;
     case Command::CMD_MOVE_TO_POSITION:
@@ -285,6 +292,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         break;
       }
       step_value = getStepperPosition(data_value);
+      targetStep = step_value;
       message.data_value = step_value;
       message.status = true;
       break;
@@ -311,6 +319,18 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = motor.getCurrentStep();
       message.status = true;
       break;
+    case Command::CMD_MOVE_REL_STEPS:
+    {
+      for(int i = 0; i < data_value; i++)
+      {
+        motor.step();
+        delay(1);
+      }
+      targetStep = motor.getCurrentStep();
+      message.data_value = data_value;
+      message.status = true;
+      break;
+    }
     case Command::CMD_SET_STEP_TARGET:
       if (!motor.isValidStep(data_value))
       {
@@ -346,31 +366,43 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = (int)isMoving();
       message.status = true;
       break;
-    case Command::CMD_MOTOR_NUM_STEPS:
-      // Test to determine the number of steps it takes to return to the hall sensor. ie a full rotation
-      motor.home();
+    case Command::CMD_MOTOR_NUM_STEPS: {
+      // 1. Ensure we start at a known home position
+      motor.home(0); 
       delay(500);
-
-      int step_count = 0;
+    
+      int steps = 0;
+      const int MAX_STEPS = 5000; // Safety limit to prevent infinite loop
       
-      // Move until off hall sensor
-      while (isHallPinActive())
-      {
-        motor.step();
-        step_count += 1;
-        delay(1);
+      // 2. Move off the sensor (assuming it triggers LOW when home)
+      // We use a safety limit to prevent the motor from spinning indefinitely
+      while (!digitalRead(HALL_PIN) && steps < MAX_STEPS) {
+        motor.step(); // Assuming 'true' is forward
+        steps++;
+        delay(2); // Slightly slower for stability during calibration
       }
-
-      // Move until back on to hall sensor
-      while (!isHallPinActive())
-      {
+    
+      // 3. Move until back on the sensor
+      while (digitalRead(HALL_PIN) && steps < MAX_STEPS) {
         motor.step();
-        step_count += 1;
-        delay(1);
+        steps++;
+        delay(2);
       }
-      message.status = true;
-      message.data_value = step_count;
+    
+      // 4. Report the result back to your Python controller
+      if (steps >= MAX_STEPS) {
+        message.status = false; // Calibration failed
+        message.data_value = 0;
+      } else {
+        message.status = true; // Calibration success
+        message.data_value = (uint16_t)steps;
+        
+        // Optional: Save this permanently to EEPROM
+        // saveTotalSteps(steps); 
+      }
+      targetStep = motor.getCurrentStep();
       break;
+    }
     case Command::CMD_SET_HOME_OFFSET:
       if (!motor.isValidStep(data_value))
       {
@@ -378,19 +410,17 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.status = false;
         break;
       }
-      message.data_value = data_value
+      message.data_value = data_value;
       message.status = true;
       saveHomeOffset(data_value);
       HOME_OFFSET = data_value;
       break;
+    case Command::CMD_GET_HOME_OFFSET:
+      message.data_value = HOME_OFFSET;
+      message.status = true;
+      break;
     case Command::CMD_SET_AUTO_HOME:
-      if (data_value != 0 || data_value != 1)
-      {
-        message.data_value = ErrorCode::ERROR_INVALID_VALUE;
-        message.status = false;
-        break;
-      }
-      message.data_value = data_value
+      message.data_value = data_value;
       message.status = true;
       setAutoHome(data_value);
     case Command::CMD_GET_EEPROM_VALUE:
@@ -401,9 +431,16 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         break;
       }
       uint8_t value;
-      EEPROM.get(AUTO_HOME_LOCATION, value);
+      EEPROM.get(data_value, value);
       message.data_value = value;
       message.status = true;
+      break;
+    case Command::CMD_SET_MAX_STEPS:
+      message.data_value = data_value;
+      message.status = true;
+      saveMaxSteps(data_value);
+      MAX_MOTOR_STEPS = data_value;
+      motor.set_max_steps(MAX_MOTOR_STEPS);
       break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -435,22 +472,6 @@ void performMessageAction(OutgoingMessage message)
     case Command::CMD_HOME:
       // Home
       motor.home(HOME_OFFSET);
-      targetStep = motor.getCurrentStep();
-      break;
-    case Command::CMD_MOTOR_NUM_STEPS:
-      // Home
-      motor.home();
-      delay(500);
-
-      // Move to offset
-      while (int i = 0; ; i < HOME_OFFSET; i++)
-      {
-        motor.step();
-        delay(1);
-      }
-
-      // Set offset position to 0 and stay at that position
-      motor.currentStep = 0;
       targetStep = motor.getCurrentStep();
       break;
     default:
@@ -559,15 +580,12 @@ uint16_t getInt16FromEeprom(int address)
     return value;
 }
 
-uint16_t getInt16FromEeprom(int address)
-{
-    uint16_t value;
-    EEPROM.get(address, value); // Reads 2 bytes starting at 'address'
-    return value;
-}
-
 uint16_t getHomeOffset() { 
   return getInt16FromEeprom(HOME_OFFSET_VALUE_LOCATION);
+}
+
+uint16_t getMaxSteps() { 
+  return getInt16FromEeprom(MAX_STEP_LOCATION);
 }
 
 // Retrieve a position from EEPROM
@@ -583,6 +601,10 @@ uint16_t getStepperPosition(int index) {
 void saveInt16ToEeprom(int address, uint16_t value)
 {
     EEPROM.put(address, value); // Writes 2 bytes starting at 'address'
+}
+
+void saveMaxSteps(uint16_t stepValue) {
+  saveInt16ToEeprom(MAX_STEP_LOCATION, stepValue);
 }
 
 void saveHomeOffset(uint16_t stepValue) {

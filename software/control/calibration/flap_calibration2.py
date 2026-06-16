@@ -18,60 +18,59 @@ from utils import create_logger
 def main():
     move_offset = 64
     adjust_values = {
-        "a": 1,
-        "s": 4,
+        "a": -20,
+        "s": -10,
         "d": 10,
         "f": 20,
     }
+    MAX_STEPS = 300
     port = os.getenv("DISP_USB_PORT")
     bus = BusController(port=port, timeout=0.75)
-    bus.discover([1, 2], [1, 2], 0.1)  # probe columns 1-4 (empty columns just time out)
+    bus.discover([1, 2], [2, 3], 0.1)  # probe columns 1-4 (empty columns just time out)
     display = DisplayController()
     display.add_bus_controller(bus)
 
     # tmp = bus.timeout
     # bus.timeout = 6.0
     # message = [module.get_drum_steps() for location, module  in bus.modules.items()]
-    # bus.timeout = tmp
+    bus.timeout = 3.0
     # time.sleep(5)
 
     # Home to get everything in the right place
     display.home_all()
+    time.sleep(8)
 
-    flap = Flap[input("What flap are you start at? - ")]
-    init_step_value = int(input(f"Starting step value for {flap.name}? - "))
-    step_values = {location: init_step_value for location in bus.modules}
-    max_steps = {location: bus.modules[location].get_max_steps() for location in bus.modules}
-
-    display.move_to_steps(step_values)
-    for position in range(flap.value, NUM_POSITIONS):
-        flap = Flap(position)
+    for flap in Flap:
+        # if flap.value < 30:
+            # continue
+        # display.move_all_to_position(flap.value)
+        
+        print(f"Moving to {flap.name}")
         done_mask = {location: False for location in bus.modules}
+        for module in bus.modules.values():
+            position_value = module.get_position(flap.value).data_value
+            module.move_to_step(position_value)
         while not all(done_mask.values()):
-            display.move_to_steps(step_values)
             for location, module in bus.modules.items():
-                if done_mask[location]:
-                    continue
                 input_value = input(f"If the module is at {flap.name}, enter y otherwise select an adjustment value {adjust_values}: ").strip().lower()
                 if input_value == "y":
                     done_mask[location] = True
                     module.set_position(flap.value)
                 else:
-                    # module.move_steps(4096)
                     if input_value not in adjust_values:
-                        print(f"'{input_value}' is not a valid choice")
-                        continue
-                    step_values[location] = (step_values[location] + adjust_values[input_value])
-                    if step_values[location] > max_steps[location]:
-                        print(f"Increasing {location}'s max value to {step_values[location]}")
-                        # module.set_max_steps(step_values[location])
+                        if input_value.isnumeric() and (int(input_value) > MAX_STEPS or int(input_value) < -MAX_STEPS):
+                            print(f"'{input_value}' is not a valid choice")
+                            continue
+                        else:
+                            step_amount = int(input_value)
+                    else:
+                        step_amount = adjust_values[input_value]
+                    current_step = module.get_steps().data_value
+                    if step_amount < 0:
+                        module.home()
+                        time.sleep(6.5)
+                    module.move_to_step(current_step + step_amount)
 
-                print(f"Moving {location} {move_offset} steps - Current Step: {step_values[location]}")
-        step_values = {location: (value + move_offset) for (location, value) in step_values.items()}
-        if step_values[location] > max_steps[location]:
-            print(f"Increasing {location}'s max value to {step_values[location]}")
-            # module.set_max_steps(step_values[location])
-            time.sleep(0.5)
 
 if __name__ == "__main__":
     create_logger()
