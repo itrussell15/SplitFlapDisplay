@@ -20,11 +20,12 @@ def main():
     small_adjust = 10
     port = os.getenv("DISP_USB_PORT")
     bus = BusController(port=port, timeout=0.75)
-    bus.discover([1, 2], [2, 3], 0.1)  # probe columns 1-4 (empty columns just time out)
+    bus.discover([1, 2], [1, 2], 0.1)  # probe columns 1-4 (empty columns just time out)
     display = DisplayController()
     display.add_bus_controller(bus)
 
     for module in bus.modules.values():
+        module.set_calibration_mode(True)
         # Set home offset to 0 before homing
         module.set_home_offset(0)
 
@@ -74,6 +75,9 @@ def main():
                 )
                 if attempt == max_attempts:
                     print(f"Failed to verify home offset for {module.location} after {max_attempts} attempts")
+
+    for module in bus.modules.values():
+        module.set_calibration_mode(True)
 
 if __name__ == "__main__":
     create_logger()

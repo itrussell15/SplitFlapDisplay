@@ -88,7 +88,8 @@ enum Command {
   CMD_SET_AUTO_HOME = 18,
   CMD_GET_EEPROM_VALUE = 19,
   CMD_GET_HOME_OFFSET = 20,
-  CMD_SET_MAX_STEPS = 21
+  CMD_SET_MAX_STEPS = 21,
+  CMD_SET_CALIBRATION_MODE = 22,
 };
 
 uint8_t MODULE_ROW;
@@ -97,19 +98,23 @@ uint16_t HOME_OFFSET;
 bool AUTO_HOME = true;
 const int BAUDRATE = 9600;
 
-// ##### MOTOR VALUES #####
-// Locating
+// ######## MOTOR VALUES #########
 const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
 int targetStep;
 int cachedTargetStep;
 int MAX_MOTOR_STEPS = 4096;
+// #################################
 
-// Timing
+// ########## TIMING ################
 unsigned long previousStepMicros = 0;
-const unsigned long STEP_INTERVAL_MICROS = 1000;
-// ########################
+unsigned long NORMAL_STEP_INTERVAL_MICROS = 1000;
+unsigned long CALIBRATION_STEP_INTERVAL_MICROS = 3000;
+const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000;
+static bool CALIBRATION_MODE = false;
+static unsigned long STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
+// #################################
 
 void setup() {
 
@@ -142,16 +147,25 @@ void setup() {
 
 void loop() {
 
-
   // Asynchronously to move to target
   if (targetStep != motor.getCurrentStep())
-    moveMotorToTarget();
+    motorStepTiming();
   else
   {
-    motor.release();
+    if (!CALIBRATION_MODE)
+      motorHoldTiming();
   }
 
   if (!digitalRead(HALL_PIN))
+  {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+  }
+  else
+  {
+    digitalWrite(STATUS_LED_PIN, LOW);
+  }
+
+  if (!digitalRead(CALIBRATION_MODE))
   {
     digitalWrite(STATUS_LED_PIN, HIGH);
   }
@@ -423,6 +437,8 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = data_value;
       message.status = true;
       setAutoHome(data_value);
+      AUTO_HOME = (bool)data_value;
+      break;
     case Command::CMD_GET_EEPROM_VALUE:
       if (data_value < 0 || data_value > 256)
       {
@@ -441,6 +457,22 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       saveMaxSteps(data_value);
       MAX_MOTOR_STEPS = data_value;
       motor.set_max_steps(MAX_MOTOR_STEPS);
+      break;
+    case Command::CMD_SET_CALIBRATION_MODE:
+//      if (data_value != 0 || data_value != 1)
+//      {
+//        message.data_value = ErrorCode::ERROR_INVALID_VALUE;
+//        message.status = false;
+//        break;
+//      }
+      message.data_value = data_value;
+      message.status = true;
+      CALIBRATION_MODE = (bool)data_value;
+
+      if (!CALIBRATION_MODE)
+        STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
+      else
+        STEP_INTERVAL_MICROS = CALIBRATION_STEP_INTERVAL_MICROS;
       break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -491,7 +523,7 @@ void doBroadcastResponse(OutgoingMessage message)
   }
 }
 
-void moveMotorToTarget()
+void motorStepTiming()
 {
   unsigned long currentMicros = micros();
   bool shouldStep = currentMicros - previousStepMicros >= STEP_INTERVAL_MICROS;
@@ -499,6 +531,14 @@ void moveMotorToTarget()
     motor.step();
     previousStepMicros = currentMicros;
   }
+}
+
+void motorHoldTiming()
+{
+  unsigned long currentMicros = micros();
+  bool shouldRelease = (currentMicros - previousStepMicros) >= RELEASE_INTERVAL_MICROS;
+  if (shouldRelease)
+    motor.release();
 }
 
 

@@ -31,6 +31,7 @@ class ModuleCommand(enum.IntEnum):
     GET_EEPROM_VALUE = 19
     GET_HOME_OFFSET = 20
     SET_MAX_STEPS = 21
+    SET_CALIBRATION_MODE = 22
     BAD_COMMAND = 99
 
 

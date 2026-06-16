@@ -34,7 +34,7 @@ class TestBusController(unittest.TestCase):
         create_logger(level=logging.DEBUG, spacing=23)
 
         cls.ROW = 1
-        cls.COLUMN = 2
+        cls.COLUMN = 1
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
@@ -115,7 +115,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
 
     def test_move_to_position(self) -> None:
-        message = self.modules[self.test_location].move_to_position(0)
+        message = self.modules[self.test_location].move_to_position(6)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
         # time.sleep(10)
@@ -179,6 +179,9 @@ class TestBusController(unittest.TestCase):
 
     def test_set_auto_home(self) -> None:
         message = self.modules[self.test_location].set_auto_home(True)
+    
+    def test_set_calibration_mode(self) -> None:
+        message = self.modules[self.test_location].set_calibration_mode(False)
 
     def test_set_home_offset(self) -> None:
         message = self.modules[self.test_location].set_home_offset(2800)

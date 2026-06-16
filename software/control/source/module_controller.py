@@ -179,6 +179,10 @@ class ModuleController:
         if location < 0 or location > NUM_EEPROM_BYTES:
             raise ValueError(f"Unable to get EEPROM location {location} - EPPROM locations are between 0-{NUM_EEPROM_BYTES}")
         return self._send_packet(ModuleCommand.GET_EEPROM_VALUE, value=location)
+    
+    def set_calibration_mode(self, on: bool) -> IncomingMessage:
+        output = self._send_packet(ModuleCommand.SET_CALIBRATION_MODE, value=int(on))
+        return output
 
     @staticmethod
     def is_valid_position(position_id: int) -> bool:

@@ -18,17 +18,20 @@ from utils import create_logger
 def main():
     port = os.getenv("DISP_USB_PORT")
     bus = BusController(port=port, timeout=0.75)
-    bus.discover([1, 2], [1, 5], 0.1)
+    bus.discover([1, 2], [1, 10], 0.1)
     display = DisplayController()
     display.add_bus_controller(bus)
 
-    LOCATION = (1, 1)
-
+    for module in bus.modules.values():
+        module.set_calibration_mode(True)
     time.sleep(10)
     for position in range(NUM_POSITIONS):
         print(f"Showing: {Flap(position).name}")
         message = display.move_all_to_position(position)
         time.sleep(1.0)
+
+    for module in bus.modules.values():
+        module.set_calibration_mode(False)
 
 if __name__ == "__main__":
     create_logger()

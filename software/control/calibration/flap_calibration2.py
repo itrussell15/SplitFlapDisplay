@@ -39,10 +39,13 @@ def main():
     # Home to get everything in the right place
     display.home_all()
     time.sleep(8)
+    
+    for module in bus.modules.values():
+        module.set_calibration_mode(True)
 
     for flap in Flap:
-        # if flap.value < 30:
-            # continue
+        # if flap.value < 55:
+        #     continue
         # display.move_all_to_position(flap.value)
         
         print(f"Moving to {flap.name}")
@@ -52,7 +55,9 @@ def main():
             module.move_to_step(position_value)
         while not all(done_mask.values()):
             for location, module in bus.modules.items():
-                input_value = input(f"If the module is at {flap.name}, enter y otherwise select an adjustment value {adjust_values}: ").strip().lower()
+                if done_mask[location]:
+                    continue
+                input_value = input(f"If the {module.location} is at {flap.name}, enter y otherwise select an adjustment value {adjust_values}: ").strip().lower()
                 if input_value == "y":
                     done_mask[location] = True
                     module.set_position(flap.value)
@@ -71,6 +76,8 @@ def main():
                         time.sleep(6.5)
                     module.move_to_step(current_step + step_amount)
 
+    for module in bus.modules.values():
+        module.set_calibration_mode(False)
 
 if __name__ == "__main__":
     create_logger()

@@ -11,7 +11,7 @@ const int POSITION_VALUES_START_LOCATION = 100;
 
 // CHANGE THESE VALUES PER MODULE
 const int MODULE_ROW = 1;
-const int MODULE_COLUMN = 6;
+const int MODULE_COLUMN = 5;
 const int HOME_OFFSET = 2000;
 const bool AUTO_HOME = true;
 
