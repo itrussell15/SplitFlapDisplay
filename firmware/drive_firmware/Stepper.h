@@ -17,6 +17,7 @@ public:
     void release();
     int get_max_steps();
     void set_max_steps(int value);
+    int stepsToTarget(int target);  // forward-only distance from currentStep to target
 
     int currentStep;
 

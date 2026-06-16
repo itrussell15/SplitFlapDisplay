@@ -41,7 +41,7 @@ struct __attribute__((__packed__)) IncomingMessage {
   uint8_t  sequence_id;// 1
   uint8_t  command_id; // 1
   uint16_t  data_value; // 2
-  uint8_t  checksum;   // 1 
+  uint8_t  checksum;   // 1
   uint8_t  end_val;    // 1
 }; // Total = 9 bytes
 
@@ -53,7 +53,7 @@ struct __attribute__((__packed__)) OutgoingMessage {
   uint8_t  command_id; // 1
   int16_t  data_value; // 2
   uint8_t  status;     // 1
-  uint8_t  checksum;   // 1 
+  uint8_t  checksum;   // 1
   uint8_t  end_val;    // 1
 }; // Total = 10 bytes
 
@@ -64,6 +64,7 @@ enum ErrorCode {
   ERROR_INVALID_STEP = 4,
   ERROR_INVALID_VALUE = 5,
   ERROR_INVALID_EEPROM_LOCATION = 6
+  ERROR_MAX_STEP_CALIBRATION_FAILED = 7
 };
 
 enum Command {
@@ -101,16 +102,17 @@ const int BAUDRATE = 9600;
 // ######## MOTOR VALUES #########
 const int NUM_POSITIONS = 64;
 const int MOTOR_RESOLUTION = 4096;
-Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN); 
+Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN);
 int targetStep;
 int cachedTargetStep;
 int MAX_MOTOR_STEPS = 4096;
+int SMALL_MOVE_THRESHOLD = 100;
 // #################################
 
 // ########## TIMING ################
 unsigned long previousStepMicros = 0;
 unsigned long NORMAL_STEP_INTERVAL_MICROS = 1000;
-unsigned long CALIBRATION_STEP_INTERVAL_MICROS = 3000;
+unsigned long SMALL_MOVE_STEP_INTERVAL_MICROS = 3000;
 const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000;
 static bool CALIBRATION_MODE = false;
 static unsigned long STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
@@ -142,7 +144,7 @@ void setup() {
 
   if (AUTO_HOME)
     motor.home(HOME_OFFSET);
-  
+
 }
 
 void loop() {
@@ -151,28 +153,12 @@ void loop() {
   if (targetStep != motor.getCurrentStep())
     motorStepTiming();
   else
-  {
-    if (!CALIBRATION_MODE)
       motorHoldTiming();
-  }
 
   if (!digitalRead(HALL_PIN))
-  {
     digitalWrite(STATUS_LED_PIN, HIGH);
-  }
   else
-  {
     digitalWrite(STATUS_LED_PIN, LOW);
-  }
-
-  if (!digitalRead(CALIBRATION_MODE))
-  {
-    digitalWrite(STATUS_LED_PIN, HIGH);
-  }
-  else
-  {
-    digitalWrite(STATUS_LED_PIN, LOW);
-  }
 
   // Drain and frame incoming bytes. Self-resyncing so a stray start byte (0x02)
   // embedded in another module's reply -- notably column 2's address byte -- can
@@ -292,7 +278,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.data_value = ErrorCode::ERROR_INVALID_POSITION;
         message.status = false;
         break;
-      } 
+      }
       step_value = motor.getCurrentStep();
       saveStepperPosition(data_value, step_value);
       message.data_value = step_value;
@@ -306,7 +292,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         break;
       }
       step_value = getStepperPosition(data_value);
-      targetStep = step_value;
+      setTargetStep(step_value);
       message.data_value = step_value;
       message.status = true;
       break;
@@ -329,8 +315,8 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
         message.status = false;
         break;
       }
-      targetStep = data_value;
-      message.data_value = motor.getCurrentStep();
+      setTargetStep(data_value);
+      message.data_value = data_value;
       message.status = true;
       break;
     case Command::CMD_MOVE_REL_STEPS:
@@ -368,7 +354,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       break;
     case Command::CMD_MOVE_TO_TARGET:
-      targetStep = cachedTargetStep;
+      setTargetStep(cachedTargetStep);
       message.data_value = targetStep;
       message.status = true;
       break;
@@ -382,37 +368,18 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       break;
     case Command::CMD_MOTOR_NUM_STEPS: {
       // 1. Ensure we start at a known home position
-      motor.home(0); 
+      motor.home(0);
       delay(500);
-    
-      int steps = 0;
-      const int MAX_STEPS = 5000; // Safety limit to prevent infinite loop
-      
-      // 2. Move off the sensor (assuming it triggers LOW when home)
-      // We use a safety limit to prevent the motor from spinning indefinitely
-      while (!digitalRead(HALL_PIN) && steps < MAX_STEPS) {
-        motor.step(); // Assuming 'true' is forward
-        steps++;
-        delay(2); // Slightly slower for stability during calibration
-      }
-    
-      // 3. Move until back on the sensor
-      while (digitalRead(HALL_PIN) && steps < MAX_STEPS) {
-        motor.step();
-        steps++;
-        delay(2);
-      }
-    
+
+      int steps = determineTotalSteps();
       // 4. Report the result back to your Python controller
       if (steps >= MAX_STEPS) {
         message.status = false; // Calibration failed
-        message.data_value = 0;
+        message.data_value = ErrorCode::ERROR_MAX_STEP_CALIBRATION_FAILED;
       } else {
         message.status = true; // Calibration success
         message.data_value = (uint16_t)steps;
-        
-        // Optional: Save this permanently to EEPROM
-        // saveTotalSteps(steps); 
+        saveMaxSteps(steps);
       }
       targetStep = motor.getCurrentStep();
       break;
@@ -459,20 +426,16 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       motor.set_max_steps(MAX_MOTOR_STEPS);
       break;
     case Command::CMD_SET_CALIBRATION_MODE:
-//      if (data_value != 0 || data_value != 1)
-//      {
-//        message.data_value = ErrorCode::ERROR_INVALID_VALUE;
-//        message.status = false;
-//        break;
-//      }
-      message.data_value = data_value;
-      message.status = true;
+      if (data_value != 0 && data_value != 1)
+      {
+        message.data_value = ErrorCode::ERROR_INVALID_VALUE;
+        message.status = false;
+        break;
+      }
       CALIBRATION_MODE = (bool)data_value;
-
-      if (!CALIBRATION_MODE)
-        STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
-      else
-        STEP_INTERVAL_MICROS = CALIBRATION_STEP_INTERVAL_MICROS;
+      STEP_INTERVAL_MICROS = CALIBRATION_MODE ? SMALL_MOVE_STEP_INTERVAL_MICROS : NORMAL_STEP_INTERVAL_MICROS;
+      message.data_value = (int)CALIBRATION_MODE;
+      message.status = true;
       break;
     default:
       message.data_value = ErrorCode::ERROR_COMMAND_NOT_FOUND;
@@ -511,7 +474,7 @@ void performMessageAction(OutgoingMessage message)
       message.status = false;
       break;
   }
-  
+
 }
 
 void doBroadcastResponse(OutgoingMessage message)
@@ -521,6 +484,23 @@ void doBroadcastResponse(OutgoingMessage message)
   {
     digitalWrite(STATUS_LED_PIN, HIGH);
   }
+}
+
+void setTargetStep(int step)
+{
+  if (CALIBRATION_MODE)
+  {
+    STEP_INTERVAL_MICROS = SMALL_MOVE_STEP_INTERVAL_MICROS;
+  }
+  else
+  {
+    uint16_t num_steps = motor.stepsToTarget(step);
+    if (num_steps < SMALL_MOVE_THRESHOLD)
+      STEP_INTERVAL_MICROS = SMALL_MOVE_STEP_INTERVAL_MICROS;
+    else
+      STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
+  }
+  targetStep = step;
 }
 
 void motorStepTiming()
@@ -541,6 +521,27 @@ void motorHoldTiming()
     motor.release();
 }
 
+int determineTotalSteps()
+{
+  int steps = 0;
+  const int MAX_STEPS = 5000; // Safety limit to prevent infinite loop
+
+  // 2. Move off the sensor (assuming it triggers LOW when home)
+  // We use a safety limit to prevent the motor from spinning indefinitely
+  while (!digitalRead(HALL_PIN) && steps < MAX_STEPS) {
+    motor.step(); // Assuming 'true' is forward
+    steps++;
+    delay(3); // Slightly slower for stability during calibration
+  }
+
+  // 3. Move until back on the sensor
+  while (digitalRead(HALL_PIN) && steps < MAX_STEPS) {
+    motor.step();
+    steps++;
+    delay(3);
+  }
+  return steps;
+}
 
 bool validateChecksum(byte* buffer) {
   uint8_t row = buffer[1];
@@ -589,21 +590,21 @@ bool isMoving() {
 }
 
 uint8_t getModuleRow() {
-  // Pulls the module row from EEPROM address 0. 
+  // Pulls the module row from EEPROM address 0.
   // Should be between 0-255
   uint8_t id;
   EEPROM.get(MODULE_ROW_LOCATION, id);
   return id;
 }
 
-uint8_t getModuleColumn() { 
+uint8_t getModuleColumn() {
   // Should be between 0-255
   uint8_t id;
   EEPROM.get(MODULE_COLUMN_LOCATION, id);
   return id;
 }
 
-bool getAutoHome() { 
+bool getAutoHome() {
   bool value;
   EEPROM.get(AUTO_HOME_LOCATION, value);
   return (bool)value;
@@ -620,11 +621,11 @@ uint16_t getInt16FromEeprom(int address)
     return value;
 }
 
-uint16_t getHomeOffset() { 
+uint16_t getHomeOffset() {
   return getInt16FromEeprom(HOME_OFFSET_VALUE_LOCATION);
 }
 
-uint16_t getMaxSteps() { 
+uint16_t getMaxSteps() {
   return getInt16FromEeprom(MAX_STEP_LOCATION);
 }
 

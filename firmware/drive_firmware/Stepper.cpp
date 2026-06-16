@@ -115,3 +115,14 @@ void Stepper::set_max_steps(int value)
 {
    this->max_steps = value;
 }
+
+// Number of steps the motor will travel to reach `target` from its current
+// position. Moves are forward-only and wrap at max_steps, so this is the
+// forward delta (0 .. max_steps-1). Use it to decide if a move is "small".
+int Stepper::stepsToTarget(int target)
+{
+  int delta = (target - this->currentStep) % this->max_steps;
+  if (delta < 0)
+    delta += this->max_steps;
+  return delta;
+}
