@@ -21,10 +21,12 @@ const int STATUS_LED_PIN = PIN_PA3;
 // ########## EEPROM LOCATIONS ################
 const int MODULE_ROW_LOCATION = 0;
 const int MODULE_COLUMN_LOCATION = 1;
-const int AUTO_HOME_LOCATION = 2;
-const int HOME_OFFSET_VALUE_LOCATION = 3;
-const int MAX_STEP_LOCATION = 5;
-const int POSITION_VALUES_START_LOCATION = 100;
+const int MAJOR_FIRMWARE_LOCATION = 2;
+const int MINOR_FIRMWARE_LOCATION = 3;
+const int AUTO_HOME_LOCATION = 4;
+const int HOME_OFFSET_VALUE_LOCATION = 5; // 2 bytes
+const int MAX_STEP_LOCATION = 7; // 2 byes
+const int POSITION_VALUES_START_LOCATION = 100; // 2 bytes per position (100 - 228)
 // ###########################################
 
 const int INCOMING_SIZE = 9;
@@ -379,7 +381,9 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       } else {
         message.status = true; // Calibration success
         message.data_value = (uint16_t)steps;
-        saveMaxSteps(steps);
+
+        // Can save to EEPROM here if we find it helpful
+        // saveMaxSteps(steps);
       }
       targetStep = motor.getCurrentStep();
       break;
@@ -474,7 +478,6 @@ void performMessageAction(OutgoingMessage message)
       message.status = false;
       break;
   }
-
 }
 
 void doBroadcastResponse(OutgoingMessage message)
@@ -489,9 +492,7 @@ void doBroadcastResponse(OutgoingMessage message)
 void setTargetStep(int step)
 {
   if (CALIBRATION_MODE)
-  {
     STEP_INTERVAL_MICROS = SMALL_MOVE_STEP_INTERVAL_MICROS;
-  }
   else
   {
     uint16_t num_steps = motor.stepsToTarget(step);

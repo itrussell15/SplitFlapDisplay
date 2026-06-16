@@ -3,15 +3,19 @@
 // ########## EEPROM LOCATIONS ################
 const int MODULE_ROW_LOCATION = 0;
 const int MODULE_COLUMN_LOCATION = 1;
-const int AUTO_HOME_LOCATION = 2;
-const int HOME_OFFSET_VALUE_LOCATION = 3;
-const int MAX_STEP_LOCATION = 5;
+const int MAJOR_FIRMWARE_LOCATION = 2;
+const int MINOR_FIRMWARE_LOCATION = 3;
+const int AUTO_HOME_LOCATION = 4;
+const int HOME_OFFSET_VALUE_LOCATION = 5;
+const int MAX_STEP_LOCATION = 7;
 const int POSITION_VALUES_START_LOCATION = 100;
 // ###########################################
 
 // CHANGE THESE VALUES PER MODULE
 const int MODULE_ROW = 1;
 const int MODULE_COLUMN = 5;
+const int MAJOR_FIRMWARE_VERSION = 0;
+const int MINOR_FIRMWARE_VERSION = 1;
 const int HOME_OFFSET = 2000;
 const bool AUTO_HOME = true;
 
@@ -24,18 +28,21 @@ const int STATUS_LED_PIN = PIN_PA3;
 void setup() {
 
   pinMode(STATUS_LED_PIN, OUTPUT);
-  
+
   EEPROM.update(MODULE_ROW_LOCATION, MODULE_ROW);
   EEPROM.update(MODULE_COLUMN_LOCATION, MODULE_COLUMN);
+  EEPROM.update(MAJOR_FIRMWARE_LOCATION, MAJOR_FIRMWARE_VERSION);
+  EEPROM.update(MINOR_FIRMWARE_LOCATION, MINOR_FIRMWARE_VERSION);
   EEPROM.update(AUTO_HOME_LOCATION, AUTO_HOME);
   saveHomeOffset(HOME_OFFSET);
-  saveMaxSteps(4096);
-  
+  saveMaxSteps(MOTOR_RESOLUTION);
+
   // Set Positions;
   int evenStep = MOTOR_RESOLUTION / NUM_POSITIONS;
   for(int i = 0; i < NUM_POSITIONS; i++)
   {
-    int value = (i * evenStep);
+    // Evenly distribute the steps
+    int value = (i * evenStep) + (evenStep/2);
     value = value;
     saveStepperPosition(i, value);
   }

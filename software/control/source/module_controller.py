@@ -1,6 +1,7 @@
 import enum
 import logging
 import struct
+import time
 from concurrent.futures import Future
 from queue import Queue
 from typing import Any, Dict, Optional, Tuple
@@ -26,6 +27,17 @@ NUM_EEPROM_BYTES = 256
 
 class FirmwareException(Exception):
     pass
+
+
+class EepromLocations(enum.IntEnum):
+    MODULE_ROW_LOCATION = 0
+    MODULE_COLUMN_LOCATION = 1
+    MAJOR_FIRMWARE_LOCATION = 2
+    MINOR_FIRMWARE_LOCATION = 3
+    AUTO_HOME_LOCATION = 4
+    HOME_OFFSET_VALUE_LOCATION = 5
+    MAX_STEP_LOCATION = 7
+    POSITION_VALUES_START_LOCATION = 100
 
 
 class ModuleController:
@@ -72,8 +84,8 @@ class ModuleController:
 
     def move_to_step(self, step: int) -> IncomingMessage:
         self.logger.info(f"Moving to {step}")
-        # if not self.is_valid_step(step):
-        #     raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
+        if not self.is_valid_step(step):
+            raise ValueError(f"Step value: {step} must be between 0-{MOTOR_RESOLUTION}")
         result = self._send_packet(ModuleCommand.MOVE_TO_STEP, step)
         self._current_step = result.data_value
         return result
@@ -83,7 +95,7 @@ class ModuleController:
         result = self._send_packet(ModuleCommand.MOVE_STEPS, value)
         self._current_step = result.data_value
         return result
-    
+
     def get_steps(self) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.GET_STEPS)
         self._current_step = result.data_value
@@ -92,15 +104,13 @@ class ModuleController:
     def get_drum_steps(self) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.MOTOR_NUM_STEPS)
         return result
-    
+
     def set_max_steps(self, value: int) -> IncomingMessage:
         result = self._send_packet(ModuleCommand.SET_MAX_STEPS, value)
         return result
-    
+
     def get_max_steps(self) -> int:
-        value1 = self.get_eeprom_value(5)
-        value2 = self.get_eeprom_value(6)
-        return (value2.data_value * 256) + value1.data_value
+        return self._get_uint16_from_eeprom(5)
 
     def move_to_position(self, position: int) -> IncomingMessage:
         # Move to a stored EEPROM position
@@ -144,7 +154,7 @@ class ModuleController:
         self._current_position = 0
         self._current_step = 0
         return output
-    
+
     def get_home_offset(self) -> IncomingMessage:
         output = self._send_packet(ModuleCommand.GET_HOME_OFFSET)
         return output
@@ -176,13 +186,18 @@ class ModuleController:
         return self._send_packet(ModuleCommand.GET_HALL_EFFECT_STATUS)
 
     def get_eeprom_value(self, location: int) -> IncomingMessage:
-        if location < 0 or location > NUM_EEPROM_BYTES:
-            raise ValueError(f"Unable to get EEPROM location {location} - EPPROM locations are between 0-{NUM_EEPROM_BYTES}")
+        if location < 0 or location > NUM_EEPROM_BYTES - 1:
+            raise ValueError(
+                f"Unable to get EEPROM location {location} - EPPROM locations are between 0-{NUM_EEPROM_BYTES-1}"
+            )
         return self._send_packet(ModuleCommand.GET_EEPROM_VALUE, value=location)
-    
+
     def set_calibration_mode(self, on: bool) -> IncomingMessage:
         output = self._send_packet(ModuleCommand.SET_CALIBRATION_MODE, value=int(on))
         return output
+
+    def positions_known(self) -> bool:
+        return None in list(self._positions_to_steps.values())
 
     @staticmethod
     def is_valid_position(position_id: int) -> bool:
@@ -233,8 +248,20 @@ class ModuleController:
             self.logger.error(f"Unknown error occured when reading response")
             raise e
 
-    def positions_known(self) -> bool:
-        return None in list(self._positions_to_steps.values())
+    def _get_uint16_from_eeprom(self, start_location: int) -> int:
+        value1 = self.get_eeprom_value(start_location)
+        value2 = self.get_eeprom_value(start_location + 1)
+        return (value2.data_value * 256) + value1.data_value
+
+    @property
+    def firmware_version(self) -> str:
+        major = self.get_eeprom_value(
+            EepromLocations.MAJOR_FIRMWARE_LOCATION
+        ).data_value
+        minor = self.get_eeprom_value(
+            EepromLocations.MINOR_FIRMWARE_LOCATION
+        ).data_value
+        return f"{major}.{minor}"
 
     @property
     def current_position(self) -> int:
