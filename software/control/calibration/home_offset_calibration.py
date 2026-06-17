@@ -25,7 +25,7 @@ from utils import create_logger
 def main():
     port = os.getenv("DISP_USB_PORT")
     bus = BusController(port=port, timeout=0.75)
-    bus.discover([1, 2], [1, 2], 0.1)  # probe columns 1-4 (empty columns just time out)
+    bus.discover([1, 2], [1, 3], 0.1)  # probe columns 1-4 (empty columns just time out)
     display = DisplayController()
     display.add_bus_controller(bus)
 

@@ -65,7 +65,7 @@ enum ErrorCode {
   ERROR_INVALID_POSITION = 3,
   ERROR_INVALID_STEP = 4,
   ERROR_INVALID_VALUE = 5,
-  ERROR_INVALID_EEPROM_LOCATION = 6
+  ERROR_INVALID_EEPROM_LOCATION = 6,
   ERROR_MAX_STEP_CALIBRATION_FAILED = 7
 };
 
@@ -115,7 +115,7 @@ int SMALL_MOVE_THRESHOLD = 100;
 unsigned long previousStepMicros = 0;
 unsigned long NORMAL_STEP_INTERVAL_MICROS = 1000;
 unsigned long SMALL_MOVE_STEP_INTERVAL_MICROS = 3000;
-const unsigned long RELEASE_INTERVAL_MICROS = 500 * 1000;
+const unsigned long RELEASE_INTERVAL_MICROS = 100 * 1000;
 static bool CALIBRATION_MODE = false;
 static unsigned long STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
 // #################################
@@ -147,6 +147,9 @@ void setup() {
   if (AUTO_HOME)
     motor.home(HOME_OFFSET);
 
+  // Go to position 0
+  int step_value = getStepperPosition(0);
+  setTargetStep(step_value);
 }
 
 void loop() {
@@ -375,7 +378,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
 
       int steps = determineTotalSteps();
       // 4. Report the result back to your Python controller
-      if (steps >= MAX_STEPS) {
+      if (steps >= MAX_MOTOR_STEPS) {
         message.status = false; // Calibration failed
         message.data_value = ErrorCode::ERROR_MAX_STEP_CALIBRATION_FAILED;
       } else {

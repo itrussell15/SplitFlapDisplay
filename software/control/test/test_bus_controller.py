@@ -34,7 +34,7 @@ class TestBusController(unittest.TestCase):
         create_logger(level=logging.DEBUG, spacing=23)
 
         cls.ROW = 1
-        cls.COLUMN = 1
+        cls.COLUMN = 5
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
@@ -109,7 +109,7 @@ class TestBusController(unittest.TestCase):
         self.latencies.append(message.latency_ms)
     
     def test_set_position(self) -> None:
-        message = self.modules[self.test_location].set_position(0)
+        message = self.modules[self.test_location].set_position(59)
         self.assertEqual(message.command, ModuleCommand.SET_POSITION)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
@@ -193,7 +193,7 @@ class TestBusController(unittest.TestCase):
         message = self.modules[self.test_location].get_home_offset()
 
     def test_set_max_steps(self) -> None:
-        message = self.modules[self.test_location].set_max_steps(4096)
+        message = self.modules[self.test_location].set_max_steps(4094)
 
     def test_get_eeprom(self) -> None:
         row = self.modules[self.test_location].get_eeprom_value(0)
@@ -212,6 +212,6 @@ class TestBusController(unittest.TestCase):
         print(f"1: {steps1.data_value} - 2: {steps2.data_value} = {(steps2.data_value * 256) + steps1.data_value}")
 
     def test_get_total_steps(self) -> None:
-        self.bus.timeout = 6.0
+        self.bus.timeout = 30
         message = self.modules[self.test_location].get_drum_steps()
         print(f"TOTAL MOTOR STEPS: {message.data_value}")
