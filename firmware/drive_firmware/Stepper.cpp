@@ -85,11 +85,11 @@ void Stepper::step() {
         this->stepPhase = (stepPhase + 1) % NUM_PHASES;
     }
 
-    // Re-Zero if we hit the hall sensor
-    hallState = isHallPinActive();
-    if (hallState && !lastHallState)
-        this->currentStep = 0;
-    lastHallState = hallState;
+//    // Re-Zero if we hit the hall sensor
+//    hallState = isHallPinActive();
+//    if (hallState && !lastHallState)
+//        this->currentStep = 0;
+//    lastHallState = hallState;
 }
 
 void Stepper::release() {

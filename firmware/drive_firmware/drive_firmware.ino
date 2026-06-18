@@ -99,7 +99,7 @@ uint8_t MODULE_ROW;
 uint8_t MODULE_COLUMN;
 uint16_t HOME_OFFSET;
 bool AUTO_HOME = true;
-const int BAUDRATE = 9600;
+const int BAUDRATE = 19200;
 
 // ######## MOTOR VALUES #########
 const int NUM_POSITIONS = 64;
@@ -460,10 +460,11 @@ void SendSerialResponse(OutgoingMessage message) {
   // TODO: Play with the timing for all these delays
   //delay(5);                    // Give host USB dongle time to switch to receive mode
   digitalWrite(RS485_DE, HIGH);
-  delay(5);                    // Let RS485 transceiver stabilize before sending
+  delay(3);                    // Let RS485 transceiver stabilize before sending
 
   rs485.write((byte*)&message, sizeof(message));
-  delay(5);
+  delay(3);
+  
   digitalWrite(RS485_DE, LOW);
 }
 
