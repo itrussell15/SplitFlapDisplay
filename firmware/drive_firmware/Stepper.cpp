@@ -28,11 +28,11 @@ Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     stepPhase = 7;
     stepDirection = 1;
     this->max_steps = 4096;
-    
+
     // Set as output
     pinMode(p1, OUTPUT);
     pinMode(p2, OUTPUT);
-    pinMode(p3, OUTPUT); 
+    pinMode(p3, OUTPUT);
     pinMode(p4, OUTPUT);
     pinMode(hallPin, INPUT_PULLUP);
 }
@@ -63,7 +63,7 @@ void Stepper::home(int home_offset = 0) {
 
 void Stepper::moveToStep(int step_value) {
     if (!isValidStep(step_value)) return;
-    
+
     while(getCurrentStep() != step_value)
     {
         this->step();
@@ -84,6 +84,12 @@ void Stepper::step() {
         this->currentStep = (currentStep - 1 + this->max_steps) % this->max_steps;
         this->stepPhase = (stepPhase + 1) % NUM_PHASES;
     }
+
+    // Re-Zero if we hit the hall sensor
+    hallState = isHallPinActive();
+    if (hallState && !lastHallState)
+        this->currentStep = 0;
+    lastHallState = hallState;
 }
 
 void Stepper::release() {

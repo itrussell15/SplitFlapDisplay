@@ -28,8 +28,11 @@ private:
     int stepPhase;
     int stepDirection;
     int max_steps;
-    
-    
+
+    // Re-Zeroing
+    bool hallState;
+    bool lastHallState;
+
     // Internal helper to set pin states
     void writePins(const int* signals);
     bool isHallPinActive();
