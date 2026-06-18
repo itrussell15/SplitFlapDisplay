@@ -109,7 +109,7 @@ int targetStep;
 int cachedTargetStep;
 int MAX_MOTOR_STEPS = 4096;
 int SMALL_MOVE_THRESHOLD = 100;
-static bool lastHallActive
+static bool lastHallActive;
 // #################################
 
 // ########## TIMING ################
@@ -465,7 +465,7 @@ void SendSerialResponse(OutgoingMessage message) {
 
   rs485.write((byte*)&message, sizeof(message));
   delay(3);
-  
+
   digitalWrite(RS485_DE, LOW);
 }
 
@@ -518,8 +518,8 @@ void motorStepTiming()
     previousStepMicros = currentMicros;
   }
 
-  bool hallNow = isHallPinActive();
-  if (isHallPinActive() && !lastHallActive)
+  bool hallNow = !digitalRead(HALL_PIN);
+  if (hallNow && !lastHallActive)
     motor.currentStep = (motor.resolution - HOME_OFFSET) % motor.resolution;
   lastHallActive = hallNow;
 }

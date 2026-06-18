@@ -26,7 +26,6 @@ private:
     int hallPin;
     int stepPhase;
     int stepDirection;
-    int max_steps;
 
     // Internal helper to set pin states
     void writePins(const int* signals);

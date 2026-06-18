@@ -26,6 +26,75 @@ but it holds DE HIGH for ~5 ms after the last reply byte. With no inter-command 
 the next command can begin while the module is still driving the bus — worth trimming
 for correctness as well as speed.
 
+### Update: 19200 baud → ~16 ms (2026-06)
+Raising baud 9600→19200 dropped per-command latency to **~16 ms** (measured; `send`≈0.13 ms
+is just the OS buffering the write, `receive`≈16 ms is everything else):
+```
+ command TX  9 × (10/19200)  ≈ 4.7 ms
+ DE pre-delay   delay(5)      ≈ 5.0 ms   ← FIXED — does not shrink with baud
+ reply TX   10 × (10/19200)  ≈ 5.2 ms
+ overhead                     ≈ ~1.4 ms  → ~16.3 ms
+```
+**Key insight:** baud only shrinks the byte times; the `delay(5)` DE pre-delay is a fixed
+floor (now ~31% of the latency vs ~17% at 9600). So everything asymptotes toward
+(DE delay + overhead) unless you also cut the DE delay. Projected per-command latency:
+
+| baud | DE delay = 5 ms | DE delay = 1 ms |
+|---|---|---|
+| 19200 | ~16 ms (measured) | ~12 ms |
+| 38400 | ~11 ms | ~7 ms |
+| 57600 | ~10 ms | ~6 ms |
+| 115200 | ~8 ms | ~4 ms |
+
+Baud is limited by `SoftwareSerial`, not the transceiver. Test each step with
+`test/test_comm.py` (`--interleave` AND while a module is stepping — bit-banged RX is
+timing-sensitive and shares the CPU with the step loop); confirm 0 corrupt/dropped
+frames. 19200 verified; 38400 likely OK; 57600+ on SoftwareSerial/AVR often gets flaky.
+Firmware (`rs485.begin`) and controller (`baudrate`) must match.
+
+### DE delays reduced 5→3 ms (2026-06)
+`SendSerialResponse()` delays trimmed to `delay(3)` each. Note which one matters where:
+- **Pre-delay** (DE HIGH → before `write`): *inside* the measured round-trip latency.
+  5→3 ms saves ~2 ms → round-trip ~14 ms at 19200.
+- **Post-delay** (after `write` → DE LOW): *not* in the latency (controller already has
+  the reply) but holds the bus driven ~3 ms after the last byte; cutting it frees the
+  bus sooner, which matters with no inter-command guard / fire-and-forget.
+
+⚠️ The pre-delay must still cover the dongle's TX→RX switch. If too short, the **first
+reply byte is lost** → shows as `CLIPPED_HEAD` in `test/test_comm.py`. Verify before
+trusting a lower value.
+
+## Fire-and-forget: full-repaint projection
+
+A fire-and-forget move sends only the 9-byte command (no reply, no `SendSerialResponse`,
+so the DE delays don't apply). A full 45-module repaint is then just the command stream:
+
+```
+45 modules × 9 bytes = 405 bytes
+@ 19200 (0.52 ms/byte):  405 × 0.52 ≈ 211 ms
+```
+
+| baud | full repaint (405 bytes) |
+|---|---|
+| 9600 | ~0.42 s |
+| 19200 | **~0.21 s** |
+| 38400 | ~0.11 s |
+| 115200 | ~0.035 s |
+
+vs the current round-trip repaint of `45 × ~16 ms ≈ 0.72 s` → **~3.4× faster** at 19200.
+
+Practical notes:
+- Add a small inter-command spacing (~2 ms) as insurance against overflowing a module's
+  64-byte SoftwareSerial RX buffer → realistically ~0.2–0.35 s @ 19200. Should be modest:
+  at repaint start modules are idle/draining RX, and moves are non-blocking so a module
+  keeps reading RX between steps. Bytes a module drops *while stepping* are other modules'
+  commands it doesn't need.
+- No replies = no bus contention, which is what makes tight streaming safe.
+- Trade: no per-command confirmation — rely on the checksum + an occasional
+  `GET_STEPS`/`PING` verification sweep.
+- **Bulk/broadcast** (one ~50-byte frame) would be ~26 ms @ 19200 — even faster, but a
+  bigger firmware change (length-prefixed framing, no per-module ACK).
+
 ## Payload size: binary vs v7 text
 
 | | Binary (`drive_firmware`) | v7 text (`m38-B`) |
