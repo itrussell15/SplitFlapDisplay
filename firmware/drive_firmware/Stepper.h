@@ -15,11 +15,10 @@ public:
     void reverseDirection();
     bool isValidStep(int step_value);
     void release();
-    int get_max_steps();
-    void set_max_steps(int value);
     int stepsToTarget(int target);  // forward-only distance from currentStep to target
 
     int currentStep;
+    int resolution;
 
 
 private:
@@ -28,10 +27,6 @@ private:
     int stepPhase;
     int stepDirection;
     int max_steps;
-
-    // Re-Zeroing
-    bool hallState;
-    bool lastHallState;
 
     // Internal helper to set pin states
     void writePins(const int* signals);

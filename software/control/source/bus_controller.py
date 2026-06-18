@@ -36,7 +36,7 @@ class BusController(SerialProcessor):
         modules: Optional[Dict[Tuple[int, int], ModuleController]] = None,
         timeout: int = 2,
         num_retries: int = 3,
-        baudrate: int = 9600,
+        baudrate: int = 19200,
         max_queue_size: int = 64,
     ) -> None:
         super().__init__(

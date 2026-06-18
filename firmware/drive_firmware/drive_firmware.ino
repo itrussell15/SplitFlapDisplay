@@ -109,6 +109,7 @@ int targetStep;
 int cachedTargetStep;
 int MAX_MOTOR_STEPS = 4096;
 int SMALL_MOVE_THRESHOLD = 100;
+static bool lastHallActive
 // #################################
 
 // ########## TIMING ################
@@ -130,7 +131,7 @@ void setup() {
   HOME_OFFSET = getHomeOffset();
   AUTO_HOME = getAutoHome();
   MAX_MOTOR_STEPS = getMaxSteps();
-  motor.set_max_steps(MAX_MOTOR_STEPS);
+  motor.resolution = MAX_MOTOR_STEPS;
 
   // SERIAL COMMS
   pinMode(RS485_DE, OUTPUT);
@@ -430,7 +431,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.status = true;
       saveMaxSteps(data_value);
       MAX_MOTOR_STEPS = data_value;
-      motor.set_max_steps(MAX_MOTOR_STEPS);
+      motor.resolution = MAX_MOTOR_STEPS;
       break;
     case Command::CMD_SET_CALIBRATION_MODE:
       if (data_value != 0 && data_value != 1)
@@ -516,6 +517,11 @@ void motorStepTiming()
     motor.step();
     previousStepMicros = currentMicros;
   }
+
+  bool hallNow = isHallPinActive();
+  if (isHallPinActive() && !lastHallActive)
+    motor.currentStep = (motor.resolution - HOME_OFFSET) % motor.resolution;
+  lastHallActive = hallNow;
 }
 
 void motorHoldTiming()

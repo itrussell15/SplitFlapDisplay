@@ -11,7 +11,7 @@ from .dataclasses_ import BaseMessage, LatencyMs
 
 
 class SerialControl:
-    def __init__(self, port: str, baudrate: int = 9600, timeout: int = 1):
+    def __init__(self, port: str, baudrate: int = 19200, timeout: int = 1):
         self.logger = logging.getLogger(f"{self.__class__.__name__}({port}")
         self.port = port
         self.baudrate = baudrate

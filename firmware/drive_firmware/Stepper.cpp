@@ -27,7 +27,7 @@ Stepper::Stepper(int p1, int p2, int p3, int p4, int hallPin) {
     currentStep = 0;
     stepPhase = 7;
     stepDirection = 1;
-    this->max_steps = 4096;
+    this->resolution = 4096;
 
     // Set as output
     pinMode(p1, OUTPUT);
@@ -78,18 +78,12 @@ int Stepper::getCurrentStep() {
 void Stepper::step() {
     writePins(STEP_SEQUENCES[stepPhase]);
     if (stepDirection > 0) {
-        this->currentStep = (currentStep + 1) % this->max_steps;
+        this->currentStep = (currentStep + 1) % this->resolution;
         this->stepPhase = (stepPhase - 1 + NUM_PHASES) % NUM_PHASES;
     } else {
-        this->currentStep = (currentStep - 1 + this->max_steps) % this->max_steps;
+        this->currentStep = (currentStep - 1 + this->resolution) % this->resolution;
         this->stepPhase = (stepPhase + 1) % NUM_PHASES;
     }
-
-//    // Re-Zero if we hit the hall sensor
-//    hallState = isHallPinActive();
-//    if (hallState && !lastHallState)
-//        this->currentStep = 0;
-//    lastHallState = hallState;
 }
 
 void Stepper::release() {
@@ -98,7 +92,7 @@ void Stepper::release() {
 
 bool Stepper::isValidStep(int step_value)
 {
-  return step_value >= 0 && step_value <= this->max_steps - 1;
+  return step_value >= 0 && step_value <= this->resolution - 1;
 }
 
 void Stepper::writePins(const int* signals) {
@@ -112,23 +106,10 @@ bool Stepper::isHallPinActive() {
     return !digitalRead(hallPin);
 }
 
-int Stepper::get_max_steps()
-{
-  return this->max_steps;
-}
-
-void Stepper::set_max_steps(int value)
-{
-   this->max_steps = value;
-}
-
-// Number of steps the motor will travel to reach `target` from its current
-// position. Moves are forward-only and wrap at max_steps, so this is the
-// forward delta (0 .. max_steps-1). Use it to decide if a move is "small".
 int Stepper::stepsToTarget(int target)
 {
-  int delta = (target - this->currentStep) % this->max_steps;
+  int delta = (target - this->currentStep) % this->resolution;
   if (delta < 0)
-    delta += this->max_steps;
+    delta += this->resolution;
   return delta;
 }
