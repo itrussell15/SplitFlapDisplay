@@ -7,33 +7,34 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
 
-
+FIRE_AND_FORGET_THRESH = 100
 class ModuleCommand(enum.IntEnum):
     PING = 0
     HOME = 1
     STOP = 2
     GET_POSITION = 3
     SET_POSITION = 4  # Stores position in EEPROM
-    MOVE_TO_POSITION = 5
-    GET_SPEED = 6
-    SET_SPEED = 7
-    GET_STEPS = 8
-    MOVE_TO_STEP = 9
-    MOVE_STEPS = 10
-    SET_STEP_TARGET = 11
-    SET_POSITION_TARGET = 12
-    MOVE_TO_TARGET = 13
-    GET_HALL_EFFECT_STATUS = 14
-    IS_MOVING = 15
-    MOTOR_NUM_STEPS = 16
-    SET_HOME_OFFSET = 17
-    SET_AUTO_HOME = 18
-    GET_EEPROM_VALUE = 19
-    GET_HOME_OFFSET = 20
-    SET_MAX_STEPS = 21
-    SET_CALIBRATION_MODE = 22
+    GET_SPEED = 5
+    SET_SPEED = 6
+    GET_STEPS = 7
+    SET_STEP_TARGET = 8
+    SET_POSITION_TARGET = 9
+    GET_HALL_EFFECT_STATUS = 10
+    IS_MOVING = 11
+    MOTOR_NUM_STEPS = 12
+    SET_HOME_OFFSET = 13
+    SET_AUTO_HOME = 14
+    GET_EEPROM_VALUE = 15
+    GET_HOME_OFFSET = 16
+    SET_MAX_STEPS = 17
+    SET_CALIBRATION_MODE = 18
     BAD_COMMAND = 99
-
+    # Fire and Forget
+    MOVE_TO_POSITION = 100
+    MOVE_TO_STEP = 101
+    MOVE_STEPS = 102
+    MOVE_TO_TARGET = 103,
+    
 
 class ModuleErrorCodes(enum.Enum):
     BAD_CHECKSUM = 1
@@ -144,6 +145,9 @@ class OutgoingMessage(BaseMessage):
             sequence_id=sequence_id
         )
 
+    @property
+    def is_fire_and_forget(self) -> bool:
+        return self.command.value >= FIRE_AND_FORGET_THRESH
 
 @dataclass
 class LatencyMs:

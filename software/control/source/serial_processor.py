@@ -134,30 +134,46 @@ class SerialProcessor(ABC, SerialControl):
         sequence_id: int = 0
         self.logger.debug("Processor started")
         while not self._stop_event.is_set():
-            self.advance_queue(sequence_id)
-            sequence_id = (sequence_id + 1) % 256
+            if self.connection and self.connection.is_open:
+                self.connection.reset_input_buffer()
+            future, item = self.queue.get()
+            try:
+                self.process_command(
+                    sequence_id,
+                    item,
+                    future,
+                    handle_response=not item.is_fire_and_forget,
+                )
+            finally:
+                sequence_id += 1
+                sequence_id = sequence_id % 256
+                self.queue.task_done()
 
-    def advance_queue(self, sequence_id: int) -> None:
-        if self.connection and self.connection.is_open:
-            self.connection.reset_input_buffer()
-        future, item = self.queue.get()
-        try:
-            self.process_message(sequence_id, item, future)
-        finally:
-            self.queue.task_done()
-
-    def process_message(self, sequence_id: int, item: BaseMessage, future: Future) -> None:
+    def process_command(
+        self,
+        sequence_id: int,
+        item: OutgoingMessage,
+        future: Future,
+        handle_response: bool = True,
+    ) -> None:
         start_time = time.time()
         attempt = 0
         while True:
             try:
                 self._send_serial_command(item.encode(sequence_id))
                 send_time = time.time()
-                response = self._read_serial_response()
-                read_time = time.time()
-                self.logger.debug(f"Response: {response}")
-                result = self._handle_response(response, item, sequence_id)
-                result.latency_ms = self._get_latency(start_time, send_time, read_time)
+                if handle_response:
+                    response = self._read_serial_response()
+                    read_time = time.time()
+                    self.logger.debug(f"Response: {response}")
+                    result = self._handle_response(response, item, sequence_id)
+                    result.latency_ms = self._get_latency(
+                        start_time, send_time, read_time
+                    )
+                else:
+                    read_time = time.time()
+                    result = None
+
                 future.set_result(result)
                 return
             except Exception as e:

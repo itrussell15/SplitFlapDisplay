@@ -225,6 +225,8 @@ class ModuleController:
         future = Future()
         self._command_queue.put((future, message))
         result = future.result()
+        if message.is_fire_and_forget:
+            return None
         if result is None:
             raise ConnectionError(f"No response after sending message: {message}")
         if not result.status:
