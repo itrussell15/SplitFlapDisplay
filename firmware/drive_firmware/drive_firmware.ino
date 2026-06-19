@@ -107,8 +107,8 @@ const int MOTOR_RESOLUTION = 4096;
 Stepper motor(IN1, IN2, IN3, IN4, HALL_PIN);
 int targetStep;
 int cachedTargetStep;
-int MAX_MOTOR_STEPS = 4096;
-int SMALL_MOVE_THRESHOLD = 100;
+uint16_t MAX_MOTOR_STEPS = 4096;
+uint16_t SMALL_MOVE_THRESHOLD = 100;
 static bool lastHallActive;
 // #################################
 
@@ -116,7 +116,7 @@ static bool lastHallActive;
 unsigned long previousStepMicros = 0;
 unsigned long NORMAL_STEP_INTERVAL_MICROS = 1000;
 unsigned long SMALL_MOVE_STEP_INTERVAL_MICROS = 3000;
-const unsigned long RELEASE_INTERVAL_MICROS = 100 * 1000;
+const unsigned long RELEASE_INTERVAL_MICROS = 100 * 1000UL;
 static bool CALIBRATION_MODE = false;
 static unsigned long STEP_INTERVAL_MICROS = NORMAL_STEP_INTERVAL_MICROS;
 // #################################
@@ -327,13 +327,8 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       break;
     case Command::CMD_MOVE_REL_STEPS:
     {
-      for(int i = 0; i < data_value; i++)
-      {
-        motor.step();
-        delay(1);
-      }
-      targetStep = motor.getCurrentStep();
-      message.data_value = data_value;
+      targetStep = (motor.getCurrentStep() + data_value) % motor.resolution;
+      message.data_value = targetStep;
       message.status = true;
       break;
     }
@@ -377,7 +372,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       motor.home(0);
       delay(500);
 
-      int steps = determineTotalSteps();
+      uint16_t steps = determineTotalSteps();
       // 4. Report the result back to your Python controller
       if (steps >= MAX_MOTOR_STEPS) {
         message.status = false; // Calibration failed

@@ -195,6 +195,10 @@ class TestBusController(unittest.TestCase):
     def test_set_max_steps(self) -> None:
         message = self.modules[self.test_location].set_max_steps(4094)
 
+    def test_firmware_version(self) -> None:
+        message = self.modules[self.test_location].firmware_version
+        print(message)
+
     def test_get_eeprom(self) -> None:
         row = self.modules[self.test_location].get_eeprom_value(0)
         col = self.modules[self.test_location].get_eeprom_value(1)

@@ -261,7 +261,7 @@ class ModuleController:
         minor = self.get_eeprom_value(
             EepromLocations.MINOR_FIRMWARE_LOCATION
         ).data_value
-        return f"{major}.{minor}"
+        return f"v{major}.{minor}"
 
     @property
     def current_position(self) -> int:
