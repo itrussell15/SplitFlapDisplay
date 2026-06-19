@@ -75,24 +75,26 @@ enum Command {
   CMD_STOP = 2,
   CMD_GET_POSITION = 3,
   CMD_SET_POSITION = 4,
-  CMD_MOVE_TO_POSITION = 5,
-  CMD_GET_SPEED = 6,
-  CMD_SET_SPEED = 7,
-  CMD_GET_STEPS = 8,
-  CMD_MOVE_TO_STEP = 9,
-  CMD_MOVE_REL_STEPS = 10,
-  CMD_SET_STEP_TARGET = 11,
-  CMD_SET_POSITION_TARGET = 12,
-  CMD_MOVE_TO_TARGET = 13,
-  CMD_HALL_EFFECT_STATUS = 14,
-  CMD_IS_MOVING = 15,
-  CMD_MOTOR_NUM_STEPS = 16,
-  CMD_SET_HOME_OFFSET = 17,
-  CMD_SET_AUTO_HOME = 18,
-  CMD_GET_EEPROM_VALUE = 19,
-  CMD_GET_HOME_OFFSET = 20,
-  CMD_SET_MAX_STEPS = 21,
-  CMD_SET_CALIBRATION_MODE = 22,
+  CMD_GET_SPEED = 5,
+  CMD_SET_SPEED = 6,
+  CMD_GET_STEPS = 7,
+  CMD_SET_STEP_TARGET = 8,
+  CMD_SET_POSITION_TARGET = 9,
+  CMD_HALL_EFFECT_STATUS = 10,
+  CMD_IS_MOVING = 11,
+  CMD_MOTOR_NUM_STEPS = 12,
+  CMD_SET_HOME_OFFSET = 13,
+  CMD_SET_AUTO_HOME = 14,
+  CMD_GET_EEPROM_VALUE = 15,
+  CMD_GET_HOME_OFFSET = 16,
+  CMD_SET_MAX_STEPS = 17,
+  CMD_SET_CALIBRATION_MODE = 18,
+
+  // Fire and Forget messages
+  CMD_MOVE_TO_POSITION = 100,
+  CMD_MOVE_TO_STEP = 101,
+  CMD_MOVE_REL_STEPS = 102,
+  CMD_MOVE_TO_TARGET = 103,
 };
 
 uint8_t MODULE_ROW;
@@ -100,6 +102,7 @@ uint8_t MODULE_COLUMN;
 uint16_t HOME_OFFSET;
 bool AUTO_HOME = true;
 const int BAUDRATE = 19200;
+const int FIRE_AND_FORGET_THRESH = 100;
 
 // ######## MOTOR VALUES #########
 const int NUM_POSITIONS = 64;
@@ -239,8 +242,8 @@ void processIncomingMessage(byte* incoming_buffer) {
   }
   message = handleIncomingMessage(message, data_value);
 
-  // Only respond to targeted messages
-  if (isTargetedMessage) {
+  // Only respond to targeted messages that are not fire and forget
+  if (isTargetedMessage && message.command_id < FIRE_AND_FORGET_THRESH) {
     SendSerialResponse(message);
     performMessageAction(message);
   }
