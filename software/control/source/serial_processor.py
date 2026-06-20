@@ -120,11 +120,12 @@ class SerialProcessor(ABC, SerialControl):
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
         self.num_retries = num_retries
+        self._stop_event = threading.Event()
 
     def worker(self):
         sequence_id: int = 0
         self.logger.debug("Processor started")
-        while True:
+        while not self._stop_event.is_set():
             if self.connection and self.connection.is_open:
                 self.connection.reset_input_buffer()
             future, item = self.queue.get()
@@ -135,7 +136,7 @@ class SerialProcessor(ABC, SerialControl):
                 sequence_id = sequence_id % 256
                 self.queue.task_done()
 
-    def process_command(self, sequence_id: int, item: OutgoingMessage, future: Future) -> None:
+    def process_command(self, sequence_id: int, item: BaseMessage, future: Future) -> None:
         start_time = time.time()
         attempt = 0
         while True:
@@ -175,7 +176,7 @@ class SerialProcessor(ABC, SerialControl):
     @abstractmethod
     def _handle_response(
         self, incoming: BaseMessage, outgoing: BaseMessage, sequence_id: int
-    ) -> None:
+    ) -> BaseMessage:
         pass
 
     def _get_latency(
@@ -192,5 +193,10 @@ class SerialProcessor(ABC, SerialControl):
             )
         while not self.queue.empty():
             time.sleep(0.1)
+        self._stop_event.set()
         self.logger.info("Closing serial connection")
         super().close()
+
+    @property
+    def is_alive(self) -> bool:
+        return not self._stop_event.is_set()
