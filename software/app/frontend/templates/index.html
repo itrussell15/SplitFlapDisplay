@@ -1,55 +1,33 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Split-Flap Display</title>
-  <link rel="stylesheet" href="/static/styles.css">
-</head>
-<body>
+{% extends "base.html" %}
 
-  <div class="top-bar">
-    <div class="top-bar-left">
-      <span class="top-bar-title">SPLIT-FLAP DISPLAY</span>
-    </div>
-    <div class="top-bar-right">
-      <div class="status-indicator">
-        <div id="status-dot" class="status-dot"></div>
-        <span id="status-text">Connecting...</span>
-      </div>
-    </div>
+{% block title %}Split-Flap Display{% endblock %}
+{% block page_title %}Display{% endblock %}
+
+{% block content %}
+  <div class="section-label">
+    CAMERA VIEW
   </div>
 
-  <div class="container">
-
-    <div class="section-label">
-      CAMERA VIEW
-    </div>
-
-    <div class="camera-wrapper">
-      <iframe id="camera-stream" class="camera-stream" src="https://webcam.itrussell.me/stream" title="Camera stream" allow="autoplay; fullscreen" frameborder="0" allowfullscreen></iframe>
-    </div>
-
-    <div class="section-label">
-      COMPOSE <span class="section-hint">(click a cell, then type)</span>
-    </div>
-
-    <div class="preview-wrapper">
-      <div class="preview-grid" id="preview-grid"></div>
-    </div>
-
-    <div id="color-palette" class="color-palette"></div>
-
-    <div class="controls">
-      <button class="btn btn-secondary" onclick="clearBoard()">CLEAR</button>
-      <button class="btn btn-danger" onclick="homeAll()">HOME ALL</button>
-      <button class="btn btn-primary" onclick="submitBoard()">UPDATE DISPLAY</button>
-    </div>
-
+  <div class="camera-wrapper">
+    <iframe id="camera-stream" class="camera-stream" src="https://webcam.itrussell.me/stream" title="Camera stream" allow="autoplay; fullscreen" frameborder="0" allowfullscreen></iframe>
   </div>
 
-  <div class="toast-container" id="toast-container"></div>
+  <div class="section-label">
+    COMPOSE <span class="section-hint">(click a cell, then type)</span>
+  </div>
 
-  <script src="/static/app.js"></script>
-</body>
-</html>
+  <div class="preview-wrapper">
+    <div class="preview-grid" id="preview-grid"></div>
+  </div>
+
+  <div id="color-palette" class="color-palette"></div>
+
+  <div class="controls">
+    <button class="btn btn-secondary" onclick="clearBoard()">CLEAR</button>
+    <button class="btn btn-primary" onclick="submitBoard()">SEND TO DISPLAY</button>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/app.js?v={{ static_version }}"></script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Settings · Split-Flap{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+  <div class="section-label">MODULE DISCOVERY</div>
+
+  <div class="settings-card">
+    <p class="settings-desc">
+      Scan the bus for connected modules. Enter the maximum number of rows and
+      columns to search — every (row, column) from 1 up to those values is pinged.
+    </p>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="field-label">Rows</span>
+        <input type="number" id="discover-rows" min="1" max="255" value="3">
+      </label>
+      <label class="field">
+        <span class="field-label">Columns</span>
+        <input type="number" id="discover-cols" min="1" max="255" value="15">
+      </label>
+      <button class="btn btn-primary" id="discover-btn" onclick="runDiscover()">DISCOVER</button>
+    </div>
+
+    <div id="discover-result" class="discover-result"></div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/settings.js?v={{ static_version }}"></script>
+{% endblock %}

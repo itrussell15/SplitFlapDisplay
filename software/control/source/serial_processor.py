@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
+from concurrent.futures import Future
 from queue import Queue
 from typing import Optional
 
@@ -136,7 +137,9 @@ class SerialProcessor(ABC, SerialControl):
                 sequence_id = sequence_id % 256
                 self.queue.task_done()
 
-    def process_command(self, sequence_id: int, item: BaseMessage, future: Future) -> None:
+    def process_command(
+        self, sequence_id: int, item: BaseMessage, future: Future
+    ) -> None:
         start_time = time.time()
         attempt = 0
         while True:
@@ -158,7 +161,7 @@ class SerialProcessor(ABC, SerialControl):
                 future.set_exception(e)
                 self.logger.error(str(e))
                 return
-            
+
     def start_processor(self) -> threading.Thread:
         self.logger.debug("Starting processor thread")
         processor = threading.Thread(target=self.worker, daemon=True)

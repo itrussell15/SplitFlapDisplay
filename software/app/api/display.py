@@ -50,9 +50,13 @@ def get_display_info(display=Depends(get_display)):
 
 
 @router.post("/discover", response_model=DiscoverResponse)
-def discover(display=Depends(get_display)):
+def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
+    # Half-open ranges starting at 1 (row/col 0 is reserved for broadcast), so
+    # add 1 to include the requested maximum row/column in the scan.
     try:
-        response = display.discover([1, 5], [1, 5], timeout=0.2)
+        response = display.discover(
+            [1, request.max_row + 1], [1, request.max_column + 1]
+        )
     except Exception as e:
         raise exception_response(e)
 

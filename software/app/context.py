@@ -23,18 +23,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # app startup
     logger.info("Initializing App")
     app.state.display = DisplayController()
-    for port in get_ports():
-        logger.info(f"Adding port {port}")
-        bus = BusController(port=port, timeout=0.5)
-        app.state.display.add_bus_controller(bus)
-    app.state.display.discover(ROWS, COLUMNS)
-    logger.info(f"App started with {app.state.display.num_modules} modules found")
+    # for port in get_ports():
+    #     logger.info(f"Adding port {port}")
+    #     bus = BusController(port=port, timeout=0.5)
+    #     app.state.display.add_bus_controller(bus)
+    # app.state.display.discover(ROWS, COLUMNS)
+    # logger.info(f"App started with {app.state.display.num_modules} modules found")
 
     yield
 
     # app teardown
     logger.info("Tearing down app")
     app.state.display.close()
+
 
 def get_ports() -> List[str]:
     value = os.getenv("DISP_USB_PORT")

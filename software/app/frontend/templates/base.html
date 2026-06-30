@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Split-Flap Display{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css?v={{ static_version }}">
+  {% block head %}{% endblock %}
+</head>
+<body data-status-managed="{{ 'true' if status_managed else 'false' }}">
+
+  <div class="app-shell">
+
+    <!-- ── SIDEBAR (persists across pages) ── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <span class="sidebar-logo">▦</span>
+        <span class="sidebar-title">SPLIT-FLAP</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/"         class="nav-item {{ 'active' if active == 'display'  else '' }}"><span class="nav-icon">▦</span><span class="nav-label">Display</span></a>
+        <a href="/apps"     class="nav-item {{ 'active' if active == 'apps'     else '' }}"><span class="nav-icon">▶</span><span class="nav-label">Apps</span></a>
+        <a href="/tuning"   class="nav-item {{ 'active' if active == 'tuning'   else '' }}"><span class="nav-icon">⚙</span><span class="nav-label">Tuning</span></a>
+      </nav>
+      <nav class="sidebar-nav sidebar-nav-bottom">
+        <a href="/settings" class="nav-item {{ 'active' if active == 'settings' else '' }}"><span class="nav-icon">☰</span><span class="nav-label">Settings</span></a>
+      </nav>
+    </aside>
+
+    <!-- ── MAIN AREA ── -->
+    <div class="main-area">
+      <header class="top-bar">
+        <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle menu">☰</button>
+        <span class="top-bar-title">{% block page_title %}Display{% endblock %}</span>
+        <div class="top-bar-right">
+          <div class="status-indicator">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">Connecting...</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="container">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+
+  </div>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="/static/base.js?v={{ static_version }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
