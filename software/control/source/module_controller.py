@@ -232,7 +232,7 @@ class ModuleController:
 
         if future.exception() is not None:
             raise future.exception()
-
+        # This will wait until a response is received
         return future.result()
 
     def _handle_bad_status(self, response: IncomingMessage) -> None:

@@ -122,7 +122,6 @@ class BusController(SerialProcessor):
         return future
 
     def _read_serial_response(self) -> bytes:
-        # Arduino firmware echoes back the OutgoingMessage (start_value=2, end_value=3)
         incoming_packet = self.read_packet(
             start_value=struct.pack("B", EXAMPLE_INCOMING_MESSAGE.start_value),
             end_value=struct.pack("B", EXAMPLE_INCOMING_MESSAGE.end_value),
@@ -135,7 +134,7 @@ class BusController(SerialProcessor):
 
     def _handle_response(
         self, incoming: bytes, outgoing: OutgoingMessage, sequence_id: int
-    ) -> None:
+    ) -> IncomingMessage:
         # incoming is the echo packet (bytes) from the Arduino
         if not incoming:
             self.logger.warning(f"No response to {outgoing}")
@@ -156,6 +155,7 @@ class BusController(SerialProcessor):
             )
             self.error_queue(outgoing)
 
+        # Throw error if a non-ping command is trying to be processed on this bus
         if (
             response.command != ModuleCommand.PING
             and response.location not in self.module_locations

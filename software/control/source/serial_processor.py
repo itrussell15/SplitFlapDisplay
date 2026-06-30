@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from queue import Queue
 from typing import Optional
+from concurrent.futures import Future
 
 import serial
 
@@ -127,19 +128,19 @@ class SerialProcessor(ABC, SerialControl):
         sequence_id: int = 0
         self.logger.debug("Processor started")
         while not self._stop_event.is_set():
-            if self.connection and self.connection.is_open:
-                self.connection.reset_input_buffer()
-            future, item = self.queue.get()
-            try:
-                self.process_command(sequence_id, item, future)
-            finally:
-                sequence_id += 1
-                sequence_id = sequence_id % 256
-                self.queue.task_done()
+            self.advance_queue(sequence_id)
+            sequence_id = (sequence_id + 1) % 256
 
-    def process_command(
-        self, sequence_id: int, item: BaseMessage, future: Future
-    ) -> None:
+    def advance_queue(self, sequence_id: int) -> None:
+        if self.connection and self.connection.is_open:
+            self.connection.reset_input_buffer()
+        future, item = self.queue.get()
+        try:
+            self.process_message(sequence_id, item, future)
+        finally:
+            self.queue.task_done()
+
+    def process_message(self, sequence_id: int, item: BaseMessage, future: Future) -> None:
         start_time = time.time()
         attempt = 0
         while True:
