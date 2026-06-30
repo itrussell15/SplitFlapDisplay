@@ -255,13 +255,14 @@ async function submitBoard() {
   const requests = [];
 
   for (let i = 0; i < total; i++) {
-    const row = Math.floor(i / gridCols);
-    const col = i % gridCols;
+    const row = Math.floor(i / gridCols) + 1;
+    const col = (i % gridCols) + 1;
     const ch = boardState[i] || " ";
 
     const flapName = charToFlapName(ch);
     if (!flapName) continue;
 
+    console.log(`Moving (${row}, ${col})`);
     requests.push({
       location: { row, column: col },
       flap: flapName,

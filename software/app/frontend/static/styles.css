@@ -169,8 +169,8 @@ body {
   align-items: center;
   justify-content: center;
   font-family: "Courier New", Courier, monospace;
-  font-weight: 700;
-  font-size: clamp(0.8rem, 4vw, 2.5rem);
+  font-weight: 600;
+  font-size: clamp(3.0rem, 20vw, 10rem);
   color: #fff;
   line-height: 1;
   user-select: none;
