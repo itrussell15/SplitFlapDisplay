@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Calibration · Split-Flap{% endblock %}
+{% block page_title %}Calibration{% endblock %}
+
+{% block content %}
+  <!-- ── SETUP ── -->
+  <section id="cal-setup">
+    <div class="section-label">1 · SELECT MODULES</div>
+    <div class="settings-card">
+      <div class="cal-toolbar">
+        <button class="btn btn-secondary btn-sm" onclick="loadModules()">Refresh</button>
+        <button class="btn btn-secondary btn-sm" onclick="selectAllModules()">Select all</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearModuleSelection()">Clear</button>
+        <span class="cal-count" id="cal-selected-count">0 selected</span>
+      </div>
+      <div class="cal-module-grid" id="cal-modules">
+        <span class="settings-desc">Loading modules…</span>
+      </div>
+    </div>
+
+    <div class="section-label">2 · CHOOSE CALIBRATION</div>
+    <div class="settings-card">
+      <div class="cal-type-row">
+        <button class="cal-type-btn" id="cal-type-home" onclick="chooseType('home')">
+          <span class="cal-type-title">Home Offset</span>
+          <span class="cal-type-desc">Find the step from the hall sensor to the home flap.</span>
+        </button>
+        <button class="cal-type-btn" id="cal-type-flap" onclick="chooseType('flap')">
+          <span class="cal-type-title">Flap Positions</span>
+          <span class="cal-type-desc">Walk every flap and store its step in EEPROM.</span>
+        </button>
+      </div>
+
+      <div id="cal-params" class="cal-params" style="display:none">
+        <label class="field">
+          <span class="field-label">Home settle (s)</span>
+          <input type="number" id="cal-settle" min="1" max="20" value="7">
+        </label>
+        <label class="field cal-param-home">
+          <span class="field-label">Initial step guess</span>
+          <input type="number" id="cal-home-guess" min="0" max="4095" value="0">
+        </label>
+        <label class="field cal-param-flap">
+          <span class="field-label">Start flap</span>
+          <select id="cal-flap-start"></select>
+        </label>
+        <label class="field cal-param-flap">
+          <span class="field-label">Start step guess</span>
+          <input type="number" id="cal-flap-guess" min="0" max="4095" value="0">
+        </label>
+        <button class="btn btn-primary" id="cal-start" onclick="startCalibration()">START</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── HOME OFFSET ACTIVE ── -->
+  <section id="cal-home" style="display:none">
+    <div class="section-label">HOME OFFSET</div>
+    <div class="settings-card">
+      <div class="cal-active-head">
+        <div>
+          <div class="cal-active-sub">Module</div>
+          <div class="cal-active-title" id="cal-home-module">(–,–)</div>
+        </div>
+        <div class="cal-progress" id="cal-home-progress">1 / 1</div>
+      </div>
+      <p class="settings-desc">
+        Nudge until the home flap is exactly centered, then save. Negative nudges
+        re-home first (the motor is forward-only).
+      </p>
+      <div class="cal-step-readout">step <strong id="cal-home-step">0</strong></div>
+      <div class="cal-nudge-row" id="cal-home-nudge"></div>
+      <div class="cal-action-row">
+        <button class="btn btn-primary" onclick="acceptHome()">Accept &amp; Save</button>
+        <button class="btn btn-secondary" onclick="skipHome()">Skip module</button>
+        <button class="btn btn-danger" onclick="abortCalibration()">Abort</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FLAP POSITIONS ACTIVE ── -->
+  <section id="cal-flap" style="display:none">
+    <div class="section-label">FLAP POSITIONS</div>
+    <div class="settings-card">
+      <div class="cal-active-head">
+        <div>
+          <div class="cal-active-sub">Current flap</div>
+          <div class="cal-active-title" id="cal-flap-name">?</div>
+        </div>
+        <div class="cal-progress" id="cal-flap-progress">0 / 63</div>
+      </div>
+      <p class="settings-desc">
+        For each module, nudge until it shows the current flap, then press OK to store
+        it. When every module is OK the wizard advances to the next flap.
+      </p>
+      <div class="cal-flap-modules" id="cal-flap-modules"></div>
+      <div class="cal-action-row">
+        <button class="btn btn-secondary" onclick="skipPosition()">Skip flap</button>
+        <button class="btn btn-danger" onclick="abortCalibration()">Abort</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DONE ── -->
+  <section id="cal-done" style="display:none">
+    <div class="settings-card cal-done-card">
+      <div class="cal-done-icon">✓</div>
+      <h2>Calibration complete</h2>
+      <p class="settings-desc" id="cal-done-msg"></p>
+      <button class="btn btn-primary" onclick="resetWizard()">Done</button>
+    </div>
+  </section>
+
+  <!-- ── BUSY OVERLAY ── -->
+  <div id="cal-busy" class="cal-busy">
+    <div class="cal-busy-box">
+      <div class="cal-spinner"></div>
+      <div class="cal-busy-msg" id="cal-busy-msg">Working…</div>
+      <div class="cal-busy-count" id="cal-busy-count"></div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/calibration.js?v={{ static_version }}"></script>
+{% endblock %}

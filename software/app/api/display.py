@@ -49,6 +49,18 @@ def get_display_info(display=Depends(get_display)):
     }
 
 
+@router.get("/modules")
+def list_modules(display=Depends(get_display)):
+    """List the locations of modules already discovered (no bus re-scan)."""
+    locations = [package_location(location) for location in display.modules]
+    return {
+        "request_time": get_current_timestamp(),
+        "num_modules": display.num_modules,
+        "num_buses": display.num_buses,
+        "locations": locations,
+    }
+
+
 @router.post("/discover", response_model=DiscoverResponse)
 def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
     # Half-open ranges starting at 1 (row/col 0 is reserved for broadcast), so

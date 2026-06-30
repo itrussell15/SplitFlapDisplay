@@ -1,5 +1,6 @@
-import os
 import logging
+import os
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -53,9 +54,9 @@ async def read_apps(request: Request):
     return _render(request, "apps.html", active="apps")
 
 
-@router.get("/tuning")
-async def read_tuning(request: Request):
-    return _render(request, "tuning.html", active="tuning")
+@router.get("/calibration")
+async def read_calibration(request: Request):
+    return _render(request, "calibration.html", active="calibration")
 
 
 @router.get("/settings")

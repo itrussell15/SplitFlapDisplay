@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Split-Flap OS</title>
+<title>Split flAPP</title>
 <style>
 :root {
   --bg:#121212; --panel:#1e1e1e; --border:#333;
@@ -217,8 +217,8 @@ input:checked+.slider:before{transform:translateX(20px)}
     <button id="tab-apps" class="tab-btn" onclick="switchTab('apps')">
       <span class="tab-label-full">APPS</span><span class="tab-label-short">APPS</span>
     </button>
-    <button id="tab-tuning" class="tab-btn" onclick="switchTab('tuning')">
-      <span class="tab-label-full">TUNING &amp; SETTINGS</span><span class="tab-label-short">TUNE</span>
+    <button id="tab-calibration" class="tab-btn" onclick="switchTab('calibration')">
+      <span class="tab-label-full">CALIBRATION &amp; SETTINGS</span><span class="tab-label-short">TUNE</span>
     </button>
   </div>
 
@@ -322,7 +322,7 @@ input:checked+.slider:before{transform:translateX(20px)}
   </div>
 
   <!-- ══════════ TUNING PAGE ══════════ -->
-  <div id="page-tuning" class="page">
+  <div id="page-calibration" class="page">
 
     <!-- Hardware Inspector -->
     <div class="config-section" style="border-left:5px solid var(--accent)">
@@ -807,7 +807,7 @@ function switchTab(name){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('page-'+name).classList.add('active');
-  if(name==='tuning') loadSettingsData();
+  if(name==='calibration') loadSettingsData();
   if(name==='apps') buildAppsGrid();
 }
 
@@ -1212,7 +1212,7 @@ function saveAppSettings(){
 }
 
 // ============================================================
-//  TUNING TAB
+//  CALIBRATION TAB
 // ============================================================
 function loadSettingsData(){
   document.getElementById('modMatrix').innerHTML='<div style="color:#888;grid-column:span 15;text-align:center;padding:8px">Loading…</div>';

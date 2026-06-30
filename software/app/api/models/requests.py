@@ -35,3 +35,11 @@ class DiscoverRequest(BaseModel):
     # Search every (row, column) from 1 up to and including these maximums.
     max_row: int = Field(ge=1, le=255)
     max_column: int = Field(ge=1, le=255)
+
+
+class CalibrationModeRequest(LocationRequest):
+    enabled: bool
+
+
+class HomeOffsetRequest(LocationRequest):
+    value: int

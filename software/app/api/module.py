@@ -8,7 +8,14 @@ from .common import exception_response, package_incoming_message_as_module_respo
 from control.source.flaps import Flap
 from app.api.models.common import Location 
 from app.api.models.responses import ModuleResponse, PositionResponse
-from app.api.models.requests import StepRequest, FlapRequest, PositionRequest, LocationRequest
+from app.api.models.requests import (
+    StepRequest,
+    FlapRequest,
+    PositionRequest,
+    LocationRequest,
+    CalibrationModeRequest,
+    HomeOffsetRequest,
+)
 from utils import get_current_timestamp, TIMESTAMP_FORMAT
 
 router = APIRouter(prefix="/modules", tags=["Module Control"])
@@ -69,6 +76,49 @@ def move_to_position(request: PositionRequest, display=Depends(get_display)):
 def home_module(location: Location, display=Depends(get_display)):
     try:
         response = display.get_module(*location.as_tuple()).home()
+    except Exception as e:
+        raise exception_response(e)
+    return package_incoming_message_as_module_response(response)
+
+
+# ── Calibration primitives (used by the /calibration wizard) ──
+
+@router.post("/calibration_mode", response_model=ModuleResponse)
+def set_calibration_mode(request: CalibrationModeRequest, display=Depends(get_display)):
+    try:
+        response = display.get_module(*request.location.as_tuple()).set_calibration_mode(
+            request.enabled
+        )
+    except Exception as e:
+        raise exception_response(e)
+    return package_incoming_message_as_module_response(response)
+
+
+@router.post("/home_offset", response_model=ModuleResponse)
+def set_home_offset(request: HomeOffsetRequest, display=Depends(get_display)):
+    try:
+        response = display.get_module(*request.location.as_tuple()).set_home_offset(
+            request.value
+        )
+    except Exception as e:
+        raise exception_response(e)
+    return package_incoming_message_as_module_response(response)
+
+
+@router.get("/home_offset", response_model=ModuleResponse)
+def get_home_offset(row: int, column: int, display=Depends(get_display)):
+    try:
+        response = display.get_module(row, column).get_home_offset()
+    except Exception as e:
+        raise exception_response(e)
+    return package_incoming_message_as_module_response(response)
+
+
+@router.post("/save_position/{position}", response_model=ModuleResponse)
+def save_position(position: int, request: LocationRequest, display=Depends(get_display)):
+    """Store the module's CURRENT step as the given flap position in EEPROM."""
+    try:
+        response = display.get_module(*request.location.as_tuple()).set_position(position)
     except Exception as e:
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)
