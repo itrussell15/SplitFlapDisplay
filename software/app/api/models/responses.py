@@ -20,6 +20,7 @@ class ModuleResponse(BaseModel):
 class DisplayResponse(BaseModel):
     request_time: str
     data: List[ModuleResponse]
+    latency_ms: MessageTimes
 
 class DiscoverResponse(BaseModel):
     request_time: str

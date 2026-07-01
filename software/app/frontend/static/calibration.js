@@ -14,7 +14,7 @@ const API = "/api/v1";
 const MOTOR_RESOLUTION = 4096;
 const NUM_POSITIONS = 64;
 const MOVE_OFFSET = 64; // steps advanced per flap position
-const NUDGES = [-100, -20, -4, -1, 1, 4, 20, 100];
+const NUDGES = [-100, -64, -20, -10, -4, -1, 1, 4, 10, 20, 64, 100];
 
 // ── Wizard state ──
 const cal = {

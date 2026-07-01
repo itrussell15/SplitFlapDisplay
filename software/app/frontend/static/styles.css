@@ -80,7 +80,7 @@ body {
 /* ── MAIN CONTENT ── */
 .container {
   max-width: 900px;
-  margin: 0 auto;
+  margin: 1%;
   padding: 20px 16px;
 }
 
@@ -169,11 +169,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 6%; /* Adjust this percentage to taste */
   font-family: "Courier New", Courier, monospace;
   font-weight: 600;
-  font-size: clamp(3.0rem, 20vw, 10rem);
+  font-size: clamp(5rem, 10vw, 10rem);
   color: #fff;
-  line-height: 1;
+  line-height: 0.5;
   user-select: none;
 }
 
@@ -760,7 +761,7 @@ body {
   .sidebar-toggle { display: block; }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 1000px) {
   .container { padding: 12px 8px; }
   .preview-wrapper { padding: 8px; }
   .preview-grid { gap: 2px; }

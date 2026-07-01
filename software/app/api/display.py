@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 import app.api.common as common
 import app.api.models.requests as reqs
 from app.api.dependencies import get_display
-from app.api.models.responses import DiscoverResponse, DisplayResponse
+import app.api.models.responses as resps
 from control.source.dataclasses_ import IncomingMessage
 from control.source.flaps import Flap
 from control.source.module_controller import ModuleController
@@ -23,12 +23,22 @@ logger = logging.getLogger("DisplayAPI")
 
 def package_display_response(
     display_response: List[IncomingMessage],
-) -> DisplayResponse:
+) -> resps.DisplayResponse:
+
+    latency_ms = {
+            "send": 0,
+            "receive": 0,
+            "total": 0
+        }
     output = {"request_time": get_current_timestamp(), "data": []}
     for message in display_response:
         # Package incoming message
+        latency_ms["send"] += message.latency_ms.send
+        latency_ms["receive"] += message.latency_ms.receive
+        latency_ms["total"] += message.latency_ms.total
         output["data"].append(package_incoming_message_as_module_response(message))
-    return DisplayResponse(**output)
+    output.update({"latency_ms": latency_ms})
+    return resps.DisplayResponse(**output)
 
 
 def package_location(location: Tuple[int, int]) -> Dict[int, int]:
@@ -61,7 +71,7 @@ def list_modules(display=Depends(get_display)):
     }
 
 
-@router.post("/discover", response_model=DiscoverResponse)
+@router.post("/discover", response_model=resps.DiscoverResponse)
 def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
     # Half-open ranges starting at 1 (row/col 0 is reserved for broadcast), so
     # add 1 to include the requested maximum row/column in the scan.
@@ -83,7 +93,7 @@ def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
     }
 
 
-@router.get("/steps", response_model=DisplayResponse)
+@router.get("/steps", response_model=resps.DisplayResponse)
 def get_module_steps(display=Depends(get_display)):
     try:
         response = display.get_all_steps()
@@ -92,7 +102,7 @@ def get_module_steps(display=Depends(get_display)):
     return package_display_response(response)
 
 
-@router.get("/positions/{position}", response_model=DisplayResponse)
+@router.get("/positions/{position}", response_model=resps.DisplayResponse)
 def get_position_steps(position: int, display=Depends(get_display)) -> Dict[str, str]:
     try:
         response = display.get_position_steps(position)
@@ -101,7 +111,7 @@ def get_position_steps(position: int, display=Depends(get_display)) -> Dict[str,
     return package_display_response(response)
 
 
-@router.post("/positions/{position}", response_model=DisplayResponse)
+@router.post("/positions/{position}", response_model=resps.DisplayResponse)
 def move_all_to_position(position: int, display=Depends(get_display)) -> Dict[str, str]:
     try:
         response = display.move_all_to_position(position)
@@ -119,7 +129,7 @@ def get_position_steps(display=Depends(get_display)) -> Dict[str, str]:
     return package_display_response(response)
 
 
-@router.post("/positions", response_model=DisplayResponse)
+@router.post("/positions", response_model=resps.DisplayResponse)
 def move_to_positions(
     positions: reqs.DisplayPositionRequest, display=Depends(get_display)
 ):
@@ -147,7 +157,7 @@ def get_flaps():
     return {flap.name: flap.value for flap in Flap}
 
 
-@router.post("/flap", response_model=DisplayResponse)
+@router.post("/flap", response_model=resps.DisplayResponse)
 def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
     request_data = {}
     for request in flaps.module_requests:
@@ -170,7 +180,7 @@ def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
     return package_display_response(response)
 
 
-@router.post("/home", response_model=DisplayResponse)
+@router.post("/home", response_model=resps.DisplayResponse)
 def home_all(display=Depends(get_display)):
     try:
         response = display.home_all()
