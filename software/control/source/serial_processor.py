@@ -107,6 +107,12 @@ class SerialControl:
         if not self.connection:
             raise ConnectionError(f"{self.port} not connected")
         return self.connection.in_waiting > 0
+    
+    @property
+    def data_waiting_size(self) -> int:
+        if not self.is_data_waiting:
+            return 0
+        return self.connection.in_waiting
 
 
 class SerialProcessor(ABC, SerialControl):

@@ -49,6 +49,7 @@ class BaseMessage(ABC):
     command: ModuleCommand
     end_value: int
     data_value: int = 255
+    sequence_id: int = -1
     _struct_string: ClassVar[str] = "<BBBBBHBB"
 
     def __post_init__(self) -> None:
@@ -64,7 +65,7 @@ class BaseMessage(ABC):
 
     def _create_checksum(self, sequence_id: int) -> int:
         return self.checksum(
-            self.data_value, self.command.value, self.row, self.column, sequence_id
+            self.data_value, self.command.value, self.row, self.column, sequence_id=sequence_id
         )
 
     def encode(self, sequence_id: int) -> bytes:
@@ -122,15 +123,25 @@ class OutgoingMessage(BaseMessage):
     def _parse_output(cls, data: bytes) -> OutgoingMessage:
         row = data[1]
         column = data[2]
-        command_value = data[3]
-        data_value = data[4]
+        sequence_id = data[3]
+        command_value = data[4]
+        data_value = data[5]
+        incoming_checksum = data[6]
 
-        assert data[5] == cls._checksum(data_value, command_value, row, column)
+        checksum = cls.checksum(
+            data_value=data_value,
+            command_value=command_value,
+            row=row,
+            column=column,
+            sequence_id=sequence_id
+        )
+        assert incoming_checksum == checksum, f"Checksum failed - {checksum} != {incoming_checksum}"
         return cls(
             row=row,
             column=column,
             command=ModuleCommand(command_value),
             data_value=data_value,
+            sequence_id=sequence_id
         )
 
 
@@ -154,15 +165,16 @@ class IncomingMessage(BaseMessage):
         super().__post_init__()
 
     def encode(self) -> bytes:
-        checksum = self._create_checksum()
+        checksum = self._create_checksum(self.sequence_id)
         return struct.pack(
             self._struct_string,
             self.start_value,
             self.row,
             self.column,
+            self.sequence_id,
             self.command.value,
-            self.status,
             self.data_value,
+            self.status,
             checksum,
             self.end_value,
         )
@@ -191,6 +203,11 @@ class IncomingMessage(BaseMessage):
             command=ModuleCommand(command_value),
             data_value=data_value,
             status=status,
+        )
+
+    def _create_checksum(self, sequence_id: int) -> int:
+        return self.checksum(
+            self.data_value, self.command.value, self.row, self.column, status=self.status, sequence_id=sequence_id
         )
 
     @staticmethod
