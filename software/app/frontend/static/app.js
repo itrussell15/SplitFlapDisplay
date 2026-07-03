@@ -1,14 +1,18 @@
 const FLIP_SPEED_MS = 50;
 
 const SPECIAL_FLAPS = [
-  { char: "r", label: "Red",    display: "■", color: "#dc3545" },
-  { char: "o", label: "Orange", display: "■", color: "#fd7e14" },
-  { char: "y", label: "Yellow", display: "■", color: "#ffc107" },
-  { char: "g", label: "Green",  display: "■", color: "#28a745" },
-  { char: "b", label: "Blue",   display: "■", color: "#007bff" },
   { char: "w", label: "White",  display: "■", color: "#ffffff" },
-  { char: "h", label: "Heart",  display: "♥", color: "#dc3545" },
-  { char: "s", label: "Star",   display: "★", color: "#ffc107" },
+  { char: "h", label: "Heart",  display: "♥", color: "#ffffff" },
+  { char: "s", label: "Star",   display: "★", color: "#ffffff" },
+  { char: "m", label: "Music",   display: "♫", color: "#ffffff" },
+  { char: "e", label: "Message",   display: "✉", color: "#ffffff" },
+  { char: "f", label: "Filled Smiley",   display: "☻", color: "#ffffff" },
+  { char: "y", label: "Smiley",   display: "☺", color: "#ffffff" },
+  { char: "q", label: "Sun",   display: "☀", color: "#ffffff" },
+  { char: "r", label: "Umbrella",   display: "☂", color: "#ffffff" },
+  { char: "l", label: "Lightning",   display: "\u26A1\uFE0E", color: "#ffffff" },
+  { char: "u", label: "Up",   display: "↑", color: "#ffffff" },
+  { char: "d", label: "Down",   display: "↓", color: "#ffffff" },
 ];
 
 let flapMap = {};
@@ -316,14 +320,14 @@ async function homeAll() {
 const SPECIAL_CHAR_MAP = {
   " ": "BLANK", "!": "EXCLAIMATION", "?": "QUESTION_MARK", "@": "AT",
   "#": "POUND", "$": "DOLLAR", "%": "PERCENT", "&": "AMPERSAND",
-  "(": "LEFT_PAREN", ")": "RIGHT_PAREN", "-": "HYPHEN", "\"": "QUOTE",
-  "=": "EQUALS", "+": "PLUS", "/": "SLASH", "*": "STAR",
-  ".": "PERIOD", ",": "COMMA", ":": "COLON", ";": "SEMICOLON",
-  "'": "QUOTE",
+  "(": "LEFT_PAREN", ")": "RIGHT_PAREN", "-": "HYPHEN",
+  "=": "EQUALS", "+": "PLUS", "*": "STAR",
+  ":": "COLON", "'": "APOSTRAPHE",
   "0": "ZERO", "1": "ONE", "2": "TWO", "3": "THREE", "4": "FOUR",
   "5": "FIVE", "6": "SIX", "7": "SEVEN", "8": "EIGHT", "9": "NINE",
-  "r": "RED", "o": "ORANGE", "y": "YELLOW", "g": "GREEN",
-  "b": "BLUE", "w": "WHITE", "h": "HEART", "s": "STAR",
+  "w": "WHITE", "h": "HEART", "s": "STAR", "m": "MUSIC",
+  "e": "MESSAGE", "f": "SMILEY_FILLED", "y": "SMILEY",
+  "q": "SUN", "u": "UP", "d": "DOWN", "r": "UMBRELLA", "l": "LIGHTNING",
 };
 
 function buildCharToNameMap(serverFlapMap) {

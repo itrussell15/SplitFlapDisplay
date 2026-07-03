@@ -191,8 +191,16 @@ class MockFirmware(SerialProcessor):
             sequence_id=message.sequence_id,
             status=True
         )
+        location = (message.row, message.column)
+        if location not in self._modules:
+            return
+
         target_module = self._modules[(message.row, message.column)]
         match message.command:
+            case ModuleCommand.PING:
+                response.data_value = 0
+            case ModuleCommand.HOME:
+                response.data_value = 0
             case ModuleCommand.GET_STEPS:
                 response.data_value = target_module.steps
             case ModuleCommand.MOVE_TO_STEP:
@@ -224,7 +232,14 @@ class MockFirmware(SerialProcessor):
 if __name__ == "__main__":
 
     create_logger()
-    Firmware = MockFirmware("/tmp/vcom_firmware", [(1, 1)])
+    current_modules = [(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6)]
+
+    all_modules = []
+    for row in range(1, 4):
+        for column in range(1, 16):
+            all_modules.append((row, column))
+    
+    Firmware = MockFirmware("/tmp/vcom_firmware", all_modules)
     Firmware.start_processor()
     Firmware.listen()
     # while Firmware.is_alive:

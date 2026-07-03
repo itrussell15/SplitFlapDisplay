@@ -14,8 +14,8 @@ from control.source.display_controller import DisplayController
 
 logger = logging.getLogger(__name__)
 
-ROWS = [1, 2]
-COLUMNS = [1, 10]
+ROWS = [1, 4]
+COLUMNS = [1, 16]
 
 
 @asynccontextmanager

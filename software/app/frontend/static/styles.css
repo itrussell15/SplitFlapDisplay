@@ -172,7 +172,7 @@ body {
   padding-top: 6%; /* Adjust this percentage to taste */
   font-family: "Courier New", Courier, monospace;
   font-weight: 600;
-  font-size: clamp(5rem, 10vw, 10rem);
+  font-size: clamp(1rem, 3vw, 10rem);
   color: #fff;
   line-height: 0.5;
   user-select: none;
