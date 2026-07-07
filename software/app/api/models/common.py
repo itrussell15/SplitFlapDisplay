@@ -7,3 +7,9 @@ class Location(BaseModel):
 
     def as_tuple(self) -> Tuple[int, int]:
         return (self.row, self.column)
+
+    def as_dict(self) -> Dict[str, int]:
+        return {
+            "row": self.row,
+            "column": self.column
+        } 

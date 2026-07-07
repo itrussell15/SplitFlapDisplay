@@ -16,6 +16,7 @@ from .module_controller import (
     MIN_ROW_VALUE,
     ModuleCommand,
     ModuleController,
+    ModuleInfo
 )
 from .serial_processor import SerialProcessor
 
@@ -104,6 +105,15 @@ class BusController(SerialProcessor):
         )
         self.logger.info(f"Module Locations: {self.module_locations}")
         return self.module_locations
+
+    def get_info(self) -> List[ModuleInfo]:
+        info: List[ModuleInfo] = []
+        for module in self.modules.values():
+            self.logger.debug(vars(module))
+            module_info = module.get_module_info()
+            self.logger.debug(module_info)
+            info.append(module_info)
+        return info
 
     def broadcast(self, command: ModuleCommand, data_value: int = 0) -> None:
         # Send message to ID (0, 0) which all modules will read, but not respond to so we don't overwhelm the bus.

@@ -9,6 +9,14 @@ class MessageTimes(BaseModel):
     receive: float
     total: float
 
+class ModuleInfoResponse(BaseModel):
+    # We omit start_value and end_value here
+    location: Location
+    firmware_version: str
+    auto_home: bool
+    home_offset: int
+    max_steps: int
+
 class ModuleResponse(BaseModel):
     # We omit start_value and end_value here
     location: Location

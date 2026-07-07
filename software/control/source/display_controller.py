@@ -37,6 +37,7 @@ class DisplayController:
             module_locations = bus.discover(row_value, column_value)
             modules.extend(module_locations)
             self._update_modules(bus)
+            bus.get_info()
         return modules
 
     def home_all(self) -> None:

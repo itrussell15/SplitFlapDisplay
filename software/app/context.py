@@ -14,8 +14,8 @@ from control.source.display_controller import DisplayController
 
 logger = logging.getLogger(__name__)
 
-ROWS = [1, 4]
-COLUMNS = [1, 16]
+ROWS = [1, 2]
+COLUMNS = [1, 10]
 
 
 @asynccontextmanager
@@ -23,6 +23,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # app startup
     logger.info("Initializing App")
     app.state.display = DisplayController()
+    ports = get_ports()
+    if ports is None:
+        raise ConnectionError(f"No port to connect to. Please set a port to connect to with 'export DISP_USB_PORT=<port>'")
     for port in get_ports():
         logger.info(f"Adding port {port}")
         bus = BusController(port=port, timeout=0.5)
@@ -39,6 +42,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def get_ports() -> List[str]:
     value = os.getenv("DISP_USB_PORT")
+    if value is None:
+        raise ConnectionError(f"No port to connect to. Please set a port to connect to with 'export DISP_USB_PORT=<port>'")
     output = []
     for port in value.split(","):
         output.append(value.strip())

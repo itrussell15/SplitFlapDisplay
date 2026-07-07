@@ -55,6 +55,15 @@ class BaseMessage(ABC):
     def __post_init__(self) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
 
+    def __int__(self) -> int:
+        return int(self.data_value)
+
+    def __bool__(self) -> bool:
+        value = int(self.data_value)
+        if value != 0 and value != 1:
+            raise TypeError(f"Unable to cast value {self.data_value} to bool")
+        return bool(value)
+
     @staticmethod
     def checksum(
         data_value: int, command_value: int, row: int, column: int, sequence_id: int

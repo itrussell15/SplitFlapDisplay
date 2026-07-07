@@ -5,6 +5,7 @@ import time
 from concurrent.futures import Future
 from queue import Queue
 from typing import Any, Dict, Optional, Tuple
+from dataclasses import dataclass
 
 from .dataclasses_ import (
     IncomingMessage,
@@ -40,6 +41,55 @@ class EepromLocations(enum.IntEnum):
     POSITION_VALUES_START_LOCATION = 100
 
 
+import logging
+import struct
+import time
+from concurrent.futures import Future
+from queue import Queue
+from typing import Any, Dict, Optional, Tuple
+
+from .dataclasses_ import (
+    IncomingMessage,
+    ModuleCommand,
+    ModuleErrorCodes,
+    OutgoingMessage,
+)
+
+MOTOR_RESOLUTION = 4096
+MAX_SPEED = 10
+NUM_POSITIONS = 64
+
+MIN_ROW_VALUE = 0
+MAX_ROW_VALUE = 255
+MIN_COLUMN_VALUE = 0
+MAX_COLUMN_VALUE = 255
+
+NUM_EEPROM_BYTES = 256
+
+
+class FirmwareException(Exception):
+    pass
+
+
+class EepromLocations(enum.IntEnum):
+    MODULE_ROW_LOCATION = 0
+    MODULE_COLUMN_LOCATION = 1
+    MAJOR_FIRMWARE_LOCATION = 2
+    MINOR_FIRMWARE_LOCATION = 3
+    AUTO_HOME_LOCATION = 4
+    HOME_OFFSET_VALUE_LOCATION = 5
+    MAX_STEP_LOCATION = 7
+    POSITION_VALUES_START_LOCATION = 100
+
+@dataclass
+class ModuleInfo:
+    major_firmware_version: int
+    minor_firmware_version: int
+    auto_home: bool
+    home_offset: int
+    max_steps: int
+
+
 class ModuleController:
     """
     Generates commands and tracks the state of a given module.
@@ -63,6 +113,7 @@ class ModuleController:
         self._is_homed: bool = False
         self._current_step: int = 0
         self._current_position: int = 0
+        self._info = None
 
         # Have to initialize before calling `get_all_positions` otherwise no positions to request for
         self._positions_to_steps = {i: None for i in range(NUM_POSITIONS)}
@@ -82,6 +133,61 @@ class ModuleController:
         self.logger.info(f"Command queue unregistered")
         return queue
 
+    def get_module_info(self) -> ModuleInfo:
+        # Read and normalize EEPROM-backed values; incoming getters return messages
+        try:
+            auto_home_msg = self.get_eeprom_value(EepromLocations.AUTO_HOME_LOCATION)
+            auto_home = bool(auto_home_msg.data_value)
+        except Exception:
+            auto_home = False
+
+        try:
+            home_offset_msg = self.get_home_offset()
+            home_offset = int(home_offset_msg.data_value)
+        except Exception:
+            home_offset = 0
+
+        try:
+            max_steps = self.get_max_steps()
+        except Exception:
+            max_steps = 0
+
+        try:
+            major_msg = self.get_eeprom_value(EepromLocations.MAJOR_FIRMWARE_LOCATION)
+            minor_msg = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
+            major = int(major_msg.data_value)
+            minor = int(minor_msg.data_value)
+        except Exception:
+            major = 0
+            minor = 0
+
+        info = ModuleInfo(
+            major_firmware_version=major,
+            minor_firmware_version=minor,
+            max_steps=max_steps,
+            auto_home=auto_home,
+            home_offset=home_offset,
+        )
+        self._info = info
+        return info
+    
+    def get_module_info(self) -> ModuleInfo:
+        auto_home = self.get_eeprom_value(EepromLocations.AUTO_HOME_LOCATION)
+        home_offset = self.get_home_offset()
+        max_steps = self.get_max_steps()
+        major_firmware = self.get_eeprom_value(EepromLocations.MAJOR_FIRMWARE_LOCATION)
+        minor_firmware = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
+        
+        info = ModuleInfo(
+            major_firmware_version=int(major_firmware),
+            minor_firmware_version=int(minor_firmware),
+            max_steps=max_steps,
+            auto_home=bool(auto_home),
+            home_offset=int(home_offset)
+        )
+        self._info = info
+        return self._info
+        
     def move_to_step(self, step: int) -> IncomingMessage:
         self.logger.info(f"Moving to {step}")
         if not self.is_valid_step(step):
@@ -110,7 +216,7 @@ class ModuleController:
         return result
 
     def get_max_steps(self) -> int:
-        return self._get_uint16_from_eeprom(5)
+        return self._get_uint16_from_eeprom(EepromLocations.MAX_STEP_LOCATION.value)
 
     def move_to_position(self, position: int) -> IncomingMessage:
         # Move to a stored EEPROM position
@@ -282,3 +388,4 @@ class ModuleController:
     @property
     def is_command_queue_registered(self) -> int:
         return self._command_queue is not None
+
