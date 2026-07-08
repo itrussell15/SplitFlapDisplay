@@ -9,13 +9,17 @@ class MessageTimes(BaseModel):
     receive: float
     total: float
 
-class ModuleInfoResponse(BaseModel):
-    # We omit start_value and end_value here
-    location: Location
+class ModuleEepromData(BaseModel):
+    bus: str
     firmware_version: str
     auto_home: bool
     home_offset: int
     max_steps: int
+
+class ModuleInfoResponse(BaseModel):
+    # We omit start_value and end_value here
+    location: Location
+    info: ModuleEepromData
 
 class ModuleResponse(BaseModel):
     # We omit start_value and end_value here
@@ -34,7 +38,7 @@ class DiscoverResponse(BaseModel):
     request_time: str
     num_modules: int
     num_buses: int
-    locations: List[Location]
+    modules: List[ModuleInfoResponse]
 
 class PositionResponse(BaseModel):
     request_time: str

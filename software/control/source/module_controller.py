@@ -83,6 +83,7 @@ class EepromLocations(enum.IntEnum):
 
 @dataclass
 class ModuleInfo:
+    bus: str
     major_firmware_version: int
     minor_firmware_version: int
     auto_home: bool
@@ -113,16 +114,19 @@ class ModuleController:
         self._is_homed: bool = False
         self._current_step: int = 0
         self._current_position: int = 0
+        self._bus: Optional[str] = None
         self._info = None
+
 
         # Have to initialize before calling `get_all_positions` otherwise no positions to request for
         self._positions_to_steps = {i: None for i in range(NUM_POSITIONS)}
 
-    def register_command_queue(self, queue: Queue) -> None:
+    def register_command_queue(self, queue: Queue, queue_id: str) -> None:
         if not isinstance(queue, Queue):
             raise TypeError(f"Type: {type(queue)} is not allowed")
         self.logger.info(f"Command queue registered")
         self._command_queue = queue
+        self._bus = queue_id
 
     def unregister_command_queue(self) -> Queue:
         if self._command_queue is None:
@@ -134,44 +138,6 @@ class ModuleController:
         return queue
 
     def get_module_info(self) -> ModuleInfo:
-        # Read and normalize EEPROM-backed values; incoming getters return messages
-        try:
-            auto_home_msg = self.get_eeprom_value(EepromLocations.AUTO_HOME_LOCATION)
-            auto_home = bool(auto_home_msg.data_value)
-        except Exception:
-            auto_home = False
-
-        try:
-            home_offset_msg = self.get_home_offset()
-            home_offset = int(home_offset_msg.data_value)
-        except Exception:
-            home_offset = 0
-
-        try:
-            max_steps = self.get_max_steps()
-        except Exception:
-            max_steps = 0
-
-        try:
-            major_msg = self.get_eeprom_value(EepromLocations.MAJOR_FIRMWARE_LOCATION)
-            minor_msg = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
-            major = int(major_msg.data_value)
-            minor = int(minor_msg.data_value)
-        except Exception:
-            major = 0
-            minor = 0
-
-        info = ModuleInfo(
-            major_firmware_version=major,
-            minor_firmware_version=minor,
-            max_steps=max_steps,
-            auto_home=auto_home,
-            home_offset=home_offset,
-        )
-        self._info = info
-        return info
-    
-    def get_module_info(self) -> ModuleInfo:
         auto_home = self.get_eeprom_value(EepromLocations.AUTO_HOME_LOCATION)
         home_offset = self.get_home_offset()
         max_steps = self.get_max_steps()
@@ -179,6 +145,7 @@ class ModuleController:
         minor_firmware = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
         
         info = ModuleInfo(
+            bus=self._bus,
             major_firmware_version=int(major_firmware),
             minor_firmware_version=int(minor_firmware),
             max_steps=max_steps,
@@ -358,6 +325,10 @@ class ModuleController:
         value1 = self.get_eeprom_value(start_location)
         value2 = self.get_eeprom_value(start_location + 1)
         return (value2.data_value * 256) + value1.data_value
+
+    @property
+    def info(self) -> ModuleInfo:
+        return self._info
 
     @property
     def firmware_version(self) -> str:

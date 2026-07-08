@@ -3,6 +3,7 @@ import struct
 import threading
 import time
 from concurrent.futures import Future
+from dataclasses import dataclass
 from queue import Queue
 from typing import Dict, List, Optional, Tuple
 
@@ -25,6 +26,12 @@ EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
 )
 EXAMPLE_OUTGOING_MESSAGE = OutgoingMessage(row=0, column=0, command=ModuleCommand.HOME)
 
+@dataclass
+class BusInfo:
+    port: str
+    baudrate: int
+    num_modules: int
+    modules: List[Tuple[int, int]]
 
 class BusController(SerialProcessor):
     """
@@ -94,7 +101,7 @@ class BusController(SerialProcessor):
                     self.logger.warning(f"Timeout at {(row, col)}")
                     continue
                 self.modules[(row, col)] = ModuleController(row, col)
-                self.modules[(row, col)].register_command_queue(self.queue)
+                self.modules[(row, col)].register_command_queue(self.queue, self.port)
 
         self.logger.debug("Waiting for command queue to clear")
         while not self.queue.empty():
@@ -106,7 +113,7 @@ class BusController(SerialProcessor):
         self.logger.info(f"Module Locations: {self.module_locations}")
         return self.module_locations
 
-    def get_info(self) -> List[ModuleInfo]:
+    def get_module_info(self) -> List[ModuleInfo]:
         info: List[ModuleInfo] = []
         for module in self.modules.values():
             self.logger.debug(vars(module))
@@ -194,11 +201,20 @@ class BusController(SerialProcessor):
             raise ValueError(f"Range is not increasing - {val_range}")
 
     @property
+    def info(self) -> BusInfo:
+        return BusInfo(
+            port=self.port,
+            baudrate=self.baudrate,
+            num_modules=self.num_modules,
+            modules=[tuple(location) for location in self.module_locations]
+        )
+
+    @property
     def processed_commands(self) -> int:
         return self._processed_commands
 
     @property
-    def module_locations(self) -> List[int]:
+    def module_locations(self) -> List[Tuple[int, int]]:
         return list(self.modules.keys())
 
     @property

@@ -8,7 +8,7 @@ from .common import exception_response, package_incoming_message_as_module_respo
 from control.source.flaps import Flap
 from control.source.module_controller import EepromLocations, ModuleInfo
 from app.api.models.common import Location 
-from app.api.models.responses import ModuleResponse, PositionResponse, ModuleInfoResponse
+from app.api.models.responses import ModuleResponse, PositionResponse, ModuleInfoResponse, ModuleEepromData
 from app.api.models.requests import (
     StepRequest,
     FlapRequest,
@@ -27,12 +27,17 @@ logger = logging.getLogger("DisplayAPI")
 def get_module_info(row: int, column: int, display=Depends(get_display)):
     module_info = display.get_module(row, column).get_module_info()
 
-    return ModuleInfoResponse(
-        location=Location(row=row, column=column),
+    metadata = ModuleEepromData(
+        bus=module_info.bus,
         firmware_version=f"{module_info.major_firmware_version}.{module_info.minor_firmware_version}",
         auto_home=module_info.auto_home,
         home_offset=module_info.home_offset,
         max_steps=module_info.max_steps
+    )
+    location = Location(row=row, column=column)
+    return ModuleInfoResponse(
+        location=location,
+        info=metadata
     )
 
 @router.get("/steps", response_model=ModuleResponse)
@@ -138,7 +143,7 @@ def save_position(position: int, request: LocationRequest, display=Depends(get_d
     return package_incoming_message_as_module_response(response)
 
 @router.get("/position/{position}", response_model=ModuleResponse)
-def get_module_position(position: int, location: Location, display=Depends(get_display)):
+def get_module_position(position: int, row: int, column: int, display=Depends(get_display)):
     try:
         response = display.get_module(*location.as_tuple()).get_position(position)
     except Exception as e:

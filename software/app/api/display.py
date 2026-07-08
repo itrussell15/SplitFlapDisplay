@@ -3,10 +3,11 @@ import logging
 import time
 from dataclasses import asdict
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import app.api.common as common
 import app.api.models.requests as reqs
+from app.api.models.common import Location
 from app.api.dependencies import get_display
 import app.api.models.responses as resps
 from control.source.dataclasses_ import IncomingMessage
@@ -41,12 +42,38 @@ def package_display_response(
     return resps.DisplayResponse(**output)
 
 
-def package_location(location: Tuple[int, int]) -> Dict[int, int]:
+def package_location(location: Tuple[int, int], module: ModuleController) -> resps.ModuleInfoResponse:
+    info = module.info
+    eeprom = resps.ModuleEepromData(
+        bus=info.bus,
+        firmware_version=f"{info.major_firmware_version}.{info.minor_firmware_version}",
+        auto_home=info.auto_home,
+        home_offset=info.home_offset,
+        max_steps=info.max_steps
+    )
+    return resps.ModuleInfoResponse(
+        location=Location(row=module.row, column=module.column),
+        info=eeprom
+    )
+
+def _list_modules(display: DisplayController) -> List[Dict[str, Any]]:
+    locations = [package_location(location, module) for location, module in display.modules.items()]
     return {
-        "row": location[0],
-        "column": location[1],
+        "request_time": get_current_timestamp(),
+        "num_modules": display.num_modules,
+        "locations": locations,
     }
 
+def _list_buses(display: DisplayController) -> List[Dict[str, Any]]:
+    buses = {}
+    for bus in display.buses.values():
+        buses[bus.port] = bus.info
+
+    return {
+        "request_time": get_current_timestamp(),
+        "num_buses": display.num_buses,
+        "buses": buses,
+    }
 
 @router.get("/info")
 def get_display_info(display=Depends(get_display)):
@@ -58,17 +85,14 @@ def get_display_info(display=Depends(get_display)):
         "columns": columns,
     }
 
-
 @router.get("/modules")
 def list_modules(display=Depends(get_display)):
     """List the locations of modules already discovered (no bus re-scan)."""
-    locations = [package_location(location) for location in display.modules]
-    return {
-        "request_time": get_current_timestamp(),
-        "num_modules": display.num_modules,
-        "num_buses": display.num_buses,
-        "locations": locations,
-    }
+    return _list_modules(display)
+
+@router.get("/buses")
+def list_buses(display=Depends(get_display)):
+    return _list_buses(display)
 
 
 @router.post("/discover", response_model=resps.DiscoverResponse)
@@ -82,16 +106,14 @@ def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
     except Exception as e:
         raise exception_response(e)
 
-    locations = []
-    for location in response:
-        locations.append(package_location(location))
-    return {
+    modules = _list_modules(display)
+    output = {
         "request_time": get_current_timestamp(),
         "num_modules": display.num_modules,
         "num_buses": display.num_buses,
-        "locations": locations,
+        "modules": modules["locations"],
     }
-
+    return output
 
 @router.get("/steps", response_model=resps.DisplayResponse)
 def get_module_steps(display=Depends(get_display)):
@@ -178,7 +200,6 @@ def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
             detail=f"Error while trying to move to flap: {str(e)}",
         )
     return package_display_response(response)
-
 
 @router.post("/home", response_model=resps.DisplayResponse)
 def home_all(display=Depends(get_display)):
