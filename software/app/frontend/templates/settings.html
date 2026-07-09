@@ -4,8 +4,29 @@
 {% block page_title %}Settings{% endblock %}
 
 {% block content %}
-  <div class="section-label">MODULE DISCOVERY</div>
+  <div class="section-label">RATE LIMITING</div>
 
+  <div class="settings-card">
+    <p class="settings-desc">
+      Set the time limit that the display can be changed at.
+    </p>
+
+    <div class="field-row">
+      <label class="field">
+        <span class="field-label">Minutes</span>
+        <input type="number" id="rate-minutes" min="0" max="60">
+      </label>
+      <label class="field">
+        <span class="field-label">Seconds</span>
+        <input type="number" id="rate-seconds" min="0" max="60">
+      </label>
+      <button class="btn btn-primary" id="rate-limit-btn" onclick="setRate()">SET</button>
+    </div>
+
+    <div id="rate-limit-result" class="rate-limit-result"></div>
+  </div>
+
+  <div class="section-label">MODULE DISCOVERY</div>
   <div class="settings-card">
     <p class="settings-desc">
       Scan the bus for connected modules. Enter the maximum number of rows and

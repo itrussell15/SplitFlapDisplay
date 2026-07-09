@@ -1,13 +1,12 @@
-from datetime import datetime
+import datetime
 import logging
 import time
-from datetime import datetime
-from typing import Optional
+
+from typing import Any, Callable, Optional
 
 import serial
 
-TIMESTAMP_FORMAT = "%Y_%m_%d-%H_%M_%S"
-
+TIMESTAMP_FORMAT = "%m/%d/%Y %H:%M:%S"
 
 # Functions
 def create_logger(level=logging.DEBUG, spacing: int = 15):
@@ -17,6 +16,5 @@ def create_logger(level=logging.DEBUG, spacing: int = 15):
         datefmt="%H:%M:%S",
     )
 
-
 def get_current_timestamp() -> str:
-    return datetime.now().strftime(TIMESTAMP_FORMAT)
+    return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)

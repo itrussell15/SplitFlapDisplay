@@ -47,3 +47,18 @@ class PositionResponse(BaseModel):
 class DisplayInfoResponse(BaseModel):
     request_time: str
     data: List[ModuleResponse]
+
+class Rate(BaseModel):
+    minutes: int
+    seconds: int
+
+class RateResponse(BaseModel):
+    rate: Rate
+    last_update: str | None
+    target_time: str | None
+
+class RateCheck(BaseModel):
+    status: bool
+    request_time: str
+    last_update: str | None
+    target_time: str | None

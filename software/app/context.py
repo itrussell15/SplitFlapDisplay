@@ -10,12 +10,14 @@ from fastapi import FastAPI, Request
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from control.source.bus_controller import BusController
 from control.source.display_controller import DisplayController
+from utils import RateLimiter
 
 
 logger = logging.getLogger(__name__)
 
 ROWS = [1, 2]
 COLUMNS = [1, 10]
+DEFAULT_RATE = {"minutes": 1, "seconds": 0}
 
 
 @asynccontextmanager
@@ -23,6 +25,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # app startup
     logger.info("Initializing App")
     app.state.display = DisplayController()
+    app.state.rate_limiter = RateLimiter(**DEFAULT_RATE)
+    app.state.rate_limiter.set_rate(10, 0)
     ports = get_ports()
     if ports is None:
         raise ConnectionError(f"No port to connect to. Please set a port to connect to with 'export DISP_USB_PORT=<port>'")

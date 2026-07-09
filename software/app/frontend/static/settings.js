@@ -60,3 +60,84 @@ function renderDiscover(data) {
     `on ${data.num_buses} bus(es):</div>` +
     `<div class="loc-grid">${chips}</div>`;
 }
+
+async function setRate() {
+  const minutesEl = document.getElementById("rate-minutes");
+  const secondsEl = document.getElementById("rate-seconds");
+  const btn = document.getElementById("rate-limit-btn");
+  const result = document.getElementById("rate-limit-result");
+
+  const minutesValue = parseInt(minutesEl.value, 10);
+  const secondsValue = parseInt(secondsEl.value, 10);
+  if (!Number.isInteger(minutesValue) || !Number.isInteger(secondsValue) || minutesValue < 0 || secondsValue < 0) {
+    showToast("Enter valid minutes and seconds", "error");
+    return;
+  }
+
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "SETTING...";
+
+  try {
+    const res = await fetch("/api/v1/rate_limiting/rate?" + new URLSearchParams({minutes: minutesValue, seconds: secondsValue}), 
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+    
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+  } catch (err) {
+    result.innerHTML = `<span class="rate-limit-error">Set Rate Limit failed: ${err.message}</span>`;
+    showToast("Set Rate Limit Fail", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+// Initialize or refresh the rate-limit fields. Call this when the
+// settings page/tab is shown.
+async function initSettingsRate() {
+  try {
+    const res = await fetch("/api/v1/rate_limiting/rate", {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    console.log("Data received:", data);
+
+    const minutesEl = document.getElementById("rate-minutes");
+    const secondsEl = document.getElementById("rate-seconds");
+    if (minutesEl) minutesEl.value = data.rate.minutes ?? 0;
+    if (secondsEl) secondsEl.value = data.rate.seconds ?? 0;
+  } catch (error) {
+    console.error("Failed to fetch rate:", error);
+  }
+}
+
+// Call on initial page load and when common tab events fire.
+document.addEventListener("DOMContentLoaded", () => {
+
+  // Loads rate value
+  initSettingsRate();
+
+  // If the settings tab is activated by a button with id `settings-tab-btn`.
+  const settingsTabBtn = document.getElementById("settings-tab-btn");
+  if (settingsTabBtn) settingsTabBtn.addEventListener("click", initSettingsRate);
+
+  // Bootstrap-style tabs: listen for the shown.bs.tab event on the settings tab link.
+  const bsTabLink = document.querySelector('a[data-bs-toggle="tab"][href="#settings"]');
+  if (bsTabLink) bsTabLink.addEventListener('shown.bs.tab', initSettingsRate);
+});
+

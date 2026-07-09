@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Tuple
 import app.api.common as common
 import app.api.models.requests as reqs
 from app.api.models.common import Location
-from app.api.dependencies import get_display
+from app.api.rate import RateLimited
+from app.api.dependencies import get_display, get_rate_limiter
 import app.api.models.responses as resps
 from control.source.dataclasses_ import IncomingMessage
 from control.source.flaps import Flap
@@ -20,7 +21,6 @@ from .common import exception_response, package_incoming_message_as_module_respo
 
 router = APIRouter(prefix="/display", tags=["Display Control"])
 logger = logging.getLogger("DisplayAPI")
-
 
 def package_display_response(
     display_response: List[IncomingMessage],
@@ -95,6 +95,35 @@ def list_buses(display=Depends(get_display)):
     return _list_buses(display)
 
 
+@router.get("/steps", response_model=resps.DisplayResponse)
+def get_module_steps(display=Depends(get_display)):
+    try:
+        response = display.get_all_steps()
+    except Exception as e:
+        raise exception_response(e)
+    return package_display_response(response)
+
+
+@router.get("/positions/{position}", response_model=resps.DisplayResponse)
+def get_position_steps(position: int, display=Depends(get_display)) -> Dict[str, str]:
+    try:
+        response = display.get_position_steps(position)
+    except Exception as e:
+        raise exception_response(e)
+    return package_display_response(response)
+
+@router.get("/positions")
+def get_position_steps(display=Depends(get_display)) -> Dict[str, str]:
+    try:
+        response = display.get_current_positions()
+    except Exception as e:
+        raise exception_response(e)
+    return package_display_response(response)
+
+@router.get("/flap")
+def get_flaps():
+    return {flap.name: flap.value for flap in Flap}
+
 @router.post("/discover", response_model=resps.DiscoverResponse)
 def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
     # Half-open ranges starting at 1 (row/col 0 is reserved for broadcast), so
@@ -115,46 +144,24 @@ def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
     }
     return output
 
-@router.get("/steps", response_model=resps.DisplayResponse)
-def get_module_steps(display=Depends(get_display)):
-    try:
-        response = display.get_all_steps()
-    except Exception as e:
-        raise exception_response(e)
-    return package_display_response(response)
-
-
-@router.get("/positions/{position}", response_model=resps.DisplayResponse)
-def get_position_steps(position: int, display=Depends(get_display)) -> Dict[str, str]:
-    try:
-        response = display.get_position_steps(position)
-    except Exception as e:
-        raise exception_response(e)
-    return package_display_response(response)
-
-
 @router.post("/positions/{position}", response_model=resps.DisplayResponse)
-def move_all_to_position(position: int, display=Depends(get_display)) -> Dict[str, str]:
+def move_all_to_position(position: int, rate_limiter=Depends(get_rate_limiter), display=Depends(get_display)) -> Dict[str, str]:
+    if rate_limiter.is_active:
+        raise RateLimited(target_time=rate_limiter.target_time)
+    
     try:
         response = display.move_all_to_position(position)
     except Exception as e:
         raise common.exception_response(e)
     return package_display_response(response)
 
-
-@router.get("/positions")
-def get_position_steps(display=Depends(get_display)) -> Dict[str, str]:
-    try:
-        response = display.get_current_positions()
-    except Exception as e:
-        raise exception_response(e)
-    return package_display_response(response)
-
-
 @router.post("/positions", response_model=resps.DisplayResponse)
 def move_to_positions(
-    positions: reqs.DisplayPositionRequest, display=Depends(get_display)
+    positions: reqs.DisplayPositionRequest, display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)
 ):
+    if rate_limiter.is_active:
+        raise RateLimited(target_time=rate_limiter.target_time)
+
     request_data = {}
     for request in positions.module_requests:
         if not ModuleController.is_valid_position(request.position):
@@ -173,14 +180,11 @@ def move_to_positions(
         )
     return package_display_response(response)
 
-
-@router.get("/flap")
-def get_flaps():
-    return {flap.name: flap.value for flap in Flap}
-
-
 @router.post("/flap", response_model=resps.DisplayResponse)
-def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
+def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)):
+    if rate_limiter.is_active:
+        raise RateLimited(target_time=rate_limiter.target_time)
+
     request_data = {}
     for request in flaps.module_requests:
         try:
@@ -202,7 +206,10 @@ def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
     return package_display_response(response)
 
 @router.post("/home", response_model=resps.DisplayResponse)
-def home_all(display=Depends(get_display)):
+def home_all(display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)):
+    if rate_limiter.is_active:
+        raise RateLimited(target_time=rate_limiter.target_time)
+        
     try:
         response = display.home_all()
     except Exception as e:
