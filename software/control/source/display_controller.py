@@ -41,6 +41,7 @@ class DisplayController:
             modules.extend(module_locations)
             self._update_modules(bus)
             bus.get_module_info()
+        self.check_display_for_gaps()
         return modules
 
     def home_all(self) -> None:
@@ -143,6 +144,25 @@ class DisplayController:
             raise ValueError(f"No module at {module_location} found on this display")
         return result
 
+    def check_for_gaps(self) -> None:
+        # Gather modules
+        rows = {}
+        for module in self.modules:
+            row, column = module
+            if row not in rows:
+                rows[row] = []
+            rows[row].append(column)
+
+        # Check for gaps
+        for row, columns in rows.items():
+            column = sorted(columns)
+            current_column = columns[0]
+            for column in columns[1:]:
+                if abs(column - current_column) > 1:
+                    raise ValueError(f"Gap in modules at {(row, column)}")
+                current_column = column
+        
+ 
     @property
     def processed_commands(self) -> int:
         return sum(bus.processed_commands for bus in self.buses.values())
