@@ -50,24 +50,30 @@ class Updater(ABC):
         self._frequency = update_frequency
         self._timer = None
 
-    @abstractmethod
     def update(self) -> None:
+        self._is_updating = True
+        self._update()
+        self._is_updating = False
+
+    @abstractmethod
+    def _update(self) -> None:
         pass
 
-    def start(self) -> None:
+    def start(self, update_on_start: bool = True) -> None:
         if self._timer is not None:
             raise RuntimeError("Can not start another updater with one running. Please stop it and try again")
 
-        # First update on startup
-        self.update()
-
-        if self.frequency is None:
-            self.logger.info("No frequency is set - Invoking update once only")
+        if not self.is_dynamic:
+            self.update()
             return 
+
+        self.logger.debug("Updater started")
+        # First update on startup
+        if update_on_start:
+            self.update()
 
         # Kick off remaining updates on a schedule
         self._schedule_timer()
-        self.logger.info("Updater started")
 
     def _schedule_timer(self) -> None:
         # Don't update if we don't have a dynamic updater
@@ -106,3 +112,7 @@ class Updater(ABC):
     @property
     def is_alive(self) -> None:
         return self._timer is not None
+
+    @property
+    def is_updating(self) -> bool:
+        return self._is_updating

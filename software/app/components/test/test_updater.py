@@ -13,9 +13,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.components.updater import Updater, UpdateFrequency
 from utils import create_logger
 
-MODULE_IDS = [1, 2, 3, 4, 5]
-SLEEP_TIME_S = 1.0
-
 
 class TestUpdateFrequency(unittest.TestCase):
 
@@ -104,7 +101,6 @@ class TestUpdater(unittest.TestCase):
         self.assertTrue(self.updater.is_alive)
         self.updater.stop()
         self.assertFalse(self.updater.is_alive)
-
     
     def test_is_dynamic(self) -> None:
         self.assertTrue(self.updater.is_dynamic)
