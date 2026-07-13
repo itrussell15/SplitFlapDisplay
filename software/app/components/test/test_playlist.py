@@ -10,8 +10,8 @@ from abc import ABC, abstractmethod
 # Add the parent directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.components.updater import UpdateFrequency
-from app.components.playlist import Playlist, PlaylistItem
+from app.components.core.updater import UpdateFrequency
+from app.components.core.playlist import Playlist, PlaylistItem
 from utils import create_logger
 
 logger = logging.getLogger("PlaylistTester")
