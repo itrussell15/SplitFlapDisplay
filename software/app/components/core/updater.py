@@ -50,13 +50,8 @@ class Updater(ABC):
         self._frequency = update_frequency
         self._timer = None
 
-    def update(self) -> None:
-        self._is_updating = True
-        self._update()
-        self._is_updating = False
-
     @abstractmethod
-    def _update(self) -> None:
+    def update(self) -> None:
         pass
 
     def start(self, update_on_start: bool = True) -> None:
@@ -64,28 +59,33 @@ class Updater(ABC):
             raise RuntimeError("Can not start another updater with one running. Please stop it and try again")
 
         if not self.is_dynamic:
-            self.update()
+            self._top_level_update()
             return 
 
         self.logger.debug("Updater started")
         # First update on startup
         if update_on_start:
-            self.update()
+            self._top_level_update()
 
         # Kick off remaining updates on a schedule
         self._schedule_timer()
+
+    def _top_level_update(self) -> None:
+        self._is_updating = True
+        self.update()
+        self._is_updating = False
 
     def _schedule_timer(self) -> None:
         # Don't update if we don't have a dynamic updater
         if not self.is_dynamic:
             return
 
-        self._timer = threading.Timer(interval=self.frequency.interval, function=self._run_update)
+        self._timer = threading.Timer(interval=self.frequency.interval, function=self._worker_invoked_update)
         self._timer.start()
 
-    def _run_update(self) -> None:
+    def _worker_invoked_update(self) -> None:
         # If we are here, then the timer has completed and we want to start another one.
-        self.update()
+        self._top_level_update()
         if self._timer is not None:
             self._schedule_timer()
 

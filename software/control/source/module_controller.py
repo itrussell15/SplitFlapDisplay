@@ -83,12 +83,18 @@ class EepromLocations(enum.IntEnum):
 
 @dataclass
 class ModuleInfo:
+    row: int
+    column: int
     bus: str
     major_firmware_version: int
     minor_firmware_version: int
     auto_home: bool
     home_offset: int
     max_steps: int
+
+    @property
+    def location(self) -> Tuple[int, int]:
+        return (self.row, self.column)
 
 
 class ModuleController:
@@ -145,6 +151,8 @@ class ModuleController:
         minor_firmware = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
         
         info = ModuleInfo(
+            row=self.row,
+            column=self.column,
             bus=self._bus,
             major_firmware_version=int(major_firmware),
             minor_firmware_version=int(minor_firmware),

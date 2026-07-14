@@ -1,0 +1,40 @@
+{
+    "name": "Letters",
+    "data": [
+        {
+            "location": {
+                "row": 1,
+                "column": 1
+            },
+            "flap": "A"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 2
+            },
+            "flap": "B"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 3
+            },
+            "flap": "C"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 4
+            },
+            "flap": "D"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 5
+            },
+            "flap": "E"
+        }
+    ]
+}

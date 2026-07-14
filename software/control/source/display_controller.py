@@ -1,13 +1,23 @@
 import json
 import logging
 from datetime import datetime
+from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
 from .bus_controller import BusController
 from .flaps import Flap
-from .module_controller import ModuleController
+from .module_controller import ModuleController, ModuleInfo
 
 
+@dataclass
+class DisplayInfo:
+    rows: int
+    columns: int
+    modules: List[ModuleInfo]
+
+    @property
+    def module_locations(self) -> List[Tuple[int, int]]:
+        return [i.location for i in self.modules]
 
 
 class DisplayController:
@@ -41,7 +51,7 @@ class DisplayController:
             modules.extend(module_locations)
             self._update_modules(bus)
             bus.get_module_info()
-        self.check_display_for_gaps()
+        # self.check_display_for_gaps()
         return modules
 
     def home_all(self) -> None:
@@ -163,6 +173,15 @@ class DisplayController:
                 current_column = column
         
  
+    @property
+    def info(self) -> DisplayInfo:
+        rows, cols = self.get_rows_and_columns()
+        return DisplayInfo(
+            rows=rows,
+            columns=cols,
+            modules=[i.info for i in self.modules.values()]
+        )
+
     @property
     def processed_commands(self) -> int:
         return sum(bus.processed_commands for bus in self.buses.values())

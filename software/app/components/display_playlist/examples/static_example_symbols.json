@@ -1,0 +1,40 @@
+{
+    "name": "Symbols",
+    "data": [
+        {
+            "location": {
+                "row": 1,
+                "column": 1
+            },
+            "flap": "UMBRELLA"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 2
+            },
+            "flap": "LIGHTNING"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 3
+            },
+            "flap": "WHITE"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 4
+            },
+            "flap": "SMILEY"
+        },
+        {
+            "location": {
+                "row": 1,
+                "column": 5
+            },
+            "flap": "HEART"
+        }
+    ]
+}

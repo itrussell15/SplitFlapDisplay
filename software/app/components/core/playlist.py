@@ -21,6 +21,7 @@ class PlaylistItem(Updater):
     def name(self) -> str:
         return self._name
 
+
 class Playlist(Updater):
 
     def __init__(self, frequency: UpdateFrequency) -> None:
@@ -56,15 +57,21 @@ class Playlist(Updater):
     def next(self) -> PlaylistItem:
         if self.is_empty:
             raise PlaylistEmptyError()
+        if self.size == 1:
+            self.logger.debug(f"Playlist of size 1, no need to update again")
+            return
         self._current_position = (self._current_position + 1) % self.size
+        self.logger.info(f"Current Position: {self._current_position} - {self.current_item}")
         self.logger.info(f"Playlist updated to {self.current_item.name}")
         return self.current_item
 
-    def _update(self) -> None:
+    def update(self) -> None:
         if self.current_item.is_alive:
             self.current_item.stop()
-        self.next()
-        self.current_item.start()
+        next_item = self.next()
+        print(f"Item: {next_item}")
+        if next_item is not None:
+            next_item.start()
 
     @property
     def current_index(self) -> int:
