@@ -59,7 +59,7 @@ class Playlist(Updater):
             raise PlaylistEmptyError()
         if self.size == 1:
             self.logger.debug(f"Playlist of size 1, no need to update again")
-            return
+            return self.current_item
         self._current_position = (self._current_position + 1) % self.size
         self.logger.info(f"Current Position: {self._current_position} - {self.current_item}")
         self.logger.info(f"Playlist updated to {self.current_item.name}")

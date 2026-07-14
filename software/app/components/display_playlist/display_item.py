@@ -43,11 +43,14 @@ class DisplayItem(PlaylistItem):
         self.logger.debug(f"Added display function -> {function.__name__}")
         self._display_function = function
 
-    def _request_to_flaps(self, request: Dict[Tuple[int, int], str]) -> Dict[Tuple[int, int], Flap]:
-        flaps = {location: Flap[flap] for location, flap in request.items()}
+    def _request_to_flaps(self, request: Dict[Tuple[int, int], Union[str, int]]) -> Dict[Tuple[int, int], Flap]:
+        flaps = {}
         for location in self._display_info.module_locations:
-            if location not in flaps:
-                flaps.update({location: default_flap})
+            if location in request:
+                value = Flap[request[location]]
+            else:
+                value = self._default_flap
+            flaps.update({location: value})
         return flaps    
 
     def _top_level_update(self) -> None:

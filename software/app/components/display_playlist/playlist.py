@@ -51,7 +51,8 @@ if __name__ == "__main__":
     item1 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example.json")
     item2 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example_symbols.json")
 
-    # playlist.add_item(item1)
+    playlist.add_item(item1)
     # playlist.add_item(item2)
+    playlist.add_item(ClockApp())
 
     playlist.start()

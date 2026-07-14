@@ -1,7 +1,66 @@
 import enum
+import re
+
+class FlapEnumMeta(enum.EnumMeta):
+
+    class FlapConversionError(Exception):
+        def __init__(self, key: str) -> None:
+            super().__init__(f"Unable to translate {key} to Flap")
+
+    lookup_map = {
+        0: "ZERO",
+        1: "ONE",
+        2: "TWO",
+        3: "THREE",
+        4: "FOUR",
+        5: "FIVE",
+        6: "SIX",
+        7: "SEVEN",
+        8: "EIGHT",
+        9: "NINE",
+        "?": "QUESTION_MARK",
+        "!": "EXCLAIMATION_MARK",
+        "@": "AT",
+        "#": "POUND",
+        "$": "DOLLAR",
+        "&": "AMPERSAND",
+        "[": "LEFT_PAREN",
+        "]": "RIGHT_PAREN",
+        "-": "HYPHEN",
+        "+": "PLUS",
+        "=": "EQUALS",
+        ":": "COLON",
+        "%": "PERCENT",
+        "'": "APOSTRAPHE"
+    }
+
+    def __getitem__(cls, key: Any):
+        def handle_key(key) -> str:
+            match key:
+                case int():
+                    if key > 9 or key < 0:
+                        raise cls.FlapConversionError(key)
+                    key = cls.lookup_map[key]
+                case str():
+                    if key.isnumeric():
+                        if len(key) > 1:
+                            raise cls.FlapConversionError(key)
+                        key = cls.lookup_map[int(key)]
+                    else:
+                        # if len(key) == 1 and key in cls.lookup_map:
+                        key = cls.lookup_map[key]
+                        
+            return key
+        try:
+            return super().__getitem__(key)
+        except KeyError:
+                key = handle_key(key)
+                return super().__getitem__(key)
+        except Exception as e:
+            raise e
 
 
-class Flap(enum.IntEnum):
+class Flap(enum.IntEnum, metaclass=FlapEnumMeta):
     BLANK = 0
     A = 1
     B = 2
@@ -66,3 +125,12 @@ class Flap(enum.IntEnum):
     UMBRELLA = 61
     LIGHTNING = 62
     WHITE = 63
+
+    @classmethod
+    def __getitem__(cls, value):
+        print("HERE")
+        return super().__getitem__(value)
+
+if __name__ == "__main__":
+    
+    print(Flap['?'].name)
