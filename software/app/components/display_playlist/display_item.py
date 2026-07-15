@@ -56,8 +56,11 @@ class DisplayItem(PlaylistItem):
     def _top_level_update(self) -> None:
         self._is_updating = True
         request = self.update(self._display_info)
-        flaps = self._request_to_flaps(request)
-        self._display_function(flaps)
+        if request is not None:
+            flaps = self._request_to_flaps(request)
+            self._display_function(flaps)
+        else:
+            self.logger.debug(f"Update invoked, but not change in output - skipping")
         self._is_updating = False
 
 class StaticDisplayItem(DisplayItem):

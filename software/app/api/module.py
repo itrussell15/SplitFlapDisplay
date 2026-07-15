@@ -94,7 +94,7 @@ def move_to_position(request: PositionRequest, display=Depends(get_display)):
 @router.post("/home", response_model=ModuleResponse)
 def home_module(row: int, column: int, display=Depends(get_display)):
     try:
-        response = display.get_module(row=row, colum=column).home()
+        response = display.get_module(row=row, column=column).home()
     except Exception as e:
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)

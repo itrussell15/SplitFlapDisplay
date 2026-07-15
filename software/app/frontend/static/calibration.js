@@ -55,7 +55,7 @@ const post = (path, body) =>
 const loc = (m) => ({ row: m.row, column: m.column });
 
 const setCalMode = (m, on) => post("/modules/calibration_mode", { location: loc(m), enabled: on });
-const homeModule = (m) => post("/modules/home", loc(m));
+const homeModule = (m) => post(`/modules/home?row=${m.row}&column=${m.column}`);
 const moveToStep = (m, s) => post(`/modules/steps/${s}`, loc(m));
 const setHomeOff = (m, v) => post("/modules/home_offset", { location: loc(m), value: v });
 const getHomeOff = (m) => api(`/modules/home_offset?row=${m.row}&column=${m.column}`);
@@ -91,7 +91,9 @@ async function loadModules() {
   grid.innerHTML = `<span class="settings-desc">Loading modules…</span>`;
   try {
     const data = await api("/display/modules");
-    available = (data.locations || []).slice().sort((a, b) => a.row - b.row || a.column - b.column);
+    available = (data.locations || [])
+      .map((item) => item.location || item)
+      .sort((a, b) => a.row - b.row || a.column - b.column);
   } catch (err) {
     grid.innerHTML = `<span class="discover-error">Could not load modules: ${err.message}</span>`;
     return;

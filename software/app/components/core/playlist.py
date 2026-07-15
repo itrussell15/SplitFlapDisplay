@@ -69,7 +69,6 @@ class Playlist(Updater):
         if self.current_item.is_alive:
             self.current_item.stop()
         next_item = self.next()
-        print(f"Item: {next_item}")
         if next_item is not None:
             next_item.start()
 

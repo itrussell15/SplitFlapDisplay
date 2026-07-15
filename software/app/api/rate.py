@@ -10,7 +10,7 @@ import app.api.models.requests as reqs
 from app.api.models.common import Location
 import app.api.dependencies as deps
 import app.api.models.responses as resps
-from app.components.rate_limiter import RateLimiter
+from app.components.core.rate_limiter import RateLimiter
 from utils import get_current_timestamp, TIMESTAMP_FORMAT
 from .common import exception_response
 

@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from control.source.bus_controller import BusController
 from control.source.display_controller import DisplayController
-from app.components.rate_limiter import RateLimiter
+from app.components.core.rate_limiter import RateLimiter
 
 
 logger = logging.getLogger(__name__)
