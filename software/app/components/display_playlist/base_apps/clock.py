@@ -5,14 +5,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
-from app.components.display_playlist.display_item import DisplayItem
+from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
 
 class ClockApp(DisplayItem):
 
-    def __init__(self, start_location: Tuple[int, int]) -> None:
+    def __init__(self, start_location: Tuple[int, int] = (1, 1)) -> None:
         frequency = UpdateFrequency(seconds = 10)
         super().__init__(
             name="ClockApp",
+            item_type=DisplayItemType.APP,
             frequency=frequency
         )
         self._previous_time = None
@@ -28,16 +29,17 @@ class ClockApp(DisplayItem):
 
         row, start_col = self._start_location
         
+        data = {}
         # Hour
         if len(hour) > 1:
             data[(row, start_col)] = hour[0]
-        data = {(row, start_col + 1): hour[-1]}
+        data[(row, start_col + 1)] = hour[-1]
 
         # Minute
         data[(row, start_col + 3)] = minute[0]
         data[(row, start_col + 4)] = minute[-1]
 
-        data[(row, start_cal + 2)] = ":"
+        data[(row, start_col + 2)] = ":"
         
         self.logger.info(f"Showing: {hour}:{minute}")
         self._previous_time = time

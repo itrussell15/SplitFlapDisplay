@@ -1,6 +1,9 @@
 import os
 import sys
+import enum
+from munch import munchify
 import json
+from dataclasses import dataclass
 from abc import abstractmethod
 import logging
 from pathlib import Path
@@ -15,11 +18,17 @@ from app.components.core.updater import UpdateFrequency
 from control.source.flaps import Flap
 from control.source.display_controller import DisplayInfo
 
+class DisplayItemType(enum.Enum):
+    STATIC = 0
+    APP = 1
+
+
 class DisplayItem(PlaylistItem):
 
     def __init__(
         self,
         name: str,
+        item_type: PlaylistItemType,
         frequency: Optional[UpdateFrequency] = None,
         default_flap: Flap = Flap.BLANK
     ) -> None:
@@ -70,8 +79,18 @@ class StaticDisplayItem(DisplayItem):
         name: str, 
         flaps: Dict[Tuple[int, int], str]
     ) -> None:
-        super().__init__(name)
+        super().__init__(name, item_type=DisplayItemType.STATIC)
         self.flaps = flaps
+
+    @classmethod
+    def from_dict(self, data: Dict[str, Any]) -> StaticDisplayItem:
+        items = {}
+        for module in data.modules:
+            items[(module.location.row, module.location.column)] = module.flap
+        return StaticDisplayItem(
+            name=data.name,
+            flaps=items
+        )
 
     @classmethod
     def from_json(self, path: str) -> StaticDisplayItem:
@@ -83,18 +102,9 @@ class StaticDisplayItem(DisplayItem):
             raise TypeError(f"Unable to process file type {this_type}")
 
         with open(path, "r") as file:
-            data = json.load(file)
+            data = munchify(json.load(file))
         
-        items = {}
-        for location in data["data"]:
-            row = location["location"]["row"]
-            column = location["location"]["column"]
-            items[(row, column)] = location["flap"]
-        
-        return StaticDisplayItem(
-            name=data["name"],
-            flaps=items
-        )
+        return cls.from_dict(data)
 
     def __repr__(self) -> str:
         return f"StaticDisplayItem({self.name})"

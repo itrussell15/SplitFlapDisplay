@@ -13,6 +13,9 @@ class UpdateFrequency:
         self.minutes = minutes
         self.seconds = seconds
 
+    def __repr__(self) -> str:
+        return f"UpdateFrequency(mins={self.minutes}, seconds={self.seconds})"
+
     def _check_valid_update(self, minutes: int, seconds: int) -> None:
         if seconds == 0 and minutes == 0:
             raise ValueError("Invalid update frequency of 0 seconds and 0 minutes")

@@ -1,0 +1,95 @@
+{
+    "frequency": {
+        "minutes": 0,
+        "seconds": 15
+    },
+    "items": [
+        {
+            "name": "Letters",
+            "item_type": "static",
+            "modules": [
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 1
+                    },
+                    "flap": "A"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 2
+                    },
+                    "flap": "B"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 3
+                    },
+                    "flap": "C"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 4
+                    },
+                    "flap": "D"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 5
+                    },
+                    "flap": "E"
+                }
+            ]
+        },
+        {
+            "name": "Hello",
+            "item_type": "static",
+            "modules": [
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 1
+                    },
+                    "flap": "H"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 2
+                    },
+                    "flap": "E"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 3
+                    },
+                    "flap": "L"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 4
+                    },
+                    "flap": "L"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 5
+                    },
+                    "flap": "O"
+                }
+            ]
+        },
+        {
+            "name": "Clock",
+            "item_type": "App",
+            "app_name": "ClockApp" 
+        }
+    ]
+}
