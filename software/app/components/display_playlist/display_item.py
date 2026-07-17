@@ -67,6 +67,7 @@ class DisplayItem(PlaylistItem):
         request = self.update(self._display_info)
         if request is not None:
             flaps = self._request_to_flaps(request)
+            print(f"REQUEST {request} - FLAPS: {flaps}")
             self._display_function(flaps)
         else:
             self.logger.debug(f"Update invoked, but not change in output - skipping")

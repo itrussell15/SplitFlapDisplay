@@ -16,6 +16,7 @@ class ClockApp(DisplayItem):
             item_type=DisplayItemType.APP,
             frequency=frequency
         )
+        self.logger.info(f"Started with start location {start_location}")
         self._previous_time = None
         self._start_location = start_location
 

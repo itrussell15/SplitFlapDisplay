@@ -21,7 +21,7 @@ class DisplayPlaylist(Playlist):
         display_obj: DisplayController,
         frequency: UpdateFrequency,
         items: Optional[List[DisplayItem]] = None,
-        app_folders = List[str] = [BASE_APP_PATH]
+        app_folders: List[str] = [BASE_APP_PATH]
     ) -> None:
         super().__init__(frequency)
         self._display = display_obj
@@ -31,14 +31,14 @@ class DisplayPlaylist(Playlist):
             for item in items:
                 self.add_item(item)
             self.logger.info(f"Loaded {len(items)} items on playlist start")
-
+        
     @classmethod
-    def from_json(self, path: str, display_obj: DisplayController) -> DisplayPlaylist:
+    def from_json(cls, path: str, display_obj: DisplayController, app_folders: List[str] = [BASE_APP_PATH]) -> DisplayPlaylist:
 
         def _load_frequency(frequency: Munch) -> UpdateFrequency:
             return UpdateFrequency(minutes=int(frequency.minutes), seconds=int(frequency.seconds))
 
-        def _load_items(items: Munch) -> List[DisplayItem]:
+        def _load_items(playlist: DisplayPlaylist, items: Munch) -> Tuple[List[DisplayItem], List[str]]:
             output = []
             # Munch reserves "items" keyword - Therefore we use key grabbing
             for item_data in items:
@@ -46,11 +46,14 @@ class DisplayPlaylist(Playlist):
                     case DisplayItemType.STATIC:
                         item = StaticDisplayItem.from_dict(item_data)
                     case DisplayItemType.APP:
-                        print("APP")
-                        raise NotImplemetedError("App loading is not currently supported")
+                        app_info = playlist.apps.get(item_data.app_name)
+                        if hasattr(item_data, "args"):
+                            item = app_info.obj(**item_data.args)
+                        else:
+                            item = app_info.obj()
                     case _:
                         raise TypeError(f"DisplayItemType {item.item_data.upper()} is invalid")
-                output.append(item)
+                playlist.add_item(item)
             return output
 
         if not os.path.exists(path):
@@ -63,13 +66,13 @@ class DisplayPlaylist(Playlist):
         with open(path, "r") as file:
             data = munchify(json.load(file))
         frequency = _load_frequency(data.frequency)
-        items = _load_items(data["items"])
-        return DisplayPlaylist(
+        playlist = DisplayPlaylist(
             display_obj=display_obj,
             frequency=frequency, 
-            items=items
         )
-        
+        items = _load_items(playlist, data["items"])
+        return playlist
+
     def update(self) -> None:
         if self.current_item.is_alive:
             self.current_item.stop()
@@ -84,8 +87,19 @@ class DisplayPlaylist(Playlist):
         item.add_display_info(self._display.info)
         item.add_display_function(self._display.move_to_flaps)
 
+    @property
+    def apps(self) -> AppLoader:
+        return self._apps
+
     def _load_apps(self, app_folders: str) -> AppLoader:
-        pass
+        return AppLoader(
+            desired_class=DisplayItem,
+            sources=app_folders
+        )
+
+    @property
+    def available_apps(self) -> List[str]:
+        return self._apps.list()
 
 if __name__ == "__main__":
     import os
@@ -97,21 +111,18 @@ if __name__ == "__main__":
     from control.source.display_controller import DisplayController
     from app.components.display_playlist.base_apps.clock import ClockApp
 
-    # display = DisplayController()
-    # value = os.getenv("DISP_USB_PORT")
-    # bus = BusController(port=value, timeout=0.5)
-    # display.add_bus_controller(bus)
-    # display.discover([1, 2], [1, 10])
+    display = DisplayController()
+    value = os.getenv("DISP_USB_PORT")
+    bus = BusController(port=value, timeout=0.5)
+    display.add_bus_controller(bus)
+    display.discover([1, 2], [1, 10])
 
-    # playlist = DisplayPlaylist.from_json(
-    #     path="/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/playlist.json",
-    #     display_obj=display
-    # )
-    print(BASE_APP_PATH)
+    playlist = DisplayPlaylist.from_json(
+        path="/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/playlist.json",
+        display_obj=display,
+        app_folders=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/other_apps", BASE_APP_PATH]
+    )
     
-    # playlist_frequency = UpdateFrequency(seconds = 10)
-    # playlist = DisplayPlaylist(display, playlist_frequency)
-
     # item1 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example_symbols1.json")
     # item2 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example_symbols2.json")
     # item3 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example_symbols3.json")
@@ -121,4 +132,4 @@ if __name__ == "__main__":
     # playlist.add_item(item3)
     # playlist.add_item(ClockApp())
 
-    # playlist.start()
+    playlist.start()

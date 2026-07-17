@@ -43,7 +43,7 @@ class RateLimiter:
             raise RateLimitNotSetError("Unable to check a rate limter that has been set yet")
         return datetime.datetime.now() >= self._target
 
-    def _worker(self, callback: Callable[[Any], None]) -> None:
+    def _worker(self, callback: Callable[None, None]) -> None:
         while datetime.datetime.now() <= self._target:
             time.sleep(0.05)
         self.logger.info("Invoking callback")
