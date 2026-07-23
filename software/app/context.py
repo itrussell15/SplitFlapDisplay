@@ -7,18 +7,19 @@ from typing import AsyncGenerator, List
 
 from fastapi import FastAPI, Request
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from control.source.bus_controller import BusController
 from control.source.display_controller import DisplayController
 from app.components.core.rate_limiter import RateLimiter
+import utils
 
 
 logger = logging.getLogger(__name__)
+VARS = utils.get_env_vars()
 
-ROWS = [1, 2]
-COLUMNS = [1, 10]
+ROWS = [1, int(VARS["DISP_MAX_ROWS"])]
+COLUMNS = [1, int(VARS["DISP_MAX_COLUMNS"])]
 DEFAULT_RATE = {"minutes": 1, "seconds": 0}
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -45,7 +46,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 def get_ports() -> List[str]:
-    value = os.getenv("DISP_USB_PORT")
+    value = VARS["DISP_USB_PORT"]
     if value is None:
         raise ConnectionError(f"No port to connect to. Please set a port to connect to with 'export DISP_USB_PORT=<port>'")
     output = []

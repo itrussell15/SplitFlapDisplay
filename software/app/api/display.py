@@ -146,8 +146,8 @@ def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
 
 @router.post("/positions/{position}", response_model=resps.DisplayResponse)
 def move_all_to_position(position: int, rate_limiter=Depends(get_rate_limiter), display=Depends(get_display)) -> Dict[str, str]:
-    if rate_limiter.is_active:
-        raise RateLimited(target_time=rate_limiter.target_time)
+    # if rate_limiter.is_active:
+    #     raise RateLimited(target_time=rate_limiter.target_time)
     
     try:
         response = display.move_all_to_position(position)
@@ -159,8 +159,8 @@ def move_all_to_position(position: int, rate_limiter=Depends(get_rate_limiter), 
 def move_to_positions(
     positions: reqs.DisplayPositionRequest, display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)
 ):
-    if rate_limiter.is_active:
-        raise RateLimited(target_time=rate_limiter.target_time)
+    # if rate_limiter.is_active:
+    #     raise RateLimited(target_time=rate_limiter.target_time)
 
     request_data = {}
     for request in positions.module_requests:
@@ -182,8 +182,8 @@ def move_to_positions(
 
 @router.post("/flap", response_model=resps.DisplayResponse)
 def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)):
-    if rate_limiter.is_active:
-        raise RateLimited(target_time=rate_limiter.target_time)
+    # if rate_limiter.is_active:
+    #     raise RateLimited(target_time=rate_limiter.target_time)
 
     request_data = {}
     for request in flaps.module_requests:
@@ -207,8 +207,8 @@ def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display), 
 
 @router.post("/home", response_model=resps.DisplayResponse)
 def home_all(display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)):
-    if rate_limiter.is_active:
-        raise RateLimited(target_time=rate_limiter.target_time)
+    # if rate_limiter.is_active:
+    #     raise RateLimited(target_time=rate_limiter.target_time)
         
     try:
         response = display.home_all()

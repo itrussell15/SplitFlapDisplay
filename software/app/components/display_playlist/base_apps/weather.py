@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
+from app.components.core.rate_limiter import RateLimiter
 from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
 
 class WeatherData:
@@ -44,17 +45,19 @@ class TemperatureApp(DisplayItem):
     # TODO Add rate limiter?
     # TODO Add env variable for API key?
 
-    def __init__(self, api_key: str, lat: str, lon: str, metric_units: bool = False) -> None:
+    def __init__(self, api_key: str, lat: str, lon: str, metric_units: bool = False, start_location: List[int, int] = [1, 1]) -> None:
         frequency = UpdateFrequency(seconds = 60)
         super().__init__(
             name="TempApp",
             item_type=DisplayItemType.APP,
             frequency=frequency
         )
+        # self._limiter = RateLimiter()
         self._api_key = api_key
         self.lat_value = lat
         self.long_value = lon
         self._metric_units = metric_units
+        self._start_location = start_location
 
     def get_data(self):
         units = "metric" if self._metric_units else "imperial"
@@ -75,14 +78,15 @@ class TemperatureApp(DisplayItem):
 
     def update(self, display_info: DisplayInfo) -> Dict[Tuple[int, int], str]:
         weather = self.get_data()
+        row, start_col = self._start_location
 
         data = {}
         temp = str(weather.temp)
         if len(temp) > 1:
-            data[(1, 1)] = temp[0]
-        data[(1, 2)] = temp[-1]
-        data[(1, 3)] = "DEGREE"
-        data[(1, 4)] = "F" if weather.unit == "imperial" else "C"
+            data[(row, start_col)] = temp[0]
+        data[(row, start_col + 1)] = temp[-1]
+        data[(row, start_col + 2)] = "DEGREE"
+        data[(row, start_col + 3)] = "F" if weather.unit == "imperial" else "C"
 
         return data
         

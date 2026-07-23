@@ -152,7 +152,7 @@ class TestBusController(unittest.TestCase):
             self.bus.discover([0, 4], [0, 500])
 
         # Actually search for 1 module
-        self.bus.discover([1, 2], [1, 10], 0.1)
+        self.bus.discover([1, 2], [1, 15], 0.1)
         self.assertEqual(len(self.bus.modules), 1)
 
     def test_broadcast(self) -> None:
@@ -193,7 +193,7 @@ class TestBusController(unittest.TestCase):
         message = self.modules[self.test_location].get_home_offset()
 
     def test_set_max_steps(self) -> None:
-        message = self.modules[self.test_location].set_max_steps(4094)
+        message = self.modules[self.test_location].set_max_steps(4096)
 
     def test_firmware_version(self) -> None:
         message = self.modules[self.test_location].firmware_version

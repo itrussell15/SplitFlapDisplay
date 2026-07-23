@@ -66,7 +66,7 @@ class BusController(SerialProcessor):
         if modules is not None:
             checksum = 0
             for mod in self.modules.values():
-                mod.register_command_queue(self.queue)
+                mod.register_command_queue(self.queue, port)
                 checksum += 1 if mod.is_command_queue_registered else 0
             assert checksum == len(self.modules)
 

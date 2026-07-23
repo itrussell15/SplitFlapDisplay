@@ -1,66 +1,70 @@
 import logging
 import threading
 import datetime
+from abc import abstractmethod
+from .updater import Updater, UpdateFrequency
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, List
 
-class RateLimitNotSetError(Exception):
-    pass
+class RateLimitError(Exception):
+    def __init__(self, frequency: UpdateFrequency, allowed_calls: int):
+        super().__init__(f"Rate limited - {allowed_calls} allowed in {frequency.interval} seconds")
 
 
-class RateLimiter:
-    def __init__(self, minutes: int, seconds: int) -> None:
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self._minutes = int(minutes)
-        self._seconds = int(seconds)
-        
-        self.set_rate(minutes, seconds)
-        self._current_time: Optional[datetime.datetime] = None
-        self._target: Optional[datetime.datetime] = datetime.datetime.now()
-        self._callback = None
-        self._callback_thread = None
+class RateLimiter(Updater):
 
-    def set_rate(self, minutes: int, seconds: int) -> None:
-        self._minutes = minutes
-        self._seconds = seconds
-        self._rate = datetime.timedelta(minutes=self._minutes, seconds=self._seconds)
+    def __init__(self, frequency: UpdateFrequency, num_calls_allowed: int, callbacks: Optional[List[Callable[[], None]]] = None) -> None:
+        super().__init__(frequency)
+        self._allowed_calls = num_calls_allowed
+        self._num_ticks = 0
+        self._latest_reset_time = datetime.datetime.now()
+        self.callbacks: List[Callable[[], None]] = []
+        if callbacks:
+            for callback in callbacks:
+                self.callbacks.append(callback)
 
-    def add_callback(self, callback: Callable[[Any], None]) -> None:
-        if self._callback is not None:
-            self.logger.warning("Overwritting previous callback")
-        self._callback = callback
+    def add_callback(self, callback: Callable[[], None]) -> None:
+        self.callbacks.append(callback)
+
+    def tick(self) -> None:
+        """
+        This will be called explicitly to try and make updates
+        """
+        self._update_rate()
+        self._perform_tick_update()
 
     def update(self) -> None:
-        # TODO Add check to see if we are already waiting for another update
-        self._current_time = datetime.datetime.now()
-        self._target = self._current_time + self._rate
-        if self._callback is not None:
-            self._callback_thread = threading.Thread(target=self._worker, args=(self._callback,), daemon=True)
-            self._callback_thread.start()
+        """
+        This will be called by the timer and be invoked in the background automatically
+        """
+        self._num_ticks = 0
+        self._latest_reset_time = datetime.datetime.now()
 
-    def check(self) -> bool:
-        if self._target is None:
-            raise RateLimitNotSetError("Unable to check a rate limter that has been set yet")
-        return datetime.datetime.now() >= self._target
+    @abstractmethod
+    def _perform_tick_update(self) -> None:
+        pass
 
-    def _worker(self, callback: Callable[None, None]) -> None:
-        while datetime.datetime.now() <= self._target:
-            time.sleep(0.05)
-        self.logger.info("Invoking callback")
-        callback()
+    def _invoke_update(self) -> None:
+        self._is_updating = True
+        for callback in self.callbacks:
+            callback()
+        self.update()
+        self._is_updating = False
+
+    def _update_rate(self) -> None:
+        if self._num_ticks + 1 > self._allowed_calls:
+            raise RateLimitError(self.frequency, self._allowed_calls)
+        self._num_ticks += 1
 
     @property
-    def is_active(self) -> bool:
-        return self.check()
-
-    @property
-    def rate(self) -> datetime.timedelta:
-        return self._rate
+    def next_reset(self) -> datetime.datetime:
+        return self._latest_reset_time + datetime.timedelta(seconds=self.frequency.interval)
     
     @property
-    def target_time(self) -> datetime.datetime:
-        return self._target
+    def seconds_to_next_update(self) -> float:
+        return (self.next_reset - datetime.datetime.now()).total_seconds()
+    
 
-    @property
-    def last_update(self) -> datetime.datetime:
-        return self._current_time
+if __name__ == "__main__":
+
+    rl = RateLimiter(UpdateFrequency(seconds=1), 1)

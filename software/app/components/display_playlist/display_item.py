@@ -36,6 +36,7 @@ class DisplayItem(PlaylistItem):
         self._display_info = None
         self._display_function = None
         self._default_flap = default_flap
+        self._display_data = {}
 
     def __repr__(self) -> str:
         return f"DisplayPlaylistItem({self.name})"
@@ -62,12 +63,11 @@ class DisplayItem(PlaylistItem):
             flaps.update({location: value})
         return flaps    
 
-    def _top_level_update(self) -> None:
+    def _invoke_update(self) -> None:
         self._is_updating = True
         request = self.update(self._display_info)
         if request is not None:
             flaps = self._request_to_flaps(request)
-            print(f"REQUEST {request} - FLAPS: {flaps}")
             self._display_function(flaps)
         else:
             self.logger.debug(f"Update invoked, but not change in output - skipping")

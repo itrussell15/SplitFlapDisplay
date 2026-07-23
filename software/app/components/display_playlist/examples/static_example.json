@@ -6,35 +6,35 @@
                 "row": 1,
                 "column": 1
             },
-            "flap": "A"
+            "flap": "H"
         },
         {
             "location": {
                 "row": 1,
                 "column": 2
             },
-            "flap": "B"
+            "flap": "E"
         },
         {
             "location": {
                 "row": 1,
                 "column": 3
             },
-            "flap": "C"
+            "flap": "L"
         },
         {
             "location": {
                 "row": 1,
                 "column": 4
             },
-            "flap": "D"
+            "flap": "L"
         },
         {
             "location": {
                 "row": 1,
                 "column": 5
             },
-            "flap": "E"
+            "flap": "O"
         }
     ]
 }

@@ -1,49 +1,39 @@
 {
     "frequency": {
         "minutes": 0,
-        "seconds": 15
+        "seconds": 30
     },
     "items": [
         {
-            "name": "Letters",
-            "item_type": "static",
-            "modules": [
-                {
-                    "location": {
-                        "row": 1,
-                        "column": 1
-                    },
-                    "flap": "A"
-                },
-                {
-                    "location": {
-                        "row": 1,
-                        "column": 2
-                    },
-                    "flap": "B"
-                },
-                {
-                    "location": {
-                        "row": 1,
-                        "column": 3
-                    },
-                    "flap": "C"
-                },
-                {
-                    "location": {
-                        "row": 1,
-                        "column": 4
-                    },
-                    "flap": "D"
-                },
-                {
-                    "location": {
-                        "row": 1,
-                        "column": 5
-                    },
-                    "flap": "E"
-                }
-            ]
+            "name": "Temperature",
+            "item_type": "App",
+            "app_name": "TemperatureApp" ,
+            "args": {
+                "api_key": "cd706d96b55aa0d9da8997347ac3469a",
+                "lat": "47.6049",
+                "lon": "122.3349" ,
+                "start_location": [1, 5]
+            }
+        },
+        {
+            "name": "Clock",
+            "item_type": "App",
+            "app_name": "ClockApp" ,
+            "args": {
+                "start_location": [1, 4]
+            }
+        },
+        {
+            "name": "Temperature",
+            "item_type": "App",
+            "app_name": "TemperatureApp" ,
+            "args": {
+                "api_key": "cd706d96b55aa0d9da8997347ac3469a",
+                "lat": "47.6049",
+                "lon": "122.3349" ,
+                "metric_units": true,
+                "start_location": [1, 5]
+            }
         },
         {
             "name": "Hello",
@@ -83,13 +73,50 @@
                         "column": 5
                     },
                     "flap": "O"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 6
+                    },
+                    "flap": "BLANK"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 7
+                    },
+                    "flap": "W"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 8
+                    },
+                    "flap": "O"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 9
+                    },
+                    "flap": "R"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 10
+                    },
+                    "flap": "L"
+                },
+                {
+                    "location": {
+                        "row": 1,
+                        "column": 11
+                    },
+                    "flap": "D"
                 }
             ]
-        },
-        {
-            "name": "Clock",
-            "item_type": "App",
-            "app_name": "ClockApp" 
         }
     ]
 }

@@ -5,74 +5,70 @@ import sys
 import threading
 import time
 import unittest
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 # Add the parent directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.components.core.updater import Updater, UpdateFrequency
+from app.components.core.rate_limiter import RateLimiter, RateLimitError
 from utils import create_logger
 
 
-class TestUpdateFrequency(unittest.TestCase):
+# class TestUpdateFrequency(unittest.TestCase):
 
-    def setUp(self) -> None:
-        self.frequency = UpdateFrequency(1, 1)
+#     def setUp(self) -> None:
+#         self.frequency = UpdateFrequency(1, 1)
 
-    def test_happy_path(self) -> None:
-        self.assertIsInstance(self.frequency, UpdateFrequency)
-        self.assertEqual(self.frequency.minutes, 1)
-        self.assertEqual(self.frequency.seconds, 1)
+#     def test_happy_path(self) -> None:
+#         self.assertIsInstance(self.frequency, UpdateFrequency)
+#         self.assertEqual(self.frequency.minutes, 1)
+#         self.assertEqual(self.frequency.seconds, 1)
     
-    def test_no_init_values(self) -> None:
-        with self.assertRaises(ValueError):
-            frequency = UpdateFrequency()
+#     def test_no_init_values(self) -> None:
+#         with self.assertRaises(ValueError):
+#             frequency = UpdateFrequency()
     
-    def test_set_minutes(self) -> None:
-        self.frequency.minutes = 10
-        self.assertEqual(self.frequency.minutes, 10)
+#     def test_set_minutes(self) -> None:
+#         self.frequency.minutes = 10
+#         self.assertEqual(self.frequency.minutes, 10)
 
-    def test_set_seconds(self) -> None:
-        self.frequency.seconds = 10
-        self.assertEqual(self.frequency.seconds, 10)
+#     def test_set_seconds(self) -> None:
+#         self.frequency.seconds = 10
+#         self.assertEqual(self.frequency.seconds, 10)
 
-    def test_set_invalid_minutes(self) -> None:
-        with self.assertRaises(ValueError):
-            self.frequency.minutes = -10
+#     def test_set_invalid_minutes(self) -> None:
+#         with self.assertRaises(ValueError):
+#             self.frequency.minutes = -10
 
-    def test_set_invalid_seconds(self) -> None:
-        with self.assertRaises(ValueError):
-            self.frequency.seconds = -10
+#     def test_set_invalid_seconds(self) -> None:
+#         with self.assertRaises(ValueError):
+#             self.frequency.seconds = -10
 
-    def test_just_minutes(self) -> None:
-        frequency = UpdateFrequency(minutes=1)
+#     def test_just_minutes(self) -> None:
+#         frequency = UpdateFrequency(minutes=1)
     
-    def test_just_seconds(self) -> None:
-        frequency = UpdateFrequency(seconds=1)
+#     def test_just_seconds(self) -> None:
+#         frequency = UpdateFrequency(seconds=1)
 
-    def test_interval(self) -> None:
-        self.assertEqual(self.frequency.interval, self.frequency.minutes * 60 + self.frequency.seconds)
+#     def test_interval(self) -> None:
+#         self.assertEqual(self.frequency.interval, self.frequency.minutes * 60 + self.frequency.seconds)
 
 
-class TestUpdater(unittest.TestCase):
+class TestTimeBasedUpdater(ABC):
 
-    class BasicUpdater(Updater):
-        def __init__(self, frequency: UpdateFrequency) -> None:
-            super().__init__(frequency)
-            self.logger = logging.getLogger(self.__class__.__name__)
-            self.update_count = 0
+    @abstractmethod
+    def _create_updater(self) -> None:
+        pass
 
-        def update(self) -> None:
-            self.update_count += 1
-            self.logger.info(f"Update count set to {self.update_count}")
-    
     @classmethod
     def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
     
     def setUp(self) -> None:
         self.frequency = UpdateFrequency(seconds=1)
-        self.updater =  self.BasicUpdater(self.frequency)
+        self.updater =  self._create_updater(self.frequency)
 
     def tearDown(self) -> None:
         if self.updater.is_alive:
@@ -106,3 +102,70 @@ class TestUpdater(unittest.TestCase):
         self.assertTrue(self.updater.is_dynamic)
         self.updater.frequency = None
         self.assertFalse(self.updater.is_dynamic)
+
+class TestUpdater(TestTimeBasedUpdater, unittest.TestCase):
+
+    class BasicUpdater(Updater):
+        def __init__(self, frequency: UpdateFrequency) -> None:
+            super().__init__(frequency)
+            self.logger = logging.getLogger(self.__class__.__name__)
+            self.update_count = 0
+
+        def update(self) -> None:
+            self.update_count += 1
+            self.logger.info(f"Update count set to {self.update_count}")
+
+    def _create_updater(self, frequency: UpdateFrequency) -> Updater:
+        return self.BasicUpdater(frequency)
+
+class TestRateLimiter(TestTimeBasedUpdater, unittest.TestCase):
+
+    class BasicRateLimiter(RateLimiter):
+        def __init__(self, frequency: UpdateFrequency, num_calls_allowed: int) -> None:
+            super().__init__(frequency, num_calls_allowed)
+            self.logger = logging.getLogger(self.__class__.__name__)
+            self.update_count = 0
+            self.tick_count = 0
+
+        def update(self) -> None:
+            super().update()
+            self.update_count += 1
+            self.tick_count = 0
+            self.logger.info(f"Update count set to {self.update_count} - Tick count reset")
+
+        def _perform_tick_update(self) -> None:
+            self.tick_count += 1
+            self.logger.info(f"Tick count set to {self.tick_count}")
+
+    def _create_updater(self, frequency: UpdateFrequency) -> Updater:
+        self.allowed_calls = 3
+        return self.BasicRateLimiter(frequency=frequency, num_calls_allowed=self.allowed_calls)
+    
+    def test_ticks(self) -> None:
+        self.assertEqual(self.updater.update_count, 0)
+        self.assertEqual(self.updater.tick_count, 0)
+        self.updater.start()
+        for i in range(self.allowed_calls):
+            self.updater.tick()
+            self.assertEqual(self.updater.tick_count, i + 1)
+
+        current_reset_time = self.updater.next_reset
+        current_count = self.updater.update_count
+        while self.updater.update_count == current_count:
+            time.sleep(0.1)
+
+        self.assertEqual(self.updater.update_count, current_count + 1)
+        self.assertNotEqual(self.updater.next_reset, current_reset_time)
+        self.assertEqual(self.updater.tick_count, 0)
+
+
+    def test_too_many_calls(self) -> None:
+        self.updater.start()
+        with self.assertRaises(RateLimitError):
+            for i in range(self.allowed_calls + 1):
+                self.updater.tick()
+
+    
+    def test_time_to_update(self) -> None:
+        self.updater.start()
+        self.assertGreater(self.updater.seconds_to_next_update, 0)

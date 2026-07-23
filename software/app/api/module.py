@@ -115,12 +115,12 @@ def set_calibration_mode(request: CalibrationModeRequest, display=Depends(get_di
 
 @router.post("/home_offset", response_model=ModuleResponse)
 def set_home_offset(request: HomeOffsetRequest, display=Depends(get_display)):
-    try:
-        response = display.get_module(*request.location.as_tuple()).set_home_offset(
-            request.value
-        )
-    except Exception as e:
-        raise exception_response(e)
+    # try:
+    response = display.get_module(*request.location.as_tuple()).set_home_offset(
+        request.value
+    )
+    # except Exception as e:
+    #     raise exception_response(e)
     return package_incoming_message_as_module_response(response)
 
 

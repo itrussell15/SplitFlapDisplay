@@ -9,7 +9,7 @@ from app.components.display_playlist.display_item import DisplayItem, DisplayIte
 
 class ClockApp(DisplayItem):
 
-    def __init__(self, start_location: Tuple[int, int] = (1, 1)) -> None:
+    def __init__(self, start_location: List[int, int] = [1, 1]) -> None:
         frequency = UpdateFrequency(seconds = 10)
         super().__init__(
             name="ClockApp",

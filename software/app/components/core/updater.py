@@ -46,7 +46,7 @@ class UpdateFrequency:
         return (self.minutes * 60)  + self.seconds
 
 
-class Updater(ABC):
+class TimeBasedUpdater(ABC):
 
     def __init__(self, update_frequency: Optional[UpdateFrequency] = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -62,21 +62,20 @@ class Updater(ABC):
             raise RuntimeError("Can not start another updater with one running. Please stop it and try again")
 
         if not self.is_dynamic:
-            self._top_level_update()
+            self._invoke_update()
             return 
 
         self.logger.debug("Updater started")
         # First update on startup
         if update_on_start:
-            self._top_level_update()
+            self._invoke_update()
 
         # Kick off remaining updates on a schedule
         self._schedule_timer()
 
-    def _top_level_update(self) -> None:
-        self._is_updating = True
-        self.update()
-        self._is_updating = False
+    @abstractmethod
+    def _invoke_update(self) -> None:
+        pass
 
     def _schedule_timer(self) -> None:
         # Don't update if we don't have a dynamic updater
@@ -91,7 +90,7 @@ class Updater(ABC):
         self._top_level_update()
         if self._timer is not None:
             self._schedule_timer()
-
+        
     def stop(self) -> None:
         if self._timer is None:
             self.logger.warning("No updater started - unable to stop one")
@@ -116,6 +115,23 @@ class Updater(ABC):
     def is_alive(self) -> None:
         return self._timer is not None
 
-    @property
-    def is_updating(self) -> bool:
-        return self._is_updating
+
+class Updater(TimeBasedUpdater):
+
+    @abstractmethod
+    def update(self) -> None:
+        """
+        This is the callback that gets called at the end of the timer
+        """
+        pass
+
+    def _invoke_update(self) -> None:
+        self._is_updating = True
+        self.update()
+        self._is_updating = False
+
+    def _worker_invoked_update(self) -> None:
+        # If we are here, then the timer has completed and we want to start another one.
+        self._invoke_update()
+        if self._timer is not None:
+            self._schedule_timer()
