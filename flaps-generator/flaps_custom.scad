@@ -20,10 +20,10 @@ blackmargin = 3;
 // ============================================================================
 
 // Grid dimensions - ADJUST THESE TO FIT YOUR PRINTER
-grid_rows = 4;           // Number of rows (e.g., 4, 5, 6, 8)
-grid_cols = 6;           // Number of columns (e.g., 4, 5, 6, 8)
+grid_rows = 1;           // Number of rows (e.g., 4, 5, 6, 8)
+grid_cols = 1;           // Number of columns (e.g., 4, 5, 6, 8)
 
-start_char = 0;
+start_char = 2;
 
 // Character step - use 1 for all characters, 2 for every other character
 // Set to 2 to print half the flaps (e.g., chars 0, 2, 4...), then print again
@@ -46,7 +46,7 @@ y_spacing = 43;          // Vertical spacing (43mm is safe, 40mm is tight)
 // PreviewFlaps();
 
 // Generate flaps for export
-MakeFlaps(0);
+MakeFlaps(1);
 
 
 
