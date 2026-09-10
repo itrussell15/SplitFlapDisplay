@@ -17,8 +17,8 @@ import utils
 logger = logging.getLogger(__name__)
 VARS = utils.get_env_vars()
 
-ROWS = [1, int(VARS["DISP_MAX_ROWS"])]
-COLUMNS = [1, int(VARS["DISP_MAX_COLUMNS"])]
+ROWS = [1, int(VARS["DISP_MAX_ROWS"]) + 1]
+COLUMNS = [1, int(VARS["DISP_MAX_COLUMNS"]) + 1]
 DEFAULT_RATE = {"minutes": 1, "seconds": 0}
 
 @asynccontextmanager
@@ -26,8 +26,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # app startup
     logger.info("Initializing App")
     app.state.display = DisplayController()
-    app.state.rate_limiter = RateLimiter(**DEFAULT_RATE)
-    app.state.rate_limiter.set_rate(10, 0)
+    # app.state.rate_limiter = RateLimiter(**DEFAULT_RATE)
+    # app.state.rate_limiter.set_rate(10, 0)
     ports = get_ports()
     if ports is None:
         raise ConnectionError(f"No port to connect to. Please set a port to connect to with 'export DISP_USB_PORT=<port>'")
