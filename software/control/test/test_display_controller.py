@@ -16,9 +16,14 @@ from source.flaps import Flap
 from source.display_controller import DisplayController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
 from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
-from utils import create_logger
+from utils import create_logger, get_env_vars
 
 SLEEP_TIME_S = 1.0
+
+env_vars = get_env_vars()
+NUM_ROWS = env_vars["DISP_MAX_ROWS"]
+NUM_COLS = env_vars["DISP_MAX_COLUMNS"]
+
 
 class TestDisplayController(unittest.TestCase):
 
@@ -28,7 +33,7 @@ class TestDisplayController(unittest.TestCase):
 
         port = os.getenv("DISP_USB_PORT")
         cls.bus = BusController(port=port, timeout=0.75)
-        cls.bus.discover([1, 2], [1, 10], 0.1)
+        cls.bus.discover([1, NUM_ROWS + 1], [1, NUM_COLS + 1], 0.1)
         cls.display = DisplayController()
         cls.display.add_bus_controller(cls.bus)
 
@@ -47,7 +52,7 @@ class TestDisplayController(unittest.TestCase):
         self.timeout = 0.5
 
     def test_discover(self) -> None:
-        self.display.discover(5,5)
+        self.display.discover(NUM_ROWS + 1, NUM_COLS + 1)
         self.assertEqual(self.display.num_buses, 1)
         self.assertEqual(self.display.num_modules, 1)
         self.assertEqual(self.display.processed_commands, 1)

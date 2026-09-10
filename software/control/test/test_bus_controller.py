@@ -21,7 +21,7 @@ from source.module_controller import (
     NUM_POSITIONS,
 )
 from test.mock_components.mock_module_firmware import MockFirmware
-from utils import create_logger
+from utils import create_logger, get_env_vars
 
 MODULE_IDS = [1, 2, 3, 4, 5]
 SLEEP_TIME_S = 1.0
@@ -33,6 +33,7 @@ class TestBusController(unittest.TestCase):
     def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
 
+        env_vars = get_env_vars()
         cls.ROW = 1
         cls.COLUMN = 6
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
