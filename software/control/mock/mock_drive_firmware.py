@@ -86,37 +86,73 @@ class MockFirmware(SerialProcessor):
         self._modules = {}
         for module_id in module_ids:
             module = MockModule(*module_id)
-            module.register_command_queue(self.queue)
+            module.register_command_queue(self.queue, port)
             self._modules[module_id] = module
 
-    def listen(self):
-        if not self.connection or not self.connection.is_open:
-            raise RuntimeError(f"Connection not opened")
-        try:
-            while True:
-                # Check if there is data waiting in the serial buffer
-                if self.is_data_waiting:
-                    # Read the incoming data
-                    data = self.read(self.data_waiting_size)
-                    message = OutgoingMessage.decode(data)
+    def worker(self):
+        """Process incoming serial commands and return module responses.
+
+        Unlike the old loop, this writes the generated response directly to the
+        serial connection and keeps running after a decode / processing error.
+        """
+        self.logger.debug("Mock firmware worker started")
+        packet_size = struct.calcsize(OutgoingMessage._struct_string)
+
+        while not self._stop_event.is_set():
+            try:
+                if not self.connection or not self.connection.is_open:
+                    time.sleep(0.01)
+                    continue
+
+                if not self.is_data_waiting:
+                    time.sleep(0.01)
+                    continue
+
+                raw = self.connection.read(self.connection.in_waiting)
+                if not raw:
+                    continue
+
+                for offset in range(0, len(raw), packet_size):
+                    chunk = raw[offset : offset + packet_size]
+                    if len(chunk) < packet_size:
+                        self.logger.warning(
+                            "Discarding partial packet from mock firmware: %s", chunk
+                        )
+                        continue
+
+                    try:
+                        message = OutgoingMessage.decode(chunk)
+                    except Exception as exc:
+                        self.logger.warning(
+                            "Unable to decode mock-firmware command %r: %s",
+                            chunk,
+                            exc,
+                        )
+                        continue
+
                     self.logger.info(f"Incoming message: {message}")
                     response = self._query_modules(message)
                     self.logger.info(f"Response: {response}")
-                    if response:
-                        self.queue.put(response.encode())
-                    
-                    # Optional: Send it back out to the device
-                    # ser.write(data) 
-                    
-                time.sleep(0.01) # Small sleep to prevent CPU spiking
-                
-        except serial.SerialException as e:
-            print(f"Error: {e}")
-        except KeyboardInterrupt:
-            print("Stopping echo loop...")
-        finally:
-            # if 'ser' in locals() and ser.is_open:
-            self.close()
+                    if response is not None:
+                        self.send(response.encode())
+
+                if self.connection and self.connection.is_open:
+                    self.connection.reset_input_buffer()
+
+            except serial.SerialException as exc:
+                self.logger.exception("Mock serial failure: %s", exc)
+                if self.connection and self.connection.is_open:
+                    self.connection.reset_input_buffer()
+            except Exception as exc:
+                self.logger.exception("Unexpected mock worker failure: %s", exc)
+                if self.connection and self.connection.is_open:
+                    self.connection.reset_input_buffer()
+
+            time.sleep(0.01)
+
+    def listen(self):
+        """Backward-compatible entry point for the mock firmware."""
+        self.worker()
 
     def advance_queue(self, sequence_id: int) -> None:
         if self.connection and self.connection.is_open:
@@ -124,11 +160,6 @@ class MockFirmware(SerialProcessor):
         item = self.queue.get()
         try:
             self._send_serial_command(item)
-            # self.process_message(sequence_id, item, future)
-            # if future.exception() is not None:
-            #     raise future.exception()
-            # # Handle the message like the firmware would here
-            # self._query_modules(future.result())
         finally:
             self.queue.task_done()
 
@@ -241,12 +272,8 @@ if __name__ == "__main__":
     
     Firmware = MockFirmware("/tmp/vcom_firmware", all_modules)
     Firmware.start_processor()
-    Firmware.listen()
-    # while Firmware.is_alive:
-    #     try:
-    #         time.sleep(0.1)
-    #     except KeyboardInterrupt:
-    #         Firmware.close()
-    #     except Exception:
-    #         raise e
-    # Firmware.close()
+    try:
+        while True:
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        Firmware.close()

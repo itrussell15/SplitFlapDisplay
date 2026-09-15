@@ -159,6 +159,10 @@ I am storing ideas of things that I would like to do at some point here for refe
 - [ ] Create "mock" hardware that will allow people to develop on the system without needing access to hardware
 
 
+## App Integration Ideas
+- Sound Transit 
+- Sports Scores
+- Stock Tickers 
 
 ## License
 

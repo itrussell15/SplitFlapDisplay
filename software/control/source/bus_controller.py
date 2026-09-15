@@ -170,7 +170,7 @@ class BusController(SerialProcessor):
             self.logger.warning(
                 f"Sequence ID for incoming - {response.sequence_id} doesn't match outgoing - {sequence_id}"
             )
-            self.error_queue(outgoing)
+            self.error_queue.put(outgoing)
 
         # Throw error if a non-ping command is trying to be processed on this bus
         if (
