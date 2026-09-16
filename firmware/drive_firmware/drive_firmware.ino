@@ -266,7 +266,7 @@ OutgoingMessage handleIncomingMessage(OutgoingMessage message, int16_t data_valu
       message.data_value = 2;
       message.status = true;
       break;
-    case Command::CMD_GET_POSITION:
+    case Command::CMD_TION:
       // Returns the steps for a given position
       if (!isValidPosition(data_value))
       {

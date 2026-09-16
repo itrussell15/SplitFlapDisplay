@@ -9,7 +9,7 @@ import app.api.common as common
 import app.api.models.requests as reqs
 from app.api.models.common import Location
 from app.api.rate import RateLimited
-from app.api.dependencies import get_display, get_rate_limiter
+from app.api.dependencies import get_display
 import app.api.models.responses as resps
 from control.source.dataclasses_ import IncomingMessage
 from control.source.flaps import Flap
@@ -19,6 +19,7 @@ from utils import get_current_timestamp, TIMESTAMP_FORMAT
 
 from .common import exception_response, package_incoming_message_as_module_response
 
+router = APIRouter(prefix="/display", tags=["Display Control"])
 router = APIRouter(prefix="/display", tags=["Display Control"])
 logger = logging.getLogger("DisplayAPI")
 
@@ -145,10 +146,7 @@ def discover(request: reqs.DiscoverRequest, display=Depends(get_display)):
     return output
 
 @router.post("/positions/{position}", response_model=resps.DisplayResponse)
-def move_all_to_position(position: int, rate_limiter=Depends(get_rate_limiter), display=Depends(get_display)) -> Dict[str, str]:
-    # if rate_limiter.is_active:
-    #     raise RateLimited(target_time=rate_limiter.target_time)
-    
+def move_all_to_position(position: int, display=Depends(get_display)) -> Dict[str, str]:
     try:
         response = display.move_all_to_position(position)
     except Exception as e:
@@ -157,7 +155,7 @@ def move_all_to_position(position: int, rate_limiter=Depends(get_rate_limiter), 
 
 @router.post("/positions", response_model=resps.DisplayResponse)
 def move_to_positions(
-    positions: reqs.DisplayPositionRequest, display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)
+    positions: reqs.DisplayPositionRequest, display=Depends(get_display)
 ):
     # if rate_limiter.is_active:
     #     raise RateLimited(target_time=rate_limiter.target_time)
@@ -181,7 +179,7 @@ def move_to_positions(
     return package_display_response(response)
 
 @router.post("/flap", response_model=resps.DisplayResponse)
-def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)):
+def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
     # if rate_limiter.is_active:
     #     raise RateLimited(target_time=rate_limiter.target_time)
 
@@ -206,7 +204,7 @@ def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display), 
     return package_display_response(response)
 
 @router.post("/home", response_model=resps.DisplayResponse)
-def home_all(display=Depends(get_display), rate_limiter=Depends(get_rate_limiter)):
+def home_all(display=Depends(get_display)):
     # if rate_limiter.is_active:
     #     raise RateLimited(target_time=rate_limiter.target_time)
         

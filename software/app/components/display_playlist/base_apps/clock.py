@@ -1,6 +1,7 @@
 import sys
 import datetime
 from pathlib import Path
+from typing import List
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
@@ -9,7 +10,9 @@ from app.components.display_playlist.display_item import DisplayItem, DisplayIte
 
 class ClockApp(DisplayItem):
 
-    def __init__(self, start_location: List[int, int] = [1, 1]) -> None:
+    description = "Basic clock app that shows the current time"
+
+    def __init__(self, start_location: List[int] = [1, 1]) -> None:
         frequency = UpdateFrequency(seconds = 10)
         super().__init__(
             name="ClockApp",
@@ -19,6 +22,7 @@ class ClockApp(DisplayItem):
         self.logger.info(f"Started with start location {start_location}")
         self._previous_time = None
         self._start_location = start_location
+
 
     def update(self, display_info: DisplayInfo) -> Dict[Tuple[int, int], str]:
         now = datetime.datetime.now()

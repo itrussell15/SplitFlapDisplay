@@ -5,3 +5,6 @@ def get_display(request: Request):
 
 def get_rate_limiter(request: Request):
     return request.app.state.rate_limiter
+
+def get_app_loader(request: Request):
+    return request.app.state.app_loader

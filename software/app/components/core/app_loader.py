@@ -4,12 +4,15 @@ from copy import deepcopy
 import logging
 from dataclasses import dataclass
 import importlib.util
+import inspect
 
 from typing import Any
 
 @dataclass
 class AppInfo:
     name: str
+    description: str
+    parameters: Dict[str, str]
     file_path: str
     source_folder: str
     obj: object
@@ -30,10 +33,11 @@ class AppLoader:
     def __init__(self, desired_class: object, sources: List[str] = None, app_infos: List[AppInfo] = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self._desired_class = desired_class
-        self.sources = []
+        self.sources = set()
         self._apps = {}
 
         if sources is not None:
+            print(sources)
             assert isinstance(sources, list), f"Input sources must be a list of paths not {type(sources)}"
             for source in sources:
                 self.add_source(source)
@@ -41,6 +45,9 @@ class AppLoader:
         if app_infos is not None:
             for app_info in app_infos:
                 self.add_app_info(app_info)
+
+    def __len__(self) -> int:
+        return len(self._apps)
 
     def __add__(self, other_loader: AppLoader) -> AppLoader:
         other_apps = other_loader.get_all_apps()
@@ -73,7 +80,7 @@ class AppLoader:
         if app_info.name in self._apps:
             raise DuplicateAppName(f"{app_info.name} already exists in this AppLoader instance")
         self._apps[app_info.name] = app_info
-        self.sources.append(app_info.source_folder)
+        self.sources.add(app_info.source_folder)
     
     def add_source(self, folder_path: str) -> None:
         if not os.path.exists(folder_path):
@@ -85,13 +92,16 @@ class AppLoader:
             for this_class in tmp:
                 if this_class in self._apps:
                     raise DuplicateAppName(f"Duplicate instances of {this_class} found")
+                
                 app_info = AppInfo(
                     name=this_class,
+                    description=tmp[this_class].description,
+                    parameters=self._get_app_parameters(tmp[this_class]),
                     obj = tmp[this_class],
                     file_path=file,
                     source_folder=folder_path
                 )
-                self.sources.append(folder_path)
+                self.sources.add(folder_path)
                 count += 1
                 self._apps[app_info.name] = app_info
         self.logger.info(f"Added {count} apps from {folder_path}")
@@ -145,6 +155,20 @@ class AppLoader:
                 class_objects[attr_name] = attr_obj
         return class_objects
 
+    def _get_app_parameters(self, app_class: object) -> Dict[str, str]:
+        
+        sig = inspect.signature(app_class)
+        params = {}
+        if len(sig.parameters.items()) == 0:
+            return None
+
+        for name, param in sig.parameters.items():
+            default = param.default if param.default != inspect.Parameter.empty else None
+            type_ = str(param.annotation) if param.annotation != inspect.Parameter.empty else None
+            params[name] = {"default": default, "type": type_}
+        return params
+
+
 if __name__ == "__main__":
 
     import sys
@@ -155,5 +179,6 @@ if __name__ == "__main__":
     create_logger()
 
     apps = AppLoader(DisplayItem, sources=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/base_apps"])
-    other_apps = AppLoader(DisplayItem, sources=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/other_apps"])
-    all_apps = apps + other_apps
+    print(apps)
+    # other_apps = AppLoader(DisplayItem, sources=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/other_apps"])
+    # all_apps = apps + other_apps

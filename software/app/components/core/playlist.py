@@ -12,7 +12,6 @@ class PlaylistItem(Updater):
     # Should be able to do static and app based updates
     def __init__(self, name: str, frequency: Optional[UpdateFrequency] = None) -> None:
         super().__init__(frequency)
-        self._name = name
 
     def __repr__(self) -> str:
         return f"PlaylistItem({self.name})"

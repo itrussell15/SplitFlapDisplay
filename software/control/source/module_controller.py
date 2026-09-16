@@ -144,9 +144,11 @@ class ModuleController:
         return queue
 
     def get_module_info(self) -> ModuleInfo:
+        self.logger.info(f"Requesting module information for {self._location}")
         auto_home = self.get_eeprom_value(EepromLocations.AUTO_HOME_LOCATION)
         home_offset = self.get_home_offset()
         max_steps = self.get_max_steps()
+        
         major_firmware = self.get_eeprom_value(EepromLocations.MAJOR_FIRMWARE_LOCATION)
         minor_firmware = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
         
@@ -191,6 +193,7 @@ class ModuleController:
         return result
 
     def get_max_steps(self) -> int:
+        print(f"Max Step Location: {EepromLocations.MAX_STEP_LOCATION}")
         return self._get_uint16_from_eeprom(EepromLocations.MAX_STEP_LOCATION.value)
 
     def move_to_position(self, position: int) -> IncomingMessage:
@@ -242,6 +245,10 @@ class ModuleController:
 
     def set_home_offset(self, value: int) -> IncomingMessage:
         output = self._send_packet(ModuleCommand.SET_HOME_OFFSET, value=value)
+        return output
+
+    def get_auto_home(self) -> IncomingMessage:
+        output = self._send_packet(ModuleCommand.GET_AUTO_HOME)
         return output
 
     def set_auto_home(self, on: bool) -> IncomingMessage:

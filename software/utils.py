@@ -23,7 +23,7 @@ def get_current_timestamp() -> str:
 
 def get_env_vars() -> Dict[str, str]:
     output: Dict[str, str] = {}
-    VARS = ["DISP_MAX_ROWS", "DISP_MAX_COLUMNS", "DISP_USB_PORT"]
+    VARS = ["DISP_MAX_ROWS", "DISP_MAX_COLUMNS", "DISP_USB_PORT", "DISP_APP_PATHS"]
     for var in VARS:
         value = os.getenv(var)
         if value is None:

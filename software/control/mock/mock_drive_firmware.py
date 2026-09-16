@@ -42,20 +42,23 @@ class MockModule(ModuleController):
     def __init__(self, row: int, column: int) -> None:
         self.logger = logging.getLogger(f"MockModule({row}, {column})")
         self._step = 0
+        self.calibration_mode = False
+        self.max_steps = MOTOR_RESOLUTION
 
         # Generate position values
         self.positions = {i: i * (MOTOR_RESOLUTION // NUM_POSITIONS) for i in range(NUM_POSITIONS)}
         self.home_offset = HOME_OFFSET_VALUE
 
         self.eeprom = {
-            EepromLocations.MODULE_ROW_LOCATION: row,
-            EepromLocations.MODULE_COLUMN_LOCATION: column,
-            EepromLocations.MAJOR_FIRMWARE_LOCATION: FIRWARE_VERSION_MAJOR,
-            EepromLocations.MINOR_FIRMWARE_LOCATION: FIRWARE_VERSION_MINOR,
-            EepromLocations.AUTO_HOME_LOCATION: AUTO_HOME,
-            EepromLocations.HOME_OFFSET_VALUE_LOCATION: HOME_OFFSET_VALUE,
-            EepromLocations.MAX_STEP_LOCATION: MOTOR_RESOLUTION,
-            EepromLocations.POSITION_VALUES_START_LOCATION: self.positions
+            EepromLocations.MODULE_ROW_LOCATION.value: row,
+            EepromLocations.MODULE_COLUMN_LOCATION.value: column,
+            EepromLocations.MAJOR_FIRMWARE_LOCATION.value: FIRWARE_VERSION_MAJOR,
+            EepromLocations.MINOR_FIRMWARE_LOCATION.value: FIRWARE_VERSION_MINOR,
+            EepromLocations.AUTO_HOME_LOCATION.value: AUTO_HOME,
+            EepromLocations.HOME_OFFSET_VALUE_LOCATION.value: HOME_OFFSET_VALUE,
+            EepromLocations.MAX_STEP_LOCATION.value: MOTOR_RESOLUTION // 256,
+            EepromLocations.MAX_STEP_LOCATION.value + 1: MOTOR_RESOLUTION % 256,
+            EepromLocations.POSITION_VALUES_START_LOCATION.value: 100
         }
 
     @property
@@ -227,6 +230,7 @@ class MockFirmware(SerialProcessor):
             return
 
         target_module = self._modules[(message.row, message.column)]
+        # TODO Make this async so that it closer resembles the actual modules
         match message.command:
             case ModuleCommand.PING:
                 response.data_value = 0
@@ -244,6 +248,8 @@ class MockFirmware(SerialProcessor):
                 step = target_module.positions[message.data_value]
                 target_module.steps = step
                 response.data_value = step
+            case ModuleCommand.GET_POSITION:
+                response.data_value = target_module.positions[int(message.data_value)]
             case ModuleCommand.MOVE_STEPS:
                 target_module.steps = (target_module.steps + message.data_value) % MOTOR_RESOLUTION
                 response.data_value = target_module.steps
@@ -255,6 +261,19 @@ class MockFirmware(SerialProcessor):
                 response.data_value = MOTOR_RESOLUTION
             case ModuleCommand.SET_HOME_OFFSET:
                 target_module.home_offset = message.data_value
+            case ModuleCommand.GET_HOME_OFFSET:
+                message.data_value = target_module.home_offset
+            case ModuleCommand.SET_AUTO_HOME:
+                target_module.auto_home = message.data_value
+            case ModuleCommand.SET_MAX_STEPS:
+                eeprom_location = EepromLocations.MAX_STEP_LOCATION
+                response.data_value = target_module.eeprom[eeprom_location]
+            case ModuleCommand.GET_EEPROM_VALUE:
+                response.data_value = target_module.eeprom[message.data_value]
+            case ModuleCommand.SET_CALIBRATION_MODE:
+                mode = bool(message.data_value)
+                target_module.calibration_mode = mode
+                message.data_value = mode
             case _:
                 return None
 
@@ -263,7 +282,6 @@ class MockFirmware(SerialProcessor):
 if __name__ == "__main__":
 
     create_logger()
-    current_modules = [(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6)]
 
     all_modules = []
     for row in range(1, 4):

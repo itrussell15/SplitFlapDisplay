@@ -5,6 +5,7 @@ import datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
@@ -42,10 +43,12 @@ REQUEST_URL = "https://api.openweathermap.org/data/4.0/onecall/current?lat={lat}
 
 class TemperatureApp(DisplayItem):
 
+    description = "Weather App that pulls data from Open Weather Map"
+
     # TODO Add rate limiter?
     # TODO Add env variable for API key?
 
-    def __init__(self, api_key: str, lat: str, lon: str, metric_units: bool = False, start_location: List[int, int] = [1, 1]) -> None:
+    def __init__(self, api_key: str, lat: str, lon: str, metric_units: bool = False, start_location: List[int] = [1, 1]) -> None:
         frequency = UpdateFrequency(seconds = 60)
         super().__init__(
             name="TempApp",

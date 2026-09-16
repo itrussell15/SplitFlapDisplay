@@ -33,13 +33,13 @@ class TestBusController(unittest.TestCase):
     def setUpClass(cls):
         create_logger(level=logging.DEBUG, spacing=23)
 
-        env_vars = get_env_vars()
+        cls._env_vars = get_env_vars()
         cls.ROW = 1
         cls.COLUMN = 6
         cls.module = ModuleController(row=cls.ROW, column=cls.COLUMN)
         cls.test_location = (cls.ROW, cls.COLUMN)
         cls.modules = {cls.test_location: cls.module}
-        port = os.getenv("DISP_USB_PORT")
+        port = cls._env_vars["DISP_USB_PORT"]
         cls.bus = BusController(port=port, modules=cls.modules, timeout=0.75)
         cls.latencies = []
 
@@ -76,25 +76,11 @@ class TestBusController(unittest.TestCase):
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
 
-    def test_get_speed(self) -> None:
-        message = self.modules[self.test_location].get_speed()
-        self.assertEqual(message.command, ModuleCommand.GET_SPEED)
-        self.assertTrue(message.status)
-        self.latencies.append(message.latency_ms)
-
     def test_home(self) -> None:
         message = self.modules[self.test_location].home()
         self.assertEqual(message.command, ModuleCommand.HOME)
         self.assertTrue(message.status)
         self.latencies.append(message.latency_ms)
-
-    def test_move_steps(self) -> None:
-        message = self.modules[self.test_location].move_to_step(1200)
-        self.assertEqual(message.command, ModuleCommand.MOVE_TO_STEP)
-        self.assertTrue(message.status)
-        self.latencies.append(message.latency_ms)
-        time.sleep(1)
-        message = self.modules[self.test_location].get_steps()
 
     def test_move_steps(self) -> None:
         start_steps = self.modules[self.test_location].get_steps().data_value
@@ -152,9 +138,14 @@ class TestBusController(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.bus.discover([0, 4], [0, 500])
 
-        # Actually search for 1 module
-        self.bus.discover([1, 2], [1, 15], 0.1)
-        self.assertEqual(len(self.bus.modules), 1)
+        # Actually search for the expected number of modules
+        rows = int(self._env_vars["DISP_MAX_ROWS"])
+        columns = int(self._env_vars["DISP_MAX_COLUMNS"])
+        total_expected = rows * columns
+        self.bus.discover(
+            [1, rows + 1], [1, columns + 1], 0.1
+        )
+        self.assertEqual(len(self.bus.modules), total_expected)
 
     def test_broadcast(self) -> None:
         self.bus.broadcast(ModuleCommand.MOVE_TO_STEP, 1000)
@@ -168,6 +159,7 @@ class TestBusController(unittest.TestCase):
 
     def test_is_moving(self) -> None:
         message = self.modules[self.test_location].is_moving()
+        print(f"Message: {message}")
         self.assertEqual(message.command, ModuleCommand.IS_MOVING)
         self.assertTrue(message.status)
         self.assertFalse(bool(message.data_value))
@@ -188,9 +180,6 @@ class TestBusController(unittest.TestCase):
         message = self.modules[self.test_location].set_home_offset(2800)
 
     def test_get_home_offset(self) -> None:
-        message = self.modules[self.test_location].get_home_offset()
-
-    def test_get_auto_home(self) -> None:
         message = self.modules[self.test_location].get_home_offset()
 
     def test_set_max_steps(self) -> None:
