@@ -8,7 +8,7 @@ from .common import exception_response, package_incoming_message_as_module_respo
 from control.source.flaps import Flap
 from control.source.module_controller import EepromLocations, ModuleInfo
 from app.api.models.common import Location 
-from app.api.models.responses import ModuleResponse, PositionResponse, ModuleInfoResponse, ModuleEepromData
+from app.api.models.responses import ModuleResponse, PositionResponse, ModuleInfoResponse, ModuleInfo
 from app.api.models.requests import (
     StepRequest,
     FlapRequest,
@@ -30,6 +30,7 @@ def get_module_info(row: int, column: int, display=Depends(get_display)):
     metadata = ModuleEepromData(
         bus=module_info.bus,
         firmware_version=f"{module_info.major_firmware_version}.{module_info.minor_firmware_version}",
+        steps=module_info.steps,
         auto_home=module_info.auto_home,
         home_offset=module_info.home_offset,
         max_steps=module_info.max_steps

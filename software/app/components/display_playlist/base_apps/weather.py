@@ -44,6 +44,7 @@ REQUEST_URL = "https://api.openweathermap.org/data/4.0/onecall/current?lat={lat}
 class TemperatureApp(DisplayItem):
 
     description = "Weather App that pulls data from Open Weather Map"
+    app_image = "static/images/temperature-icon.png"
 
     # TODO Add rate limiter?
     # TODO Add env variable for API key?

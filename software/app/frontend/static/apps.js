@@ -12,36 +12,45 @@ async function init() {
 
 }
 
-function createAppCard(app_info)
-{
+function createAppCard(app_info){
     const container = document.querySelector('.card-container');
     if (!container) {
         console.warn('No .card-container element found to append app cards');
         return;
     }
 
-    const image_url = app_info.app_image;
-
-    if (image_url){
-        const img = document.createElement("img");
-        img.class_name = "app-icon";
-        img.src = image_url;
-        iconContainer.appendChild(img);
-    }
-
+    // Create card
     const card = document.createElement("div");
     card.className = "section-card section-card-app";
-    card.innerHTML = `
-        <div class=app-icon-container>
-            <img class=app-icon src="${app_info.app_image}">  
-        </div>
-        <div class=app-content-container>
-            <h3 class="section-title">${app_info.name}</h3>
-            <p class="section-description">${app_info.description || ''}</p>
-        </div>
-    `;
+
+    const appIconContainer = document.createElement("div");
+    appIconContainer.className = "app-icon-container";
+    
+    const appIcon = document.createElement("img");
+    const img = document.createElement("img");
+    img.class_name = "app-icon";
+    if (app_info.app_image){
+        img.src = app_info.app_image;
+        img.style.width = '100%';
+        img.style.height = '100%';
+    }
+    else{
+        img.style.display = "none";
+    }
+
+    const appContentContainer = document.createElement("div");
+    appContentContainer.className = "app-content-container";
+    appContentContainer.innerHTML = `
+        <h3 class="section-title">${app_info.name}</h3>
+        <p class="section-description">${app_info.description || ''}</p>
+    `
+
+    appIconContainer.appendChild(img);
+    card.appendChild(appIconContainer);
+    card.appendChild(appContentContainer);
 
     container.appendChild(card);
+
 }
 
 // Called on Startup

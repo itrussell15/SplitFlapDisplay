@@ -56,6 +56,7 @@ class MockModule(ModuleController):
             EepromLocations.MINOR_FIRMWARE_LOCATION.value: FIRWARE_VERSION_MINOR,
             EepromLocations.AUTO_HOME_LOCATION.value: AUTO_HOME,
             EepromLocations.HOME_OFFSET_VALUE_LOCATION.value: HOME_OFFSET_VALUE,
+            EepromLocations.HOME_OFFSET_VALUE_LOCATION.value: HOME_OFFSET_VALUE,
             EepromLocations.MAX_STEP_LOCATION.value: MOTOR_RESOLUTION // 256,
             EepromLocations.MAX_STEP_LOCATION.value + 1: MOTOR_RESOLUTION % 256,
             EepromLocations.POSITION_VALUES_START_LOCATION.value: 100

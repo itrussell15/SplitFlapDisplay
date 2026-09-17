@@ -1,3 +1,4 @@
+import os
 import sys
 import datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ from app.components.display_playlist.display_item import DisplayItem, DisplayIte
 class ClockApp(DisplayItem):
 
     description = "Basic clock app that shows the current time"
-    app_image = "https://i.pinimg.com/736x/9e/e5/fb/9ee5fbb0c90d66eea8445d13527cb635.jpg"
+    app_image = "static/images/clock-icon.png"
 
     def __init__(self, start_location: List[int] = [1, 1]) -> None:
         frequency = UpdateFrequency(seconds = 10)

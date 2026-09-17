@@ -53,6 +53,10 @@ async def read_index(request: Request):
 async def read_apps(request: Request):
     return _render(request, "apps.html", active="apps")
 
+@router.get("/modules")
+async def read_apps(request: Request):
+    return _render(request, "modules.html", active="modules")
+
 
 @router.get("/calibration")
 async def read_calibration(request: Request):

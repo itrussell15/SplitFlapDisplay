@@ -88,9 +88,11 @@ class ModuleInfo:
     bus: str
     major_firmware_version: int
     minor_firmware_version: int
+    steps: int
     auto_home: bool
     home_offset: int
     max_steps: int
+    
 
     @property
     def location(self) -> Tuple[int, int]:
@@ -148,6 +150,8 @@ class ModuleController:
         auto_home = self.get_eeprom_value(EepromLocations.AUTO_HOME_LOCATION)
         home_offset = self.get_home_offset()
         max_steps = self.get_max_steps()
+        # Update self._current_step
+        self.get_steps()
         
         major_firmware = self.get_eeprom_value(EepromLocations.MAJOR_FIRMWARE_LOCATION)
         minor_firmware = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
@@ -158,6 +162,7 @@ class ModuleController:
             bus=self._bus,
             major_firmware_version=int(major_firmware),
             minor_firmware_version=int(minor_firmware),
+            steps=self._current_step,
             max_steps=max_steps,
             auto_home=bool(auto_home),
             home_offset=int(home_offset)
@@ -193,7 +198,6 @@ class ModuleController:
         return result
 
     def get_max_steps(self) -> int:
-        print(f"Max Step Location: {EepromLocations.MAX_STEP_LOCATION}")
         return self._get_uint16_from_eeprom(EepromLocations.MAX_STEP_LOCATION.value)
 
     def move_to_position(self, position: int) -> IncomingMessage:

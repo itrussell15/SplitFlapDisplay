@@ -45,16 +45,17 @@ def package_display_response(
 
 def package_location(location: Tuple[int, int], module: ModuleController) -> resps.ModuleInfoResponse:
     info = module.info
-    eeprom = resps.ModuleEepromData(
+    response = resps.ModuleInfo(
         bus=info.bus,
         firmware_version=f"{info.major_firmware_version}.{info.minor_firmware_version}",
         auto_home=info.auto_home,
+        steps=info.steps,
         home_offset=info.home_offset,
         max_steps=info.max_steps
     )
     return resps.ModuleInfoResponse(
         location=Location(row=module.row, column=module.column),
-        info=eeprom
+        info=response
     )
 
 def _list_modules(display: DisplayController) -> List[Dict[str, Any]]:
