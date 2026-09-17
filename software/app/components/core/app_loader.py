@@ -12,6 +12,7 @@ from typing import Any
 class AppInfo:
     name: str
     description: str
+    app_image: Optional[str]
     parameters: Dict[str, str]
     file_path: str
     source_folder: str
@@ -96,6 +97,7 @@ class AppLoader:
                 app_info = AppInfo(
                     name=this_class,
                     description=tmp[this_class].description,
+                    app_image=tmp[this_class].app_image,
                     parameters=self._get_app_parameters(tmp[this_class]),
                     obj = tmp[this_class],
                     file_path=file,

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 class AppInfoResponse(BaseModel):
     name: str
+    app_image: str | None
     description: str | None
     parameters: Dict[str, Any] | None
     file_path: str

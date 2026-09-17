@@ -26,6 +26,7 @@ class DisplayItemType(enum.Enum):
 class DisplayItem(PlaylistItem):
 
     description: Optional[str] = None
+    app_image: Optional[str] = None
 
     def __init__(
         self,

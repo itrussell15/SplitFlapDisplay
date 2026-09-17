@@ -493,6 +493,69 @@ body {
   font-size: 0.85rem;
 }
 
+.section-card {
+  background: var(--panel);
+  height: 100px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 20px;
+}
+
+.section-card:hover{
+  background: var(--border);
+}
+
+.section-title {
+  padding-bottom: 5px
+}
+
+.section-description {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin-bottom: 1px;
+}
+
+.section-card-app {
+  /* margin-bottom: 10px;
+  padding-left: 25px;
+  padding-bottom: 10px; */
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* .app-icon-container {
+  max-height: 95%;
+  max-width: 95%;
+  float: left;
+  padding-right: 15px;
+} */
+ 
+.app-icon-container {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+}
+
+
+.app-icon {
+  max-width: 64px;
+  max-height: 64px;
+  object-fit: cover;
+}
+
+.app-content-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 /* ── SETTINGS ── */
 .settings-card {
   background: var(--panel);

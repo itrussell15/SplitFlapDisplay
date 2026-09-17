@@ -27,6 +27,7 @@ def list_available_apps(apps=Depends(get_app_loader)):
         return {
             "name": app_info.name,
             "description": app_info.description,
+            "app_image": app_info.app_image,
             "parameters": app_info.parameters,
             "file_path": app_info.file_path
         }
