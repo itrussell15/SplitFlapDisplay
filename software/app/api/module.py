@@ -27,7 +27,7 @@ logger = logging.getLogger("DisplayAPI")
 def get_module_info(row: int, column: int, display=Depends(get_display)):
     module_info = display.get_module(row, column).get_module_info()
 
-    metadata = ModuleEepromData(
+    metadata = ModuleInfo(
         bus=module_info.bus,
         firmware_version=f"{module_info.major_firmware_version}.{module_info.minor_firmware_version}",
         steps=module_info.steps,

@@ -64,6 +64,7 @@ def get_app_paths() -> List[str]:
     
     output = []
     for path in value.split(","):
+        path = os.path.join(os.getcwd(), path)
         if not os.path.exists(path.strip()):
             raise FileNotFoundError(f"No file path found while loading apps at {path}")
         output.append(path.strip())

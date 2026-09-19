@@ -53,6 +53,10 @@ async def read_index(request: Request):
 async def read_apps(request: Request):
     return _render(request, "apps.html", active="apps")
 
+@router.get("/playlist")
+async def read_apps(request: Request):
+    return _render(request, "playlist.html", active="playlist")
+
 @router.get("/modules")
 async def read_apps(request: Request):
     return _render(request, "modules.html", active="modules")

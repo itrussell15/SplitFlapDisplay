@@ -2,8 +2,9 @@
   --bg: #121212;
   --panel: #1e1e1e;
   --border: #333;
-  --accent: #00ff66;
-  --accent-dim: rgba(0, 255, 102, 0.15);
+  --accent: #ff9a1e;
+  --accent-hover: #ff9a1e68;
+  --accent-dim: #ff9a1e4f;
   --text: #e0e0e0;
   --text-muted: #888;
   --flap-bg: #1a1a1a;
@@ -133,7 +134,7 @@ body {
 
 .flap-module.active {
   border-color: var(--accent);
-  box-shadow: 0 0 8px var(--accent-dim);
+  box-shadow: 0 0 8px var(--accent-hover);
 }
 
 .flap-half {
@@ -317,7 +318,7 @@ body {
   color: #121212;
 }
 
-.btn-primary:hover { background: #00cc55; }
+.btn-primary:hover { background: var(--accent-hover); }
 
 .btn-secondary {
   background: #333;
@@ -495,7 +496,7 @@ body {
 
 .section-card {
   background: var(--panel);
-  height: 100px;
+  height: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 18px;
@@ -504,7 +505,7 @@ body {
 
 .section-card:hover{
   background: var(--border);
-  border-bottom: 1px solid var(--panel);
+  border: 1px solid var(--accent);
 }
 
 .section-title {
@@ -593,8 +594,48 @@ body {
   margin: 5px;
 }
 
+.btn-module:hover {
+  background-color: var(--accent-hover);
+}
+
 .flap-selector {
   margin: auto;
+}
+
+.section-card-playlist {
+  height: auto;
+}
+
+.section-card-playlist:hover {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.playlist-container {
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 5px;
+}
+
+.playlist-item {
+  display: flex;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-muted);
+  font-size: 2rem;
+  font-weight: 600;
+  background-color: var(--bg);
+  border: 1px solid var(--accent);
+  min-height: 75px;
+  align-items: center; 
+  border-radius: 5px;
+  padding: 5px 5px 5px 30px;
+  margin: 5px;
+}
+
+.playlist-item:hover {
+  background-color: var(--border);
+  color: var(--text);
 }
 
 /* ── SETTINGS ── */

@@ -18,7 +18,7 @@ async function updateModules() {
 }
 
 async function positionMove(row, column, position){
-``
+
     const body = {
         "location": {
             "row": row,
@@ -26,20 +26,38 @@ async function positionMove(row, column, position){
         },
         "position": flapValues[position]
     }
-    fetch(`/api/v1/modules/position`, {
+    const response = await fetch(`/api/v1/modules/position`, {
         method: 'POST',
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify(body)
-    })
+    });
+
+    if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+    }
+    const data = await response.json();
+    updateModuleInfo(row, column, "steps", data.data_value);
 }
 
 async function homeMove(row, column){
     console.log("Home button click");
-    fetch(
+    const request_data = fetch(
         `/api/v1/modules/home?row=${row}&column=${column}`, {
             method: 'POST',
         }
-    )
+    );
+    updateModuleInfo(row, column, "steps", 0);
+}
+
+async function updateModuleInfo(row, column, key, value)
+{
+    const selector = `.module-container .section-card[data-location="${row}x${column}"]`;
+    const card = document.querySelector(selector);
+
+    const tableRow = card.querySelector(`tr[data-key="${key}"]`);
+    const valueCell = tableRow.querySelector('td[data-role="value"]');
+    if (!valueCell) return;
+    valueCell.textContent = value;
 }
 
 function createModuleCard(module){
@@ -50,6 +68,7 @@ function createModuleCard(module){
     }
     const card = document.createElement("div");
     card.className = "section-card section-card-module"
+    card.dataset.location = `${module.location.row}x${module.location.column}`;
     
     const header = document.createElement("div");
     header.className = "module-card module-card-header";
@@ -64,13 +83,17 @@ function createModuleCard(module){
     Object.entries(module.info).forEach(
         ([key, value]) => {
             const row = document.createElement("tr");
+            row.dataset["key"] = key;
             const name = document.createElement("td");
             name.style.width = "60%";
             name.style.height = "22px";
-            const data = document.createElement("td");
-            data.style.width = "40%";
+            name.dataset.role = "key";
             name.innerHTML = key.toUpperCase();
+            
+            const data = document.createElement("td");
+            data.dataset.role = "value";
             data.innerHTML = value;
+
             row.append(name);
             row.append(data);
             table.append(row);
