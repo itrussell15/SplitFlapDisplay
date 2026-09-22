@@ -236,3 +236,6 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# js packages
+software/app/frontend/static/node_modules
+

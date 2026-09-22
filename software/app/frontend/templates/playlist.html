@@ -4,19 +4,42 @@
 {% block page_title %}Playlist{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <div class="section-label">Playlist</div>
-<div class="section-card section-card-playlist">
-  <div class="playlist-container">
-    <div class="playlist-item">
-      Test1
+  <div class="section-card section-card-playlist">
+    <div id="playlist" class="playlist-container">
+      <div class="playlist-item">
+        <div class="playlist-item-handle">☰</div>
+        <div class="playlist-item-name">TEST</div>
+        <div class="playlist-item-delete" onclick="deleteItem()">
+          <i class="fa-regular fa-trash-can"></i>
+        </div>
+      </div>
     </div>
-    <div class="playlist-item">
-      Test21
+    <div>
+    <button id="add-item" class="btn btn-template" onclick=>Add Item</button>
+    </div>
+  </div>
+</div>
+
+<div class="popup-wrapper">
+  <div class="popup">
+    <div class="playlist-app-selector-container"> 
+      <div class="playlist-app-selector-field"> 
+        Available Apps
+      </div>
+      <div class="playlist-app-selector-select">
+        <!-- Apps get loaded into here -->
+      </div>  
+    </div>
+    <div class="btn btn-template btn-playlist-create-item"> 
+      Create Item
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-  <script type="module" src="/static/playlist.js?v={{ static_version }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.7/Sortable.min.js"></script>
+  <script src="/static/playlist.js?v={{ static_version }}"></script>
 {% endblock %}

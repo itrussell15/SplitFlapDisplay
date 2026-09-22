@@ -72,6 +72,10 @@ class Playlist(Updater):
             next_item.start()
 
     @property
+    def items(self) -> List[PlaylistItem]:
+        return list(self._queue)
+
+    @property
     def current_index(self) -> int:
         return self._current_position
     

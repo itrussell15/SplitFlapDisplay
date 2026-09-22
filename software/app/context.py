@@ -11,8 +11,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from control.source.bus_controller import BusController
 from control.source.display_controller import DisplayController
 from app.components.core.app_loader import AppLoader
+from app.components.display_playlist.playlist import DisplayPlaylist
 from app.components.display_playlist.display_item import DisplayItem
 from app.components.core.rate_limiter import RateLimiter
+from app.components.core.updater import UpdateFrequency
 import utils
 
 
@@ -38,6 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Loading Apps")
     paths = get_app_paths()
     app.state.app_loader = AppLoader(DisplayItem, sources=paths)
+    app.state.playlist = DisplayPlaylist(app.state.display, frequency=UpdateFrequency(minutes=10))
     logger.info(f"Loaded {len(app.state.app_loader)} apps from {len(paths)} path(s)")
     
     

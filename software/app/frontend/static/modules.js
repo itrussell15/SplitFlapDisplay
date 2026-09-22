@@ -105,7 +105,7 @@ function createModuleCard(module){
     footer.className = "module-card-footer";
 
     const homeButton = document.createElement("button");
-    homeButton.className = "btn btn-module";
+    homeButton.className = "btn btn-template";
     homeButton.innerHTML = `HOME`;
     homeButton.addEventListener("click", () => homeMove(module.location.row, module.location.column));
     footer.appendChild(homeButton);
@@ -120,7 +120,7 @@ function createModuleCard(module){
     });
 
     const moveButton = document.createElement("button");
-    moveButton.className = "btn btn-module";
+    moveButton.className = "btn btn-template";
     moveButton.innerHTML = `MOVE`;
     moveButton.addEventListener("click", () => positionMove(module.location.row, module.location.column, flapSelector.value));
     
