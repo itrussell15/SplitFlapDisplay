@@ -698,17 +698,49 @@ body {
   border-radius: 10px;
 }
 
-.playlist-app-selector-container {
+.popup div.selector-container {
+  display: flex;
+  flex-direction: row;
+  margin: 25px 0;
+}
+
+.selector-container div.selection {
+  align-items: center;
+  margin: auto 60px;
+}
+
+.popoup div.parameter-container {
   display: flex;
   flex-direction: row;
 }
 
-.playlist-app-selector-field{
-  padding: 10px;
+.parameter-container div.parameter-header {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 10px auto;
+  align-items: center;
 }
 
-.playlist-app-selector-select {
-  padding: 10px;
+.parameter-container div.parameter-row {
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: row;
+  margin: 5px 0;
+  padding: 5px;
+}
+
+.parameter-container div.parameter-row-fail {
+  border-radius: 5px;
+  border: 1px solid red;
+}
+
+
+.parameter-row input.parameter-form {
+  height: 25px;
+  width: 70%;
+  margin: 5px 0px;
+  margin-left: auto;
+  justify-self: right;
   align-items: center;
 }
 
