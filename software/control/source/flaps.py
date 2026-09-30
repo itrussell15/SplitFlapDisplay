@@ -1,5 +1,6 @@
 import enum
 import re
+from typing import Any
 
 class FlapEnumMeta(enum.EnumMeta):
 

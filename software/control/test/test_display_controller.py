@@ -21,8 +21,8 @@ from utils import create_logger, get_env_vars
 SLEEP_TIME_S = 1.0
 
 env_vars = get_env_vars()
-NUM_ROWS = env_vars["DISP_MAX_ROWS"]
-NUM_COLS = env_vars["DISP_MAX_COLUMNS"]
+NUM_ROWS = int(env_vars["DISP_MAX_ROWS"])
+NUM_COLS = int(env_vars["DISP_MAX_COLUMNS"])
 
 
 class TestDisplayController(unittest.TestCase):
