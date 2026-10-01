@@ -8,13 +8,7 @@ async function init()
     await createSelectItems();
     defaultApp = apps[0];
     console.log(`Default App: ${defaultApp.name}`);
-    const container = document.querySelector('.playlist-container');
-    if (!container){
-        console.error("No .playlist-container found");
-        return;
-    }
-    Sortable.create(container, { draggable: ".playlist-item", animation: 150});
-    
+    await updatePlaylistContainer();
 
     const addItemButton = document.getElementById('add-item');
     const createItemButton = document.getElementById('popup-create-item')
@@ -40,9 +34,12 @@ async function init()
     });
 
     // Close popup after button press
-    createItemButton.addEventListener("click", (event) => {
-        if (createItem()){
+    createItemButton.addEventListener("click", async (event) => {
+        const isItemCreated = createItem();
+        if (isItemCreated){
             popupWrapper.style.display = "none";
+            // console.log("Updating playlist container");
+            // await updatePlaylistContainer();
         }
         else
         {
@@ -83,10 +80,11 @@ async function createSelectItems(){
     loadAppParams(0);
 }
 
-function createItem() {
+async function createItem() {
     console.log("Creating Item");
     let validEntry = true;
     const entries = {};
+    const itemSelect = document.querySelector("#app-selector");
     const forms = document.querySelectorAll(".parameter-row");
     forms.forEach(form => {
         console.log(form);
@@ -100,16 +98,58 @@ function createItem() {
             form.className = "parameter-row";
         }
         entries[form.dataset.key] = form.querySelector(".parameter-form").value;
-        
     })
 
     if (validEntry){
-        fetch 
+        console.log("Submission is valid");
+        console.log(entries);
+        const body = {"item_type": itemSelect.value, "parameters": entries};
+        const response = await fetch(`/api/v1/playlist/add`, {
+            method: 'POST',
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(body)
+        });
+        await updatePlaylistContainer();
     }
-    console.log(`Valid Entry - ${validEntry}`);
     
     return validEntry;
+}
 
+async function updatePlaylistContainer() {
+    const playlistRequest = await fetch("/api/v1/playlist/list");
+    if (!playlistRequest.ok) {
+        throw new Error(`Request failed: ${playlistRequest.status}`);
+    }
+    const playlistItems = await playlistRequest.json();
+
+    const playlistContainer = document.querySelector(".playlist-container");
+    if (!playlistContainer){
+        console.error("No .playlist-container found");
+        return;
+    }
+    playlistContainer.replaceChildren();
+
+    playlistItems.items.forEach(item => {
+        const playlistItem = document.createElement('div');
+        playlistItem.className = 'playlist-item';
+        playlistItem.id = item.uuid;
+        playlistItem.innerHTML = `
+            <div class="playlist-item-handle">☰</div>
+            <div class="playlist-item-name">${item.name}</div>
+            <div class="playlist-item-delete"><i class="fa-regular fa-trash-can"></i></div>
+        `;
+        playlistContainer.appendChild(playlistItem);
+    });
+    Sortable.create(
+        playlistContainer,
+        {
+            draggable: ".playlist-item",
+            animation: 150,
+            onUpdate: playlistItemChange,
+            onStart: playlistDragStart,
+            onEnd: playlistDragEnd,
+        }
+    );
 }
 
 function deleteItem() {
@@ -144,6 +184,38 @@ function loadAppParams(app_index) {
 
 function getPopup() {
     return document.querySelector(".popup");
+}
+
+function getPlaylistContainer(){
+    const element = document.querySelector(".playlist-container");
+    return element;
+}
+
+function playlistItemChange(event) {
+    console.log(event);
+}
+
+function playlistDragStart(event) {
+    const container = getPlaylistContainer();
+    const items = container.querySelectorAll(".playlist-item");
+    items.forEach(item => {
+        if (item.id != event.item.id){
+            item.classList.add('playlist-item-hide');
+        }
+        else{
+            const deleteButton = item.querySelector(".playlist-item-delete");
+            deleteButton.style.display = "none";
+        }
+        
+    });
+}
+
+function playlistDragEnd(event) {
+    const container = getPlaylistContainer();
+    const items = container.querySelectorAll(".playlist-item");
+    items.forEach(item => {
+        item.classList.remove('playlist-item-hide');
+    });
 }
 
 // Called on Startup

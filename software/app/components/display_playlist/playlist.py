@@ -26,7 +26,7 @@ class DisplayPlaylist(Playlist):
         super().__init__(frequency)
         self._display = display_obj
         self._apps = self._load_apps(app_folders)
-        
+
         if items is not None:
             for item in items:
                 self.add_item(item)

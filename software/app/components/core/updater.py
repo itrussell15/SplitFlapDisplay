@@ -23,6 +23,12 @@ class UpdateFrequency:
         if seconds < 0 or minutes < 0:
             raise ValueError(f"Invalid update frequency - values must be greater than 0, not minutes: {minutes} seconds: {seconds}")
 
+    def to_dict(self) -> Dict[str, int]:
+        return {
+            "minutes": self.minutes,
+            "seconds": self.seconds
+        }
+
     @property
     def minutes(self) -> int:
         return self._minutes

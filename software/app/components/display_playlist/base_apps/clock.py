@@ -2,12 +2,13 @@ import os
 import sys
 import datetime
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
 from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
+from control.source.display_controller import DisplayInfo
 
 class ClockApp(DisplayItem):
 
@@ -16,14 +17,15 @@ class ClockApp(DisplayItem):
 
     def __init__(self, start_location: List[int] = [1, 1]) -> None:
         frequency = UpdateFrequency(seconds = 10)
+
         super().__init__(
             name="ClockApp",
             item_type=DisplayItemType.APP,
-            frequency=frequency
+            frequency=frequency,
+            params = locals()
         )
-        self.logger.info(f"Started with start location {start_location}")
+        self.logger.info(f"S`tarted with start location {start_location}")
         self._previous_time = None
-        self._start_location = start_location
 
 
     def update(self, display_info: DisplayInfo) -> Dict[Tuple[int, int], str]:

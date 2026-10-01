@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import sys
 from copy import deepcopy
@@ -6,7 +8,7 @@ from dataclasses import dataclass
 import importlib.util
 import inspect
 
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 @dataclass
 class AppInfo:
@@ -63,13 +65,23 @@ class AppLoader:
             app_infos=list(all_apps.values())
         )
 
-    def __getitem__(self, value: str) -> DisplayItem:
+    def __getitem__(self, value: str) -> AppInfo:
         if value not in self._apps:
             raise AppNotAvailable(value)
         return self._apps[value]
 
+    def get_app_class(self, name: str) -> type:
+        app_info = self.__getitem__(name)
+        if not isinstance(app_info.obj, type):
+            raise TypeError(f"App '{name}' does not resolve to a class object")
+        return app_info.obj
+
+    def instantiate_app(self, name: str, **kwargs: Any) -> object:
+        app_class = self.get_app_class(name)
+        return app_class(**kwargs)
+
     @classmethod
-    def from_app_info(cls, info: List[app_info], desired_class: object) -> AppLoader:
+    def from_app_info(cls, info: List[AppInfo], desired_class: object) -> AppLoader:
         return AppLoader(
             desired_class=desired_class,
             app_infos=info
@@ -111,7 +123,7 @@ class AppLoader:
     def get_all_apps(self) -> Dict[str, Any]:
         return self._apps
 
-    def get(self, name: str) -> DisplayItem:
+    def get(self, name: str) -> AppInfo:
         return self.__getitem__(name)
 
     def list(self) -> List[str]:

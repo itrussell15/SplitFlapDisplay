@@ -3,6 +3,7 @@
   --panel: #1e1e1e;
   --border: #333;
   --accent: #ff9a1e;
+  --accent-muted: #ff9a1e99;
   --accent-hover: #ff9a1e68;
   --accent-dim: #ff9a1e4f;
   --text: #e0e0e0;
@@ -638,6 +639,20 @@ body {
   align-items: center; 
   border-radius: 5px;
   padding: 5px 5px 5px 10px;
+  margin: 5px 0px;
+}
+
+.playlist-item-hide {
+  opacity: 0.4 !important;
+  filter: blur(1px) !important;
+  transition: opacity 0.12s ease, filter 0.12s ease;
+  background-color: var(--bg) !important;
+}
+ 
+ .playlist-item-hide {
+  opacity: 0.4;
+  filter: blur(1px);
+  transition: opacity 0.15s ease, filter 0.15s ease;
 }
 
 .playlist-item:hover {
@@ -672,6 +687,23 @@ body {
   background-color: var(--panel);
   opacity: 1;
   visibility: visible;
+}
+
+.playlist-item.sortable-ghost{
+  box-shadow: none !important;
+  background-color: var(--border) !important;
+}
+
+.playlist-item-delete.sortable-ghost,
+.playlist-item-delete.sortable-placeholder,
+.playlist-item-delete.sortable-chosen,
+.sortable-chosen .playlist-item-delete,
+.sortable-ghost .playlist-item-delete,
+.sortable-placeholder .playlist-item-delete,
+.playlist-item-hide .playlist-item-delete {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .popup-wrapper {

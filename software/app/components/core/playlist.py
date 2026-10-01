@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import uuid
 from abc import ABC, abstractmethod
 from .updater import Updater, UpdateFrequency
 
@@ -12,6 +15,9 @@ class PlaylistItem(Updater):
     # Should be able to do static and app based updates
     def __init__(self, name: str, frequency: Optional[UpdateFrequency] = None) -> None:
         super().__init__(frequency)
+        self._name = name
+        self._is_updating = False
+        self.uuid = str(uuid.uuid4())
 
     def __repr__(self) -> str:
         return f"PlaylistItem({self.name})"
@@ -42,6 +48,20 @@ class Playlist(Updater):
         if not isinstance(item, PlaylistItem):
             raise TypeError(f"Item is {type(item)} and not a PlaylistItem") 
         self._queue.append(item)
+
+    def remove_item(self, index: int) -> None:
+        if self.is_empty:
+            raise ValueError("Unable to remove items from an empty queue")
+        if index < 0 or index > len(self._queue):
+            raise ValueError(f"Index {index} is not valid with {self.size} items")
+        
+        if self.is_alive and index == current_index:
+            raise RuntimeError("Unable to remove currently active item")
+        
+        removed_item = self._queue.pop(index)
+        self.logger.info(f"Item {removed_item.uuid} has been removed")
+        if index < current_index:
+            current_index -= 1
 
     def get_item(self, index: int) -> PlaylistItem:
         if index > self.size or index <= 0:

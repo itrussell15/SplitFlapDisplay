@@ -1,20 +1,19 @@
 // Shared chrome behaviour for every page: connection status + mobile sidebar.
 (function () {
-  const dot = document.getElementById("status-dot");
-  const text = document.getElementById("status-text");
+  const displayStatus = document.getElementById("display-status");
+  const dot = displayStatus.querySelector(".status-dot");
+  const text = displayStatus.querySelector("#status-text");
   // Pages that load their own logic (e.g. the compose page via app.js) set
   // data-status-managed="true" so they own the status text; we only drive the dot.
-  const managed = document.body.dataset.statusManaged === "true";
+  // const managed = document.body.dataset.statusManaged === "true";
 
   async function ping() {
     try {
       const res = await fetch("/api/v1/health");
       if (!res.ok) throw new Error("offline");
       if (dot) dot.classList.add("connected");
-      if (!managed && text) text.textContent = "Online";
     } catch (err) {
       if (dot) dot.classList.remove("connected");
-      if (!managed && text) text.textContent = "Offline";
     }
   }
   ping();

@@ -5,13 +5,14 @@ import datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
 from app.components.core.rate_limiter import RateLimiter
 from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
+from control.source.display_controller import DisplayInfo
 
 class WeatherData:
 
@@ -54,9 +55,9 @@ class TemperatureApp(DisplayItem):
         super().__init__(
             name="TempApp",
             item_type=DisplayItemType.APP,
-            frequency=frequency
+            frequency=frequency,
+            params=locals()
         )
-        # self._limiter = RateLimiter()
         self._api_key = api_key
         self.lat_value = lat
         self.long_value = lon
