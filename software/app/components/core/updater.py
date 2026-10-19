@@ -1,6 +1,8 @@
+import time
 import logging
 import threading
 import datetime
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
 from typing import Optional
@@ -52,12 +54,59 @@ class UpdateFrequency:
         return (self.minutes * 60)  + self.seconds
 
 
+@dataclass
+class TimeStatus:
+    start: Optional[float]
+    end: Optional[float]
+    
+
+    def __post_init__(self) -> None:
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    @property
+    def remaining(self) -> Optional[float]:
+        if self.end is None:
+            self.logger.warning("No end time set. Unable to calculate time left")
+            return None
+            
+        this_time = time.time()
+        if this_time - self.end > 0.25:
+            self.logger.warning("Unable to calculate time left because current time is already greater than end time")
+            self.logger.warning(f"Start: {self.start} End: {self.end} - Current Time: {this_time}")
+            return None
+
+        return self.end - this_time
+
+    @property
+    def elapsed(self) -> float:
+        this_time = time.time()
+        if self.start is None:
+            self.logger.warning("No start time set. Unable to calculate time elapsed")
+            return None
+            
+        this_time = time.time()
+        if this_time < self.start:
+            self.logger.warning("Unable to calculate time elapsed because current time is less than start time")
+            self.logger.warning(f"Start: {self.start} End: {self.end} - Current Time: {this_time}")
+            return None
+
+        return this_time - self.start
+
+    def to_dict(self) -> Dict[str, float]:
+        return {
+            "start": self.start,
+            "end": self.end,
+            "remaining": self.remaining,
+            "elapsed": self.elapsed
+        }
+
 class TimeBasedUpdater(ABC):
 
     def __init__(self, update_frequency: Optional[UpdateFrequency] = None) -> None:
         self.logger = logging.getLogger(self.__class__.__name__)
         self._frequency = update_frequency
         self._timer = None
+        self._time_status: Optional[TimeStatus] = None
 
     @abstractmethod
     def update(self) -> None:
@@ -66,7 +115,7 @@ class TimeBasedUpdater(ABC):
     def start(self, update_on_start: bool = True) -> None:
         if self._timer is not None:
             raise RuntimeError("Can not start another updater with one running. Please stop it and try again")
-
+        
         if not self.is_dynamic:
             self._invoke_update()
             return 
@@ -87,7 +136,6 @@ class TimeBasedUpdater(ABC):
         # Don't update if we don't have a dynamic updater
         if not self.is_dynamic:
             return
-
         self._timer = threading.Timer(interval=self.frequency.interval, function=self._worker_invoked_update)
         self._timer.start()
 
@@ -104,6 +152,7 @@ class TimeBasedUpdater(ABC):
         self.logger.info("Updater stopped")
         self._timer.cancel()
         self._timer = None
+        self._time_status = None
 
     @property
     def frequency(self) -> Optional[UpdateFrequency]:
@@ -120,7 +169,10 @@ class TimeBasedUpdater(ABC):
     @property
     def is_alive(self) -> None:
         return self._timer is not None
-
+    
+    @property
+    def time_status(self) -> Optional[TimeStatus]:
+        return self._time_status
 
 class Updater(TimeBasedUpdater):
 
@@ -130,6 +182,9 @@ class Updater(TimeBasedUpdater):
         This is the callback that gets called at the end of the timer
         """
         pass
+
+    def _update_time_status(self) -> TimeStatus:
+        return TimeStatus(start=time.time(), end=time.time() + self.frequency.interval)
 
     def _invoke_update(self) -> None:
         self._is_updating = True

@@ -33,6 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Display Connection
     ports = get_ports()
+    logging.getLogger("BusController(/tmp/vcom_host)").setLevel(logging.WARNING)
+    logging.getLogger("OutgoingMessage").setLevel(logging.WARNING)
     app.state.display = connect_to_display(ports)
     logger.info(f"Display connected with {app.state.display.num_modules} modules found")
 
@@ -40,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Loading Apps")
     paths = get_app_paths()
     app.state.app_loader = AppLoader(DisplayItem, sources=paths)
-    app.state.playlist = DisplayPlaylist(app.state.display, frequency=UpdateFrequency(minutes=10))
+    app.state.playlist = DisplayPlaylist(app.state.display, frequency=UpdateFrequency(seconds=30))
     logger.info(f"Loaded {len(app.state.app_loader)} apps from {len(paths)} path(s)")
     
     

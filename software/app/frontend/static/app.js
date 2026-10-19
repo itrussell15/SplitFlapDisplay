@@ -28,7 +28,7 @@ let selectedColor = null;
 // ── Init ──
 
 async function init() {
-  const dot = document.getElementById("status-dot");
+  const dot = document.getElementById("display-status-dot");
   const text = document.getElementById("status-text");
 
   try {

@@ -43,6 +43,8 @@ class Playlist(Updater):
         if self.current_item.is_alive:
             self.logger.debug(f"Shutting down current item - {self.current_item}")
             self.current_item.stop()
+        else:
+            raise RuntimeError("Playlist not running, nothing to stop")
 
     def add_item(self, item: PlaylistItem) -> None:
         if not isinstance(item, PlaylistItem):

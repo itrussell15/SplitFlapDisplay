@@ -71,6 +71,7 @@ class DisplayItem(PlaylistItem):
 
     def _invoke_update(self) -> None:
         self._is_updating = True
+        self._time_status = self._update_time_status()
         request = self.update(self._display_info)
         if request is not None:
             flaps = self._request_to_flaps(request)

@@ -104,8 +104,10 @@ class ModuleController:
     Generates commands and tracks the state of a given module.
     """
 
-    def __init__(self, row: int, column: int) -> None:
+    def __init__(self, row: int, column: int, log_level: int = logging.INFO) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}({row}, {column})")
+        self.logger.setLevel(log_level)
+        
         self.logger.debug(f"Module at ({row}, {column}) created")
 
         if row < MIN_ROW_VALUE or row > MAX_ROW_VALUE:
@@ -124,7 +126,6 @@ class ModuleController:
         self._current_position: int = 0
         self._bus: Optional[str] = None
         self._info = None
-
 
         # Have to initialize before calling `get_all_positions` otherwise no positions to request for
         self._positions_to_steps = {i: None for i in range(NUM_POSITIONS)}

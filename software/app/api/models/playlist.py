@@ -21,10 +21,29 @@ class ItemResponse(BaseModel):
     index: int
     frequency: FrequencyResponse
     params: Dict[str, Any]
-    
+
+
+class TimeData(BaseModel):
+    start: Optional[float]
+    end: Optional[float]
+    remaining: Optional[float]
+    elapsed: Optional[float]
+
+
+class ActiveItemResponse(BaseModel):
+    item: ItemResponse
+    time_data: TimeData
+
 
 class PlaylistResponse(BaseModel):
     current_index: int
     is_active: bool
     frequency: FrequencyResponse
     items: List[ItemResponse]
+
+
+class StatusResponse(BaseModel):
+    is_active: bool
+    numItems: int
+    currentItem: Optional[ItemResponse]
+    currentItemTime: Optional[TimeData]

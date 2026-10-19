@@ -32,14 +32,10 @@
 
     <!-- ── MAIN AREA ── -->
     <div class="main-area">
-      <header class="top-bar">
+      <header class="bar top-bar">
         <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle menu">☰</button>
         <span class="top-bar-title">{% block page_title %}Display{% endblock %}</span>
         <div class="top-bar-right">
-          <div class="status-indicator" id="playlist-status">
-            <div id="display-status-dot" class="status-dot"></div>
-            <span id="status-text">Playlist</span>
-          </div>
           <div class="status-indicator" id="display-status">
             <div id="display-status-dot" class="status-dot"></div>
             <span id="status-text">Display</span>
@@ -50,6 +46,28 @@
       <main class="container">
         {% block content %}{% endblock %}
       </main>
+
+      <footer class="bar bottom-bar">
+        <div class="player-text" id="player-current-num-items"> 
+          <div id="active-item">1</div>
+          <div>/</div>
+          <div id="total-items">1</div>
+        </div>  
+        <div class="player-current-item"> 
+          Current Item
+        </div>  
+        <div class="player-container">
+          <div id="controls" class="controls">
+            <button id="playpause-btn" onclick="playPausePlaylist()">&#9658</button>
+            <!-- <button id="next-btn">⏭</button> -->
+          </div>
+        </div>
+        <div class="player-text" id="player-current-time"> 
+          <div id="time-elapsed">-</div>
+          <div>/</div>
+          <div id="total-time">-</div>
+        </div>  
+      </footer>
     </div>
 
   </div>
@@ -58,6 +76,7 @@
   <div class="toast-container" id="toast-container"></div>
 
   <script src="/static/base.js?v={{ static_version }}"></script>
+  <script src="/static/player.js?v={{ static_version }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

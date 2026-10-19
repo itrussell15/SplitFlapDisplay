@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from app.components.core.updater import UpdateFrequency
-from app.components.core.playlist import Playlist, PlaylistItem
+from app.components.core.playlist import Playlist, PlaylistItem, PlaylistEmptyError
 from app.components.core.app_loader import AppLoader
 from app.components.display_playlist.display_item import DisplayItem, DisplayItemType, StaticDisplayItem
 
@@ -73,11 +73,18 @@ class DisplayPlaylist(Playlist):
         items = _load_items(playlist, data["items"])
         return playlist
 
+    def start(self) -> None:
+        if len(self.items) < 1:
+            raise PlaylistEmptyError()
+        super().start()
+
     def update(self) -> None:
+        self.logger.info("Updating")
         if self.current_item.is_alive:
             self.current_item.stop()
         next_item = self.next()
         if next_item is not None:
+            self.logger.info(f"Starting next item {next_item.name} {next_item.uuid}")
             next_item.start()
 
     def add_item(self, item: DisplayItem) -> None:

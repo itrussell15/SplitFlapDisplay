@@ -27,18 +27,109 @@ body {
 }
 
 /* ── TOP BAR ── */
-.top-bar {
+.bar {
   position: sticky;
-  top: 0;
   height: 52px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 20px;
   z-index: 100;
+  padding: 0 10px;
 }
+
+.top-bar {
+  top: 0;
+}
+
+.bottom-bar {
+  position: fixed;
+  color: var(--text-muted);
+  font-weight: 200em;
+  font-size: small;
+  left: 220px;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+  margin-top: auto;
+  z-index: 1000;
+  background: var(--panel);
+  height: 52px;
+}
+
+.player-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  margin: auto 0;
+}
+
+.player-text {
+  display: flex;
+  /* width: 10%; */
+  justify-content: center;
+  flex-direction: row;
+}
+
+.player-current-item{
+  justify-content: center;
+  width: 15%;
+}
+
+.player-time div{
+  padding: 3px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+#playpause-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, var(--accent), #ffb54a);
+  color: #171717;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  box-shadow: 0 10px 24px rgba(255, 154, 30, 0.35);
+}
+
+#playpause-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 154, 30, 0.5);
+}
+
+
+#playpause-btn.active {
+  transform: translateY(0) scale(0.97);
+}
+
+#playpause-btn.inactive {
+  background: var(--border);
+  box-shadow: none;
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+
 
 .top-bar-left {
   display: flex;
@@ -82,6 +173,7 @@ body {
 
 /* ── MAIN CONTENT ── */
 .container {
+  flex: 1;
   max-width: 80%;
   margin: 5px;
   padding: 20px 16px;
@@ -298,7 +390,6 @@ body {
 .controls {
   display: flex;
   gap: 12px;
-  margin-top: 16px;
 }
 
 .btn {
@@ -444,6 +535,9 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar-toggle {
@@ -714,6 +808,7 @@ body {
   width: 100%;
   height: 100%;
   display: none;
+  z-index: 900;
 }
 
 .popup {
@@ -728,6 +823,7 @@ body {
   padding: 20px;
   background: var(--panel);
   border-radius: 10px;
+  z-index: 910;
 }
 
 .popup div.selector-container {

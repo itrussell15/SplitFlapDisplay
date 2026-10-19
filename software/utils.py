@@ -16,6 +16,7 @@ def create_logger(level=logging.DEBUG, spacing: int = 15):
         format=f"[%(levelname)-8s][%(name)-{spacing}s] %(message)s",
         datefmt="%H:%M:%S",
     )
+    
 
 def get_current_timestamp() -> str:
     return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)

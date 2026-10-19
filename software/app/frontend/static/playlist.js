@@ -136,7 +136,9 @@ async function updatePlaylistContainer() {
         playlistItem.innerHTML = `
             <div class="playlist-item-handle">☰</div>
             <div class="playlist-item-name">${item.name}</div>
-            <div class="playlist-item-delete"><i class="fa-regular fa-trash-can"></i></div>
+            <div class="playlist-item-delete">
+                <i class="fa-regular fa-trash-can" onclick=deleteItem('${item.uuid}')></i>
+            </div>
         `;
         playlistContainer.appendChild(playlistItem);
     });
@@ -192,7 +194,7 @@ function getPlaylistContainer(){
 }
 
 function playlistItemChange(event) {
-    console.log(event);
+    console.log("Playlist change");
 }
 
 function playlistDragStart(event) {

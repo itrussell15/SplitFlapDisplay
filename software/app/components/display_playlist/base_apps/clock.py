@@ -24,8 +24,12 @@ class ClockApp(DisplayItem):
             frequency=frequency,
             params = locals()
         )
-        self.logger.info(f"S`tarted with start location {start_location}")
         self._previous_time = None
+        if isinstance(start_location, str): 
+            self.logger.info(f"Parsing start location string - {start_location}")
+            start_location = [int(i) for i in start_location.split(",")]
+        self.logger.info(f"Started with start location {start_location}")
+        self._start_location = start_location
 
 
     def update(self, display_info: DisplayInfo) -> Dict[Tuple[int, int], str]:
