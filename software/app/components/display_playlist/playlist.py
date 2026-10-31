@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from app.components.core.updater import UpdateFrequency
 from app.components.core.playlist import Playlist, PlaylistItem, PlaylistEmptyError
 from app.components.core.app_loader import AppLoader
-from app.components.display_playlist.display_item import DisplayItem, DisplayItemType, StaticDisplayItem
+from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
+from app.components.display_playlist.base_apps.static import StaticDisplayItem
 
 BASE_APP_PATH = os.path.join(os.path.dirname(__file__), "base_apps")
 

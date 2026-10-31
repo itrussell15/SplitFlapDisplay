@@ -418,7 +418,13 @@ body {
   color: #fff;
 }
 
+.btn-save { 
+  background: #335a34;
+}
+
 .btn-secondary:hover { background: #444; }
+
+.btn-save:hover { background: #1a2f1b; }
 
 .btn-danger {
   background: var(--red);
@@ -459,6 +465,75 @@ body {
 }
 
 .toast.error { background: var(--red); }
+
+/* ── POPUP MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.modal-panel {
+  position: relative;
+  width: min(480px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 24px 20px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+.modal-panel h2 {
+  margin-bottom: 12px;
+  color: var(--text);
+  font-size: 1.5rem;
+}
+
+.modal-panel p {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.modal-panel input {
+  height: 40px;
+  width: 95%;
+  margin: 20px 10px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 /* ── APP SHELL / SIDEBAR ── */
 .app-shell {

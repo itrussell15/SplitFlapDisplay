@@ -10,29 +10,32 @@
     <div id="playlist" class="playlist-container">
     </div>
     <div>
-    <button id="add-item" class="btn btn-template" onclick=>Add Item</button>
+      <button id="add-item" type="button" class="btn btn-template popup-trigger" data-target="playlist-popup">Add Item</button>
     </div>
   </div>
 </div>
 
-<div class="popup-wrapper">
-  <div class="popup">
-    <div class="selector-container"> 
-      <div class="field"> 
+<div id="playlist-popup" class="modal-overlay" aria-hidden="true">
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="playlist-popup-title">
+    <button type="button" class="modal-close" aria-label="Close popup">×</button>
+
+    <div class="selector-container">
+      <div class="field">
         Available Apps
       </div>
       <div class="selection">
         <!-- Apps get loaded into here -->
       </div>
     </div>
+
     <div class="parameter-container">
-      <div class="parameter-header"> 
-      Parameters
-     </div>
+      <div id="playlist-popup-title" class="parameter-header">Parameters</div>
     </div>
-    <button id="popup-create-item" class="btn btn-template btn-playlist-create-item", onclick="createItem"> 
-      Create Item
-    </button>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary modal-close-btn">Close</button>
+      <button id="popup-create-item" type="button" class="btn btn-primary">Create Item</button>
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -239,3 +239,6 @@ __marimo__/
 # js packages
 software/app/frontend/static/node_modules
 
+# Test jsons path
+static_items/
+

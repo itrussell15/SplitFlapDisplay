@@ -25,7 +25,22 @@
 
   <div class="controls">
     <button class="btn btn-secondary" onclick="clearBoard()">CLEAR</button>
+    <!-- <button class="btn btn-secondary btn-save" onclick="saveBoard()">SAVE</button> -->
+     <button class="btn btn-secondary btn-save popup-trigger" data-target="static-item-save-popup">SAVE</button>
     <button class="btn btn-primary" onclick="submitBoard()">SEND TO DISPLAY</button>
+  </div>
+
+  <div class="modal-overlay" id="static-item-save-popup" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="main-popup-title">
+      <button type="button" class="modal-close" aria-label="Close popup">×</button>
+      <h2 id="main-popup-title">Static Item Name</h2>
+      <p>Enter a name for this static item</p>
+      <input type="text" id="static-item-name" value="FOO">
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary modal-close-btn">Close</button>
+        <button type="button" class="btn btn-secondary btn-save" onclick="saveBoard()" style="width: 500px">SAVE</button>
+      </div>
+    </div>
   </div>
 {% endblock %}
 

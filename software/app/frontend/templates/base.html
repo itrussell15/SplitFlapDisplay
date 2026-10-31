@@ -36,6 +36,7 @@
         <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle menu">☰</button>
         <span class="top-bar-title">{% block page_title %}Display{% endblock %}</span>
         <div class="top-bar-right">
+          <button type="button" class="btn btn-secondary popup-trigger" data-target="static-item-save-popup">Open popup</button>
           <div class="status-indicator" id="display-status">
             <div id="display-status-dot" class="status-dot"></div>
             <span id="status-text">Display</span>
@@ -75,8 +76,22 @@
   <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
   <div class="toast-container" id="toast-container"></div>
 
+  <div class="modal-overlay" id="main-popup" aria-hidden="true">
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="main-popup-title">
+      <button type="button" class="modal-close" aria-label="Close popup">×</button>
+      <h2 id="main-popup-title">Example popup</h2>
+      <p>This is a simple popup window you can open with the button in the top bar.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary modal-close-btn">Close</button>
+        <button type="button" class="btn btn-primary">Continue</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/base.js?v={{ static_version }}"></script>
   <script src="/static/player.js?v={{ static_version }}"></script>
+
+  
   {% block scripts %}{% endblock %}
 </body>
 </html>

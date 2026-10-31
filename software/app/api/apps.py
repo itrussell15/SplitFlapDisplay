@@ -10,7 +10,7 @@ import app.api.models.requests as reqs
 import app.api.models.responses as resps
 from app.api.dependencies import get_app_loader
 from app.api.models.apps import AvailableAppsResponse
-from app.components.display_playlist.display_item import DisplayItem, DisplayItemType, StaticDisplayItem
+from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from utils import get_current_timestamp, TIMESTAMP_FORMAT

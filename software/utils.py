@@ -21,10 +21,25 @@ def create_logger(level=logging.DEBUG, spacing: int = 15):
 def get_current_timestamp() -> str:
     return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
 
+def get_static_item_path() -> str:
+    path = os.getenv("DISP_STATIC_ITEM_PATH")
+    if path is None:
+        raise ValueError(f"Environment variable {var} was not set.")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} was not found")
+    if not os.path.isdir(path):
+        raise RuntimeError(f"Path provided was for a file, not a directory")
+    
+    return path
 
 def get_env_vars() -> Dict[str, str]:
     output: Dict[str, str] = {}
-    VARS = ["DISP_MAX_ROWS", "DISP_MAX_COLUMNS", "DISP_USB_PORT", "DISP_APP_PATHS"]
+    VARS = [
+        "DISP_MAX_ROWS",
+        "DISP_MAX_COLUMNS",
+        "DISP_USB_PORT",
+        "DISP_APP_PATHS",
+    ]
     for var in VARS:
         value = os.getenv(var)
         if value is None:

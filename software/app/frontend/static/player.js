@@ -23,14 +23,11 @@ async function updatePlayerBar(){
     const playerCurrentIndex = document.querySelector("#active-item");
     const playerTotalIndex = document.querySelector("#total-items");
 
-    console.log(totalTime);
-
     if (!playlistStatus.is_active){
       // Stop symbol
       button.textContent = String.fromCodePoint("9658");
       
       if (playlistStatus.numItems === 0){
-        console.log(`No items in playlist`);
         button.classList.remove('active');
         button.classList.add("inactive");
         return;

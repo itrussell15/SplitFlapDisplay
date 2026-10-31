@@ -10,39 +10,18 @@ async function init()
     console.log(`Default App: ${defaultApp.name}`);
     await updatePlaylistContainer();
 
-    const addItemButton = document.getElementById('add-item');
-    const createItemButton = document.getElementById('popup-create-item')
-    const popup = getPopup();
-    const popupWrapper = document.querySelector('.popup-wrapper');
-    
-    if (!addItemButton || !popup) return;
+    const createItemButton = document.getElementById('popup-create-item');
+    const popup = document.getElementById('playlist-popup');
 
-    // Show popup
-    addItemButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        popupWrapper.style.display = popupWrapper.style.display === 'block' ? 'none' : 'block';
-    });
+    if (!popup) return;
 
-    // Cancel popup when clicking outside popup
-    popupWrapper.addEventListener("click", (event) => {
-        const clickedInsidePopup = popup.contains(event.target);
-        const clickedButton = addItemButton.contains(event.target);
-
-        if (!clickedInsidePopup && !clickedButton){
-            popupWrapper.style.display = "none"
-        }
-    });
-
-    // Close popup after button press
-    createItemButton.addEventListener("click", async (event) => {
+    createItemButton?.addEventListener("click", async (event) => {
         const isItemCreated = createItem();
-        if (isItemCreated){
-            popupWrapper.style.display = "none";
-            // console.log("Updating playlist container");
-            // await updatePlaylistContainer();
+        if (isItemCreated) {
+            popup.classList.remove("open");
+            popup.setAttribute("aria-hidden", "true");
         }
-        else
-        {
+        else {
             console.warn("Unable to close due to invalid form entry");
         }
     });
@@ -164,28 +143,30 @@ function loadAppParams(app_index) {
 
     const popup = getPopup();
     const container = popup.querySelector(".parameter-container");
+    if (!container || !app || !app.parameters) return;
+
     container.replaceChildren();
 
-    Object.entries(app.parameters).forEach((key, n) => {
+    Object.entries(app.parameters).forEach(([key, value]) => {
         const paramRow = document.createElement("div");
         paramRow.className = "parameter-row";
-        paramRow.dataset.key = key[0];
+        paramRow.dataset.key = key;
+
         const paramField = document.createElement("div");
+        paramField.textContent = key;
+
         const paramForm = document.createElement("input");
         paramForm.className = "parameter-form";
-
-        paramField.textContent = `${key[0]}`;
-        paramForm.value = key[1].default;
+        paramForm.value = value?.default ?? "";
 
         paramRow.appendChild(paramField);
         paramRow.appendChild(paramForm);
-
         container.appendChild(paramRow);
     });
 }
 
 function getPopup() {
-    return document.querySelector(".popup");
+    return document.getElementById("playlist-popup");
 }
 
 function getPlaylistContainer(){

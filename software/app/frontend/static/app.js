@@ -150,6 +150,10 @@ function flipTo(index, ch) {
 // ── Keyboard Input ──
 
 function handleKeyDown(e) {
+  if (document.body.classList.contains("modal-open")) {
+    return;
+  }
+
   if (activeCell < 0) return;
 
   if (e.key === "Backspace") {
@@ -254,7 +258,7 @@ function buildColorPalette() {
 
 // ── Actions ──
 
-async function submitBoard() {
+async function collectDisplayInputs() {
   const total = gridRows * gridCols;
   const requests = [];
 
@@ -266,20 +270,27 @@ async function submitBoard() {
     const flapName = charToFlapName(ch);
     if (!flapName) continue;
 
-    console.log(`Moving (${row}, ${col})`);
+    // console.log(`Moving (${row}, ${col})`);
     requests.push({
       location: { row, column: col },
       flap: flapName,
     });
   }
+  return requests;
+}
 
+async function submitBoard() {
+  // Collect inputs from app
+  const displayInputs = await collectDisplayInputs();
+
+  document.select
   try {
     const res = await fetch("/api/v1/display/flap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         request_time: new Date().toISOString(),
-        module_requests: requests,
+        module_requests: displayInputs,
       }),
     });
 
@@ -292,6 +303,33 @@ async function submitBoard() {
   } catch (err) {
     showToast("Connection error", "error");
   }
+}
+
+async function saveBoard() {
+  console.log("Saving static board");
+  const displayInputs = await collectDisplayInputs();
+  const nameInput = document.getElementById("static-item-name");
+
+  const res = await fetch("/api/v1/static/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: nameInput.value.trim(),
+      request_time: new Date().toISOString(),
+      module_requests: displayInputs,
+    }),
+  });
+
+  if (res.ok) {
+    const modal = document.getElementById("static-item-save-popup");
+    console.log(modal);
+    window.closePopup(modal);
+    showToast("Display locations saved!");
+  } else {
+    const err = await res.json();
+    showToast(err.detail || "Save failed", "error");
+  }
+
 }
 
 function clearBoard() {
