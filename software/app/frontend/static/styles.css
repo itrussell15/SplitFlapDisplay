@@ -1126,8 +1126,7 @@ body {
   cursor: pointer;
 }
 .cal-nudge.neg { background: #2a1414; border-color: #5a2a2a; }
-.cal-nudge.pos { background: #14241a; border-color: #2a5a38; }
-.cal-nudge:hover { filter: brightness(1.3); }
+.cal-nudge.pos { background: #14241a; border-color: #2a5a38; }.cal-nudge:hover { filter: brightness(1.3); }
 
 .cal-action-row {
   display: flex;
@@ -1150,12 +1149,20 @@ body {
   border-radius: 8px;
   padding: 10px 12px;
 }
+.cal-flap-row.busy { border-color: #5f5f5f; background: rgba(120, 120, 120, 0.06); }
 .cal-flap-row.done { border-color: var(--green); opacity: 0.7; }
 .cal-flap-loc { font-family: "Courier New", Courier, monospace; font-weight: 700; min-width: 56px; }
 .cal-flap-step { color: var(--text-muted); font-size: 0.85rem; }
 .cal-flap-step strong { color: var(--accent); font-family: "Courier New", Courier, monospace; }
 .cal-flap-row .cal-nudge-row { flex: 1 1 auto; }
 .cal-flap-ok { margin-left: auto; }
+.cal-flap-busy {
+  background: var(--accent-dim);
+  color: #b9b9b9;
+  border: 1px solid var(--accent);
+  opacity: 0.8;
+  cursor: wait;
+}
 
 .cal-done-card { text-align: center; }
 .cal-done-icon {

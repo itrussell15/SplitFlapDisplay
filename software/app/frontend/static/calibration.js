@@ -25,6 +25,7 @@ const cal = {
   position: 0, // flap flow: current flap value
   done: {}, // flap flow: "r,c" -> bool for current position
   settleMs: 7000,
+  locked: new Set(), // "r,c" -> true while a module is rehoming
 };
 
 let available = []; // discovered modules [{row, column}]
@@ -75,14 +76,20 @@ async function runBusy(message, fn) {
 }
 
 async function settle(message) {
+  const overlay = document.getElementById("cal-busy");
   const countEl = document.getElementById("cal-busy-count");
-  if (message) document.getElementById("cal-busy-msg").textContent = message;
-  const secs = Math.ceil(cal.settleMs / 1000);
-  for (let i = secs; i > 0; i--) {
-    countEl.textContent = `Waiting ${i}s for motors to settle…`;
-    await sleep(1000);
+  const msgEl = document.getElementById("cal-busy-msg");
+  if (message) msgEl.textContent = message;
+  if (overlay && overlay.classList.contains("show")) {
+    const secs = Math.ceil(cal.settleMs / 1000);
+    for (let i = secs; i > 0; i--) {
+      countEl.textContent = `Waiting ${i}s for motors to settle…`;
+      await sleep(1000);
+    }
+    countEl.textContent = "";
+  } else {
+    await sleep(cal.settleMs);
   }
-  countEl.textContent = "";
 }
 
 // ── Setup: module selection ──
@@ -177,32 +184,45 @@ async function startCalibration() {
   }
 }
 
+function isModuleLocked(m) {
+  return cal.locked.has(k(m));
+}
+
+function renderCurrentView() {
+  if (cal.type === "home") renderHome();
+  else if (cal.type === "flap") renderFlap();
+}
+
 // ── Shared nudge ──
 async function onNudge(row, column, delta) {
   const m = { row, column };
+  const key = k(m);
+  if (isModuleLocked(m)) return;
+
+  cal.locked.add(key);
+  renderCurrentView();
+
   try {
-    await runBusy(
-      delta < 0 ? `Re-homing (${row},${column})…` : `Moving (${row},${column})…`,
-      async () => {
-        const target = clampStep((cal.steps[k(m)] ?? 0) + delta);
-        if (delta < 0) {
-          await homeModule(m);
-          await settle();
-        }
-        const r = await moveToStep(m, target);
-        cal.steps[k(m)] = r && r.data_value != null ? r.data_value : target;
-      }
-    );
+    const target = clampStep((cal.steps[key] ?? 0) + delta);
+    if (delta < 0) {
+      await homeModule(m);
+      await settle(`Re-homing (${row},${column})…`);
+    }
+    const r = await moveToStep(m, target);
+    cal.steps[key] = r && r.data_value != null ? r.data_value : target;
   } catch (err) {
     showToast(err.message || "Move failed", "error");
+  } finally {
+    cal.locked.delete(key);
+    renderCurrentView();
   }
-  cal.type === "home" ? renderHome() : renderFlap();
 }
 
 function nudgeButtons(m) {
+  const locked = isModuleLocked(m);
   return NUDGES.map(
     (d) =>
-      `<button class="cal-nudge ${d < 0 ? "neg" : "pos"}" onclick="onNudge(${m.row},${m.column},${d})">${d > 0 ? "+" : ""}${d}</button>`
+      `<button class="cal-nudge ${d < 0 ? "neg" : "pos"}" ${locked ? "disabled" : ""} onclick="onNudge(${m.row},${m.column},${d})">${d > 0 ? "+" : ""}${d}</button>`
   ).join("");
 }
 
@@ -233,6 +253,7 @@ function renderHome() {
   document.getElementById("cal-home-progress").textContent = `${cal.idx + 1} / ${cal.modules.length}`;
   document.getElementById("cal-home-step").textContent = cal.steps[k(m)] ?? 0;
   document.getElementById("cal-home-nudge").innerHTML = nudgeButtons(m);
+  document.getElementById("cal-home-nudge").setAttribute("aria-busy", isModuleLocked(m) ? "true" : "false");
 }
 
 async function acceptHome() {
@@ -296,20 +317,22 @@ function renderFlap() {
   wrap.innerHTML = "";
   cal.modules.forEach((m) => {
     const done = cal.done[k(m)];
+    const busy = isModuleLocked(m);
     const row = document.createElement("div");
-    row.className = "cal-flap-row" + (done ? " done" : "");
+    row.className = "cal-flap-row" + (done ? " done" : "") + (busy ? " busy" : "");
     row.innerHTML = `
       <div class="cal-flap-loc">(${m.row},${m.column})</div>
       <div class="cal-flap-step">step <strong>${cal.steps[k(m)] ?? 0}</strong></div>
-      <div class="cal-nudge-row">${done ? "" : nudgeButtons(m)}</div>
-      <button class="btn ${done ? "btn-secondary" : "btn-primary"} btn-sm cal-flap-ok"
-        ${done ? "disabled" : ""} onclick="okFlap(${m.row},${m.column})">${done ? "✓ OK" : "OK"}</button>`;
+      <div class="cal-nudge-row">${done || busy ? "" : nudgeButtons(m)}</div>
+      <button class="btn ${done ? "btn-secondary" : busy ? "btn-secondary cal-flap-busy" : "btn-primary"} btn-sm cal-flap-ok"
+        ${done || busy ? "disabled" : ""} onclick="okFlap(${m.row},${m.column})">${done ? "✓ OK" : busy ? "Working…" : "OK"}</button>`;
     wrap.appendChild(row);
   });
 }
 
 async function okFlap(row, column) {
   const m = { row, column };
+  if (isModuleLocked(m)) return;
   try {
     await runBusy(`Saving ${flapName(cal.position)} for (${row},${column})…`, () =>
       savePos(m, cal.position)

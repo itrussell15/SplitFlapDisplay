@@ -22,7 +22,8 @@ def get_current_timestamp() -> str:
     return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
 
 def get_static_item_path() -> str:
-    path = os.getenv("DISP_STATIC_ITEM_PATH")
+    var = "DISP_STATIC_ITEM_PATH"
+    path = os.getenv(var)
     if path is None:
         raise ValueError(f"Environment variable {var} was not set.")
     if not os.path.exists(path):
