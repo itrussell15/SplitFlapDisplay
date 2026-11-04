@@ -2,6 +2,7 @@ import os
 import datetime
 import logging
 import time
+from dataclasses import dataclass
 
 from typing import Any, Callable, Optional, Dict
 
@@ -47,3 +48,22 @@ def get_env_vars() -> Dict[str, str]:
             raise ValueError(f"Environment variable {var} was not set. Please set it with 'export {var}=<value>'")
         output[var] = value
     return output
+
+@dataclass(frozen=True)
+class Range:
+    min: int
+    max: int
+
+    def __post_init__(self) -> None:
+        if self.min > self.max:
+            raise ValueError(f"Range is invalid. Min > Max")
+
+    def __iter__(self) -> None:
+        for i in range(self.min, self.max + 1):
+            yield i
+
+    @property
+    def delta(self) -> int:
+        return (self.max + 1) - self.min
+
+        

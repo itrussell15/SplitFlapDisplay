@@ -21,7 +21,7 @@ from source.module_controller import (
     NUM_POSITIONS,
 )
 from test.mock_components.mock_module_firmware import MockFirmware
-from utils import create_logger, get_env_vars
+from utils import create_logger, get_env_vars, Range
 
 MODULE_IDS = [1, 2, 3, 4, 5]
 SLEEP_TIME_S = 1.0
@@ -143,7 +143,7 @@ class TestBusController(unittest.TestCase):
         columns = int(self._env_vars["DISP_MAX_COLUMNS"])
         total_expected = rows * columns
         self.bus.discover(
-            [1, rows + 1], [1, columns + 1], 0.1
+            Range(1, rows), Range(1, columns), 0.1
         )
         self.assertEqual(len(self.bus.modules), total_expected)
 

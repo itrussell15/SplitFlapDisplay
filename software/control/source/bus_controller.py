@@ -1,3 +1,4 @@
+import tqdm
 import logging
 import struct
 import threading
@@ -6,6 +7,7 @@ from concurrent.futures import Future
 from dataclasses import dataclass
 from queue import Queue
 from typing import Dict, List, Optional, Tuple
+from tqdm.contrib.logging import logging_redirect_tqdm
 
 import serial
 
@@ -20,6 +22,7 @@ from .module_controller import (
     ModuleInfo
 )
 from .serial_processor import SerialProcessor
+from utils import Range
 
 EXAMPLE_INCOMING_MESSAGE = IncomingMessage(
     row=0, column=0, sequence_id=0, command=ModuleCommand.HOME, status=True
@@ -73,7 +76,7 @@ class BusController(SerialProcessor):
         self.processor = self.start_processor()
 
     def discover(
-        self, row_range: List[int], column_range: List[int], timeout: float = 0.05
+        self, row_range: Range, column_range: Range, timeout: float = 0.05
     ) -> None:
         tmp = self.timeout
         self.timeout = timeout
@@ -83,25 +86,29 @@ class BusController(SerialProcessor):
 
         start_time = time.time()
         self.modules = {}
-        for row in range(row_range[0], row_range[1]):
-            for col in range(column_range[0], column_range[1]):
-                if row == 0 or col == 0:
-                    self.logger.warning(
-                        f"Skipping ({row}, {col}) as it is reserved for broadcasts"
+        total_modules = row_range.delta * column_range.delta
+        pbar = tqdm.tqdm(total=total_modules, desc=f"Searching for {total_modules} modules")
+        with logging_redirect_tqdm():
+            for row in row_range:
+                for col in column_range:
+                    pbar.update(1)
+                    if row == 0 or col == 0:
+                        self.logger.warning(
+                            f"Skipping ({row}, {col}) as it is reserved for broadcasts"
+                        )
+                        continue
+                    self.logger.debug(f"Searching for module {(row, col)}")
+                    command = OutgoingMessage(
+                        row=row, column=col, command=ModuleCommand.PING
                     )
-                    continue
-                self.logger.debug(f"Searching for module {(row, col)}")
-                command = OutgoingMessage(
-                    row=row, column=col, command=ModuleCommand.PING
-                )
-                future = self._send_message(command)
-                try:
-                    future.result()
-                except TimeoutError:
-                    self.logger.warning(f"Timeout at {(row, col)}")
-                    continue
-                self.modules[(row, col)] = ModuleController(row, col)
-                self.modules[(row, col)].register_command_queue(self.queue, self.port)
+                    future = self._send_message(command)
+                    try:
+                        future.result()
+                    except TimeoutError:
+                        self.logger.warning(f"Timeout at {(row, col)}")
+                        continue
+                    self.modules[(row, col)] = ModuleController(row, col)
+                    self.modules[(row, col)].register_command_queue(self.queue, self.port)
 
         self.logger.debug("Waiting for command queue to clear")
         while not self.queue.empty():
@@ -115,11 +122,12 @@ class BusController(SerialProcessor):
 
     def get_module_info(self) -> List[ModuleInfo]:
         info: List[ModuleInfo] = []
-        for module in self.modules.values():
-            self.logger.debug(vars(module))
-            module_info = module.get_module_info()
-            self.logger.debug(module_info)
-            info.append(module_info)
+        with logging_redirect_tqdm():
+            for module in tqdm.tqdm(self.modules.values(), desc="Fetching Module Info"):
+                self.logger.debug(vars(module))
+                module_info = module.get_module_info()
+                self.logger.debug(module_info)
+                info.append(module_info)
         return info
 
     def broadcast(self, command: ModuleCommand, data_value: int = 0) -> None:
@@ -186,19 +194,12 @@ class BusController(SerialProcessor):
         self._processed_commands += 1
         return response
 
-    def _ensure_valid_discover_args(self, val_range: List[int]) -> None:
-        if len(val_range) != 2:
-            raise ValueError(
-                f"Range input was: {val_range}, should be [MIN_VAL, MAX_VAL]"
-            )
-        for val in val_range:
+    def _ensure_valid_discover_args(self, val_range: Range) -> None:
+        for val in [val_range.min, val_range.max]:
             if val < 0 or val > 256:
                 raise ValueError(
                     f"Discover value must be betweeen 0-{MAX_ROW_VALUE} - Not {val}"
                 )
-
-        if not val_range[0] < val_range[1]:
-            raise ValueError(f"Range is not increasing - {val_range}")
 
     @property
     def info(self) -> BusInfo:

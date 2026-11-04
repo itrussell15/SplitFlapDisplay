@@ -21,8 +21,8 @@ import utils
 logger = logging.getLogger(__name__)
 VARS = utils.get_env_vars()
 
-ROWS = [1, int(VARS["DISP_MAX_ROWS"]) + 1]
-COLUMNS = [1, int(VARS["DISP_MAX_COLUMNS"]) + 1]
+ROWS = utils.Range(1, int(VARS["DISP_MAX_ROWS"]))
+COLUMNS = utils.Range(1, int(VARS["DISP_MAX_COLUMNS"]))
 DEFAULT_RATE = {"minutes": 1, "seconds": 0}
 APP_PATHS = VARS["DISP_APP_PATHS"]
 
@@ -83,5 +83,6 @@ def connect_to_display(ports: List[str]) -> DisplayController:
     for port in ports:
         bus = BusController(port=port, timeout=0.5)
         display.add_bus_controller(bus)
+
     display.discover(ROWS, COLUMNS)
     return display
