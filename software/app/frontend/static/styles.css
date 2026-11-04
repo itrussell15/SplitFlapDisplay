@@ -420,6 +420,7 @@ body {
 
 .btn-save { 
   background: #335a34;
+  color: #fff;
 }
 
 .btn-secondary:hover { background: #444; }

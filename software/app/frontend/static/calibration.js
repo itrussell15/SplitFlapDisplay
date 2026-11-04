@@ -276,6 +276,27 @@ async function acceptHome() {
   nextHomeModule();
 }
 
+async function acceptAllHome() {
+  const m = cal.modules[cal.idx];
+  const step = cal.steps[k(m)] ?? 0;
+  try {
+    await runBusy(`Saving home offsets for all modules…`, async () => {
+      for (const module of cal.modules) {
+        await setHomeOff(module, step);
+        const v = await getHomeOff(module);
+        if (v && v.data_value !== step) {
+          showToast(`Verify mismatch: wrote ${step}, read ${v.data_value} for (${module.row},${module.column})`, "error");
+        }
+      }
+      showToast(`Saved offset ${step} for ${cal.modules.length} module(s)`);
+    });
+  } catch (err) {
+    showToast(err.message || "Save all failed", "error");
+    return;
+  }
+  await finishCalibration();
+}
+
 function skipHome() {
   nextHomeModule();
 }
@@ -344,6 +365,22 @@ async function okFlap(row, column) {
   cal.done[k(m)] = true;
   if (cal.modules.every((x) => cal.done[k(x)])) await advancePosition();
   else renderFlap();
+}
+
+async function acceptAllFlap() {
+  try {
+    await runBusy(`Saving ${flapName(cal.position)} for all modules…`, async () => {
+      for (const m of cal.modules) {
+        await savePos(m, cal.position);
+        cal.done[k(m)] = true;
+      }
+      showToast(`Saved ${flapName(cal.position)} for ${cal.modules.length} module(s)`);
+    });
+  } catch (err) {
+    showToast(err.message || "Save all failed", "error");
+    return;
+  }
+  await advancePosition();
 }
 
 async function advancePosition() {
