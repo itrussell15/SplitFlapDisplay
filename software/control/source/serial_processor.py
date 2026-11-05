@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from concurrent.futures import Future
 from collections import deque
 from queue import Queue
-from typing import Optional
+from typing import List, Optional, Union
 from concurrent.futures import Future
 
 import serial

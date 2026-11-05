@@ -4,7 +4,7 @@ import struct
 import time
 from concurrent.futures import Future
 from queue import Queue
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
 
 from .dataclasses_ import (
