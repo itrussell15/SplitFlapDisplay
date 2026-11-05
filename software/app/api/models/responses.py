@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Dict, List, Optional
 from pydantic import BaseModel
-from .common import Location
+from .common import Location, AverageLatencyResponse
 
 
 class MessageTimes(BaseModel):
@@ -18,12 +18,11 @@ class ModuleInfo(BaseModel):
     max_steps: int
 
 class ModuleInfoResponse(BaseModel):
-    # We omit start_value and end_value here
     location: Location
     info: ModuleInfo
+    latency: Optional[AverageLatencyResponse]
 
 class ModuleResponse(BaseModel):
-    # We omit start_value and end_value here
     location: Location
     command: int
     data_value: int

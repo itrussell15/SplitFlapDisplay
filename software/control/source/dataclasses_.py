@@ -160,6 +160,13 @@ class LatencyMs:
     receive: float
     total: float
 
+    def __add__(self, item: LatencyMs) -> LatencyMs:
+        return LatencyMs(
+            send=self.send + item.send,
+            receive=self.receive + item.receive,
+            total=self.total + item.total
+        ) 
+
 
 @dataclass(kw_only=True)
 class IncomingMessage(BaseMessage):

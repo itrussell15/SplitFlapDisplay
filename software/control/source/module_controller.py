@@ -12,6 +12,7 @@ from .dataclasses_ import (
     ModuleCommand,
     ModuleErrorCodes,
     OutgoingMessage,
+    LatencyMs
 )
 
 MOTOR_RESOLUTION = 4096
@@ -124,6 +125,8 @@ class ModuleController:
         self._is_homed: bool = False
         self._current_step: int = 0
         self._current_position: int = 0
+        self._message_count: int = 0
+        self._lifetime_latency = LatencyMs(0, 0, 0)
         self._bus: Optional[str] = None
         self._info = None
 
@@ -151,6 +154,7 @@ class ModuleController:
         auto_home = self.get_eeprom_value(EepromLocations.AUTO_HOME_LOCATION)
         home_offset = self.get_home_offset()
         max_steps = self.get_max_steps()
+
         # Update self._current_step
         self.get_steps()
         
@@ -310,6 +314,7 @@ class ModuleController:
         message = OutgoingMessage(
             row=self.row, column=self.column, command=command, data_value=value
         )
+        self._message_count += 1
         self.logger.debug(f"Packet generated for message: {message}")
 
         if self._command_queue is None:
@@ -326,7 +331,9 @@ class ModuleController:
         if future.exception() is not None:
             raise future.exception()
         # This will wait until a response is received
-        return future.result()
+        result = future.result()
+        self._lifetime_latency += result.latency_ms
+        return result
 
     def _handle_bad_status(self, response: IncomingMessage) -> None:
         try:
@@ -379,4 +386,15 @@ class ModuleController:
     @property
     def is_command_queue_registered(self) -> int:
         return self._command_queue is not None
+
+    @property
+    def average_latency_ms(self) -> Optional[Union[int, LatencyMs]]:
+        if self._message_count <= 0:
+            return None
+        output = LatencyMs(
+            self._lifetime_latency.send / self._message_count,
+            self._lifetime_latency.receive / self._message_count,
+            self._lifetime_latency.total / self._message_count,
+        )
+        return self._message_count, output
 

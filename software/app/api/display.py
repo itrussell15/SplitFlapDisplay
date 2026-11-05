@@ -11,6 +11,7 @@ from app.api.models.common import Location
 from app.api.rate import RateLimited
 from app.api.dependencies import get_display
 import app.api.models.responses as resps
+from app.api.models.display import DisplayLatencyResponse
 from control.source.dataclasses_ import IncomingMessage
 from control.source.flaps import Flap
 from control.source.module_controller import ModuleController
@@ -214,3 +215,18 @@ def home_all(display=Depends(get_display)):
     except Exception as e:
         raise common.exception_response(e)
     return package_display_response(response)
+
+
+@router.get("/latency", response_model=DisplayLatencyResponse)
+def bus_latency_info(display=Depends(get_display)):
+    output = {}
+    for name, bus in display.buses.items():
+        count, latency_data = bus.average_latency
+        latency_data = asdict(latency_data)
+        latency_data["count"] = count
+        output[name] = {
+            "average": latency_data,
+            "current_window": bus.latency_window
+        }
+
+    return {"buses": output}

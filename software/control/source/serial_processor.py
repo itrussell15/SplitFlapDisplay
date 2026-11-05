@@ -3,6 +3,7 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import Future
+from collections import deque
 from queue import Queue
 from typing import Optional
 from concurrent.futures import Future
@@ -124,11 +125,15 @@ class SerialProcessor(ABC, SerialControl):
         timeout: int = 1,
         num_retries: int = 3,
         max_queue_size: int = 64,
+        latency_window_size: int = 100
     ) -> None:
         SerialControl.__init__(self, port, baudrate, timeout)
         self.queue = Queue(maxsize=max_queue_size)
         self.num_retries = num_retries
         self._stop_event = threading.Event()
+        self._lifetime_latency_total = LatencyMs(0, 0, 0)
+        self._lifetime_latency_count = 0
+        self._latency_window = deque(maxlen=latency_window_size)
 
     def worker(self):
         sequence_id: int = 0
@@ -194,7 +199,11 @@ class SerialProcessor(ABC, SerialControl):
     ) -> LatencyMs:
         send = (send_time - start_time) * 1e3
         receive = (read_time - send_time) * 1e3
-        return LatencyMs(send=send, receive=receive, total=send + receive)
+        output = LatencyMs(send=send, receive=receive, total=send + receive)
+        self._latency_window.append(output)
+        self._lifetime_latency_total += output
+        self._lifetime_latency_count += 1
+        return output
 
     def close(self) -> None:
         if not self.queue.empty():
@@ -210,3 +219,18 @@ class SerialProcessor(ABC, SerialControl):
     @property
     def is_alive(self) -> bool:
         return not self._stop_event.is_set()
+
+    @property
+    def latency_window(self) -> List[LatencyMs]:
+        return list(self._latency_window)
+    
+    @property 
+    def average_latency(self) -> Union[int, LatencyMs]:
+        return (
+            self._lifetime_latency_count,
+            LatencyMs(
+                self._lifetime_latency_total.send / self._lifetime_latency_count,
+                self._lifetime_latency_total.receive / self._lifetime_latency_count,
+                self._lifetime_latency_total.total / self._lifetime_latency_count,
+            )
+        )

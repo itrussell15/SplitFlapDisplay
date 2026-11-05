@@ -4,14 +4,14 @@ import struct
 import threading
 import time
 from concurrent.futures import Future
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from queue import Queue
 from typing import Dict, List, Optional, Tuple
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 import serial
 
-from .dataclasses_ import IncomingMessage, ModuleErrorCodes, OutgoingMessage
+from .dataclasses_ import IncomingMessage, ModuleErrorCodes, OutgoingMessage, LatencyMs
 from .module_controller import (
     MAX_COLUMN_VALUE,
     MAX_ROW_VALUE,
@@ -34,6 +34,7 @@ class BusInfo:
     port: str
     baudrate: int
     num_modules: int
+    average_latency_ms: LatencyMs
     modules: List[Tuple[int, int]]
 
 class BusController(SerialProcessor):
@@ -203,10 +204,14 @@ class BusController(SerialProcessor):
 
     @property
     def info(self) -> BusInfo:
+        count, average_latency = self.average_latency
+        latency_response = asdict(average_latency)
+        latency_response["count"] = count
         return BusInfo(
             port=self.port,
             baudrate=self.baudrate,
             num_modules=self.num_modules,
+            average_latency_ms=latency_response,
             modules=[tuple(location) for location in self.module_locations]
         )
 

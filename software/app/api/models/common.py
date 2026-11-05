@@ -13,3 +13,11 @@ class Location(BaseModel):
             "row": self.row,
             "column": self.column
         } 
+
+class LatencyResponse(BaseModel):
+    send: float
+    receive: float
+    total: float
+
+class AverageLatencyResponse(LatencyResponse):
+    count: int

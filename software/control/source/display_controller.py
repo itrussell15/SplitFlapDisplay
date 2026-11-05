@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple
 from .bus_controller import BusController
 from .flaps import Flap
 from .module_controller import ModuleController, ModuleInfo
+from utils import Range
 
 
 @dataclass
@@ -27,7 +28,7 @@ class DisplayController:
         self.buses = {}
         self.modules = {}
 
-    def add_bus_controller(self, bus: BusController, discover: bool = False) -> None:
+    def add_bus_controller(self, bus: BusController) -> None:
         if bus.port in self.buses:
             raise ConnectionError(f"Already connected to bus at {bus.port}")
         self.buses[bus.port] = bus
@@ -44,14 +45,14 @@ class DisplayController:
         for bus in self.buses.values():
             bus.reset_processed_commands()
 
-    def discover(self, row_value: int, column_value: int) -> List[Tuple[int, int]]:
+    def discover(self, row_value: Range, column_value: Range, fail_if_gaps: bool = True) -> List[Tuple[int, int]]:
         modules = []
         for bus in self.buses.values():
             module_locations = bus.discover(row_value, column_value)
             modules.extend(module_locations)
             self._update_modules(bus)
             bus.get_module_info()
-        # self.check_display_for_gaps()
+        self._check_display_for_gaps(row_value, column_value, fail_if_gaps)
         return modules
 
     def home_all(self) -> None:
@@ -154,24 +155,18 @@ class DisplayController:
             raise ValueError(f"No module at {module_location} found on this display")
         return result
 
-    def check_for_gaps(self) -> None:
-        # Gather modules
-        rows = {}
-        for module in self.modules:
-            row, column = module
-            if row not in rows:
-                rows[row] = []
-            rows[row].append(column)
-
-        # Check for gaps
-        for row, columns in rows.items():
-            column = sorted(columns)
-            current_column = columns[0]
-            for column in columns[1:]:
-                if abs(column - current_column) > 1:
-                    raise ValueError(f"Gap in modules at {(row, column)}")
-                current_column = column
-        
+    def _check_display_for_gaps(self, rows: Range, columns: Range, fail_if_gaps: bool = True) -> None:
+        found = set(sorted(self.modules.keys()))
+        expected = set()
+        for row in rows:
+            for column in columns:
+                expected.add((row, column))
+        delta = expected - found
+        if len(delta) > 0:
+            self.logger.warning(f"Missing {len(delta)} modules from range")
+            self.logger.warning(f"Missing modules: {delta}")
+            if fail_if_gaps:
+                raise RuntimeError(f"Missing Modules {len(found)}/{len(expected)}: {delta}")
  
     @property
     def info(self) -> DisplayInfo:

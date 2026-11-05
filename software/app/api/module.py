@@ -25,7 +25,8 @@ logger = logging.getLogger("DisplayAPI")
 
 @router.get("/info", response_model=ModuleInfoResponse)
 def get_module_info(row: int, column: int, display=Depends(get_display)):
-    module_info = display.get_module(row, column).get_module_info()
+    module = display.get_module(row, column)
+    module_info = module.get_module_info()
 
     metadata = ModuleInfo(
         bus=module_info.bus,
@@ -36,9 +37,18 @@ def get_module_info(row: int, column: int, display=Depends(get_display)):
         max_steps=module_info.max_steps
     )
     location = Location(row=row, column=column)
+
+    latency_response = None
+    if module.average_latency_ms is not None:
+        count, latency = module.average_latency_ms  
+        latency_response = asdict(latency)
+        latency_response["count"] = count
+        
+
     return ModuleInfoResponse(
         location=location,
-        info=metadata
+        info=metadata,
+        latency=latency_response
     )
 
 @router.get("/steps", response_model=ModuleResponse)
