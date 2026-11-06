@@ -6,6 +6,9 @@ import sqlite3
 from abc import ABC, abstractmethod
 from typing import Any
 
+class DatabaseError(Exception):
+    pass
+
 
 class DatabaseHandler(ABC):
 
@@ -19,6 +22,7 @@ class DatabaseHandler(ABC):
             conn = sqlite3.connect(self._file)
             conn.close()
         self._db_sanity_check()
+        self._num_connections = 0
 
     def __repr__(self) -> str:
         return f"DatabaseHandler({self._file.stem})"

@@ -2,7 +2,7 @@ from typing import List
 
 from dataclasses import dataclass
 
-from ..core.database_handler import DatabaseHandler, DatabaseConnection
+from ..core.database_handler import DatabaseHandler, DatabaseConnection, DatabaseError
 from app.api.models.static_items import (
     StaticModuleData, StaticItem, StaticItems, Location
 )
@@ -127,6 +127,9 @@ class Connection(DatabaseConnection):
             (uuid,)
         ).fetchall()
 
+        if len(rows) == 0:
+            raise DatabaseError(f"No entries found for uuid '{uuid}'")
+
         item = RowEntry(*rows[0]).create_static_item()
         for row in rows[1:]:
             row = RowEntry(*row)
@@ -157,6 +160,40 @@ class Connection(DatabaseConnection):
         
         return {"num_items": num_items, "items": items}
                 
+    def delete_uuid(self, uuid: str) -> bool:
+        row = self._cursor.execute(
+            f"""
+            SELECT id
+            FROM {self.STATIC_ITEM_TABLE}
+            WHERE uuid = ?
+            """,
+            (uuid,)
+        ).fetchone()
+       
+        if row is None:
+            raise DatabaseError(f"Error getting data about {uuid} from database")
+
+        item_id = row[0]
+        self._cursor.execute(
+            f"""
+            DELETE
+            FROM {self.STATIC_CELL_TABLE}
+            WHERE static_item_id = ?
+            """,
+            (item_id,)
+        )
+        self._cursor.execute(
+            """
+            DELETE
+            FROM static_item
+            WHERE uuid = ?
+            """,
+            (uuid,),
+        )
+        self._connection.commit()
+        return True
+
+
 class SplitFlapDatabase(DatabaseHandler):
 
     def init(self) -> None:
@@ -164,6 +201,7 @@ class SplitFlapDatabase(DatabaseHandler):
             conn.init()
     
     def connect(self) -> DatabaseConnection:
+        self._num_connections += 1
         return Connection(self._file)
 
     

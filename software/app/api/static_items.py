@@ -10,7 +10,7 @@ from app.api.models.static_items import (
     AddStaticItemResponse, StaticItemRequest, StaticItemResponse, StaticItem, StaticItems
 )
 from app.api.dependencies import get_database
-
+from .common import exception_response
 from control.source.flaps import Flap
 import utils
 
@@ -18,7 +18,7 @@ from app.components.display_playlist.base_apps.static import StaticDisplayItem
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 logger = logging.getLogger("StaticApps")
-router = APIRouter(prefix="/static", tags=["Integrations", "Apps", "Static"])
+router = APIRouter(prefix="/static", tags=["Static"])
 
 STATIC_PATH = utils.get_static_item_path()
 
@@ -60,16 +60,6 @@ def add_static_item(request: StaticItemRequest, database = Depends(get_database)
         data=modules
     )
 
-@router.get("/list", response_model=StaticItems)
-def get_all_static_items(database = Depends(get_database)):
-    # Retrieve static locations
-    logger.info("Retrieving static items")
-    
-    with database.connect() as db:
-        items = db.get_all_static_items()
-
-    return items
-
 @router.get("/names")
 def get_static_item_names(database = Depends(get_database)):
     logger.info("Getting static item names")
@@ -82,7 +72,19 @@ def get_static_item_names(database = Depends(get_database)):
 @router.get("/uuid", response_model=StaticItem)
 def get_item_from_uuid(uuid: str, database = Depends(get_database)):
     logger.info(f"Fetching static item {uuid}")
-    
-    with database.connect() as db:
-        item = db.get_item_from_uuid(uuid)
-    return item
+    try:
+        with database.connect() as db:
+            item = db.get_item_from_uuid(uuid)
+        return item
+    except Exception as e:
+        raise exception_response(e)
+
+@router.delete("/uuid")
+def delete_from_uuid(uuid: str, database = Depends(get_database)):
+    logger.info(f"Deleting static item with uuid {uuid}")
+    try:
+        with database.connect() as db:
+            is_ok = db.delete_uuid(uuid)
+    except Exception as e:
+        raise exception_response(e)
+    return {'is_ok': is_ok}
