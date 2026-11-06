@@ -2,10 +2,13 @@
   --bg: #121212;
   --panel: #1e1e1e;
   --border: #333;
-  --accent: #ff9a1e;
+  --accent: 255, 154, 30;
   --accent-muted: #ff9a1e99;
-  --accent-hover: #ff9a1e68;
+  --accent-hover: 255, 154, 30;
   --accent-dim: #ff9a1e4f;
+  --save-btn: 51, 90, 52;
+  --load-btn: 52, 81, 227;
+  --secondary-btn: 50, 50, 50;
   --text: #e0e0e0;
   --text-muted: #888;
   --text-dark: #121212;
@@ -401,31 +404,39 @@ body {
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
   letter-spacing: 0.5px;
+  --alpha: 1.0;
+}
+
+.btn:hover {
+  --alpha: 0.5;
 }
 
 .btn:active { transform: scale(0.97); }
 
 .btn-primary {
   flex: 1;
-  background: var(--accent);
+  background: rgba(var(--accent), var(--alpha));
   color: #121212;
 }
 
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:hover {
+  background: rgba(var(--accent-hover), var(--alpha));
+}
 
 .btn-secondary {
-  background: #333;
+  background: rgba(var(--secondary-btn), var(--alpha));
   color: #fff;
 }
 
 .btn-save { 
-  background: #335a34;
+  background: rgba(var(--save-btn), var(--alpha));
   color: #fff;
 }
 
-.btn-secondary:hover { background: #444; }
-
-.btn-save:hover { background: #1a2f1b; }
+.btn-load { 
+  background: rgba(var(--load-btn), var(--alpha));
+  color: #fff;
+}
 
 .btn-danger {
   background: var(--red);
@@ -1226,6 +1237,16 @@ body {
   body.sidebar-open .sidebar-backdrop { display: block; }
   .sidebar-toggle { display: block; }
 }
+
+#load-selection {
+  padding: 20px;
+}
+
+#load-select {
+  height: 70%;
+  width: 100%;
+}
+
 
 @media (max-width: 1000px) {
   .container { padding: 12px 8px; }

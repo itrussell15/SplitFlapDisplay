@@ -12,6 +12,7 @@ from control.source.bus_controller import BusController
 from control.source.display_controller import DisplayController
 from app.components.core.app_loader import AppLoader
 from app.components.display_playlist.playlist import DisplayPlaylist
+from app.components.database.split_flap_database import SplitFlapDatabase
 from app.components.display_playlist.display_item import DisplayItem
 from app.components.core.rate_limiter import RateLimiter
 from app.components.core.updater import UpdateFrequency
@@ -25,11 +26,15 @@ ROWS = utils.Range(1, int(VARS["DISP_MAX_ROWS"]))
 COLUMNS = utils.Range(1, int(VARS["DISP_MAX_COLUMNS"]))
 DEFAULT_RATE = {"minutes": 1, "seconds": 0}
 APP_PATHS = VARS["DISP_APP_PATHS"]
+DATABASE_PATH = utils.get_database_path()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # app startup
     logger.info("Initializing App")
+    app.state.database = SplitFlapDatabase(DATABASE_PATH)
+    app.state.database.init()
     
     # Display Connection
     ports = get_ports()
@@ -42,6 +47,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Loading Apps")
     paths = get_app_paths()
     app.state.app_loader = AppLoader(DisplayItem, sources=paths)
+    
     app.state.playlist = DisplayPlaylist(app.state.display, frequency=UpdateFrequency(seconds=30))
     logger.info(f"Loaded {len(app.state.app_loader)} apps from {len(paths)} path(s)")
     

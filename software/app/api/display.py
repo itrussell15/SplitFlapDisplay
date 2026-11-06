@@ -11,6 +11,7 @@ from app.api.models.common import Location
 from app.api.rate import RateLimited
 from app.api.dependencies import get_display
 import app.api.models.responses as resps
+from app.api.models.common import AverageLatencyResponse
 from app.api.models.display import DisplayLatencyResponse
 from control.source.dataclasses_ import IncomingMessage
 from control.source.flaps import Flap
@@ -20,7 +21,6 @@ from utils import get_current_timestamp, TIMESTAMP_FORMAT
 
 from .common import exception_response, package_incoming_message_as_module_response
 
-router = APIRouter(prefix="/display", tags=["Display Control"])
 router = APIRouter(prefix="/display", tags=["Display Control"])
 logger = logging.getLogger("DisplayAPI")
 
@@ -54,13 +54,20 @@ def package_location(location: Tuple[int, int], module: ModuleController) -> res
         home_offset=info.home_offset,
         max_steps=info.max_steps
     )
+    count, latency = module.average_latency_ms
+    avg_latency = AverageLatencyResponse(
+        count=count,
+        **asdict(latency)
+    )
     return resps.ModuleInfoResponse(
-        location=Location(row=module.row, column=module.column),
-        info=response
+        location=Location(row=location[0], column=location[1]),
+        info=response,
+        latency=avg_latency
     )
 
 def _list_modules(display: DisplayController) -> List[Dict[str, Any]]:
     locations = [package_location(location, module) for location, module in display.modules.items()]
+    
     return {
         "request_time": get_current_timestamp(),
         "num_modules": display.num_modules,

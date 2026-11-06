@@ -52,6 +52,7 @@ async function init() {
 
     buildGrid();
     buildColorPalette();
+    buildLoadPopup();
     document.addEventListener("keydown", handleKeyDown);
   } catch (err) {
     console.error("Init failed:", err);
@@ -256,6 +257,45 @@ function buildColorPalette() {
   palette.appendChild(eraseSwatch);
 }
 
+async function buildLoadPopup() {
+  console.log("Fetching static items");
+  const selection = document.querySelector("#load-select");
+  if (!selection) return;
+
+  try {
+    const nameRequest = await fetch("/api/v1/static/names");
+    if (!nameRequest.ok) {
+      throw new Error(`Static names request failed: HTTP ${nameRequest.status}`);
+    }
+
+    const namesData = await nameRequest.json();
+    const names = Object.entries(namesData?.names ?? {});
+
+    selection.innerHTML = "";
+
+    if (names.length === 0) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "No saved layouts";
+      option.disabled = true;
+      option.selected = true;
+      selection.appendChild(option);
+      return;
+    }
+
+    names.forEach(([name, id]) => {
+      const option = document.createElement("option");
+      option.value = name;
+      option.id = id;
+      option.textContent = name;
+      selection.appendChild(option);
+    });
+  } catch (err) {
+    console.error("Error loading saved layouts:", err);
+    selection.innerHTML = "<option value=''>Unable to load</option>";
+  }
+}
+
 // ── Actions ──
 
 async function collectDisplayInputs() {
@@ -329,6 +369,48 @@ async function saveBoard() {
     const err = await res.json();
     showToast(err.detail || "Save failed", "error");
   }
+  await buildLoadPopup();
+
+}
+
+async function loadBoard() {
+  console.log("Loading board from selection");
+  // Fetch the selected value
+  const selection = document.querySelector("#load-select");
+  const selectedId = selection.options[selection.selectedIndex].id;
+
+  // Fill grid with saved values
+  await loadBoardFromUuid(selectedId);
+
+  // Close pop up
+  const modal = document.getElementById("static-item-load-popup");
+  console.log(modal);
+  window.closePopup(modal);
+}
+
+async function loadBoardFromUuid(uuid)
+{
+  const res = await fetch(`/api/v1/static/uuid?uuid=${encodeURIComponent(uuid)}`);
+  if (res.ok) {
+    const itemData = await res.json();
+    const modules = itemData?.data ?? [];
+    modules.forEach((module) => {
+      const index = ((module.location.row - 1) * gridCols) + (module.location.column - 1);
+      console.log(`Setting ${index}: (${module.location.row}, ${module.location.column}) to ${module.value}`);
+      console.log(`Resolved Flap Value: ${FLAP_TO_SPECIAL_CHAR_MAP[module.value]}`);
+      
+      let char_val = module.value.toUpperCase();
+      if (char_val in FLAP_TO_SPECIAL_CHAR_MAP)
+      {
+        char_val = FLAP_TO_SPECIAL_CHAR_MAP[char_val]
+      }
+      flipTo(index, char_val);
+    })
+    showToast("Load successful");
+  } else {
+    const err = await res.json();
+    showToast(err.detail || "Loading item failed");
+  }
 
 }
 
@@ -355,7 +437,7 @@ async function homeAll() {
 
 // ── Helpers ──
 
-const SPECIAL_CHAR_MAP = {
+const SPECIAL_CHAR_TO_FLAP_MAP = {
   " ": "BLANK", "!": "EXCLAIMATION", "?": "QUESTION_MARK", "@": "AT",
   "#": "POUND", "$": "DOLLAR", "%": "PERCENT", "&": "AMPERSAND",
   "(": "LEFT_PAREN", ")": "RIGHT_PAREN", "-": "HYPHEN",
@@ -368,6 +450,10 @@ const SPECIAL_CHAR_MAP = {
   "q": "SUN", "u": "UP", "d": "DOWN", "r": "UMBRELLA", "l": "LIGHTNING",
 };
 
+const FLAP_TO_SPECIAL_CHAR_MAP = Object.fromEntries(
+  Object.entries(SPECIAL_CHAR_TO_FLAP_MAP).map(([char, flapName]) => [flapName, char])
+);
+
 function buildCharToNameMap(serverFlapMap) {
   const map = {};
   for (const name of Object.keys(serverFlapMap)) {
@@ -375,7 +461,7 @@ function buildCharToNameMap(serverFlapMap) {
       map[name] = name;
     }
   }
-  for (const [ch, name] of Object.entries(SPECIAL_CHAR_MAP)) {
+  for (const [ch, name] of Object.entries(SPECIAL_CHAR_TO_FLAP_MAP)) {
     if (name in serverFlapMap) {
       map[ch] = name;
     }

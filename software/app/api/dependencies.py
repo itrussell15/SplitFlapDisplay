@@ -11,3 +11,6 @@ def get_rate_limiter(request: Request):
 
 def get_app_loader(request: Request):
     return request.app.state.app_loader
+
+def get_database(request: Request):
+    return request.app.state.database

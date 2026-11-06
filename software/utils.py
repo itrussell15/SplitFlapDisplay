@@ -34,6 +34,14 @@ def get_static_item_path() -> str:
     
     return path
 
+def get_database_path() -> str:
+    var = "DISP_DB"
+    path = os.getenv(var)
+    if path is None:
+        raise ValueError(f"Environment variable {var} was not set.")
+    
+    return path
+
 def get_env_vars() -> Dict[str, str]:
     output: Dict[str, str] = {}
     VARS = [

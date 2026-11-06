@@ -22,10 +22,15 @@ class StaticItemResponse(BaseModel):
 
 class AddStaticItemResponse(StaticItemResponse):
     creation_time: str
-    file_location: str  
 
+
+class StaticItem(BaseModel):
+    name: str
+    uuid: str
+    request_time: str
+    data: List[StaticModuleData]
+    
 
 class StaticItems(BaseModel):
-    request_time: str
-    items: Dict[str, StaticItemResponse]
-    
+    num_items: int
+    items: Dict[str, StaticItems]

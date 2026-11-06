@@ -5,9 +5,11 @@ import json
 import logging
 import tempfile
 
+
 from app.api.models.static_items import (
-    AddStaticItemResponse, StaticItemRequest, StaticItemResponse, StaticItems
+    AddStaticItemResponse, StaticItemRequest, StaticItemResponse, StaticItem, StaticItems
 )
+from app.api.dependencies import get_database
 
 from control.source.flaps import Flap
 import utils
@@ -21,7 +23,8 @@ router = APIRouter(prefix="/static", tags=["Integrations", "Apps", "Static"])
 STATIC_PATH = utils.get_static_item_path()
 
 @router.post("/add", response_model=AddStaticItemResponse)
-def add_static_item(request: StaticItemRequest):
+def add_static_item(request: StaticItemRequest, database = Depends(get_database)):
+
     output = {"timestamp": time.time()}
     modules = []
     for module in request.module_requests:
@@ -44,55 +47,42 @@ def add_static_item(request: StaticItemRequest):
 
     output["name"] = request.name
     output["uuid"] = this_id
-    output["data"] = modules
+    output["cells"] = modules
     
-    # Store static location
-    file_name = f"{this_id}.json"
-    if file_name in os.listdir(STATIC_PATH):
-        raise FileExistsError(f"{file_name} alerady exists in static path")
-    
-    path = os.path.join(STATIC_PATH, file_name)
-    with open(path, "w") as f:
-        json.dump(output, f, indent=2)
+    # Save to database
+    with database.connect() as db:
+        db.add_static_item(**output)
     
     return AddStaticItemResponse(
         name=request.name,
         uuid=this_id,
         creation_time=request.request_time,
-        file_location=path,
         data=modules
     )
 
-
 @router.get("/list", response_model=StaticItems)
-def get_all_static_items():
+def get_all_static_items(database = Depends(get_database)):
     # Retrieve static locations
     logger.info("Retrieving static items")
-
-    items = {"request_time": str(time.time())}
-    if not os.path.exists(STATIC_PATH):
-        logger.warning(f"No folder for static items exists at {STATIC_PATH}")
-        return items
-
-    if len(os.listdir(STATIC_PATH)) == 0:
-        logger.warning(f"No static items found at {STATIC_PATH}")
-        return items
-
-    items["items"] = {}
-    for file in os.listdir(STATIC_PATH):
-        if os.path.splitext(file)[-1] != ".json":
-            continue
-        try:
-            path = os.path.join(STATIC_PATH, file)
-            with open(path, "r") as f:
-                item = json.load(f)
-            response_item = StaticItemResponse(
-                name=item["name"],
-                data=item["data"]
-            )  
-            items["items"][item["uuid"]] = response_item
-        except Exception as e:
-            raise e
+    
+    with database.connect() as db:
+        items = db.get_all_static_items()
 
     return items
-            
+
+@router.get("/names")
+def get_static_item_names(database = Depends(get_database)):
+    logger.info("Getting static item names")
+    
+    with database.connect() as db:
+        names = db.get_static_item_names()
+
+    return {"num_items": len(names), "names": names}
+
+@router.get("/uuid", response_model=StaticItem)
+def get_item_from_uuid(uuid: str, database = Depends(get_database)):
+    logger.info(f"Fetching static item {uuid}")
+    
+    with database.connect() as db:
+        item = db.get_item_from_uuid(uuid)
+    return item
