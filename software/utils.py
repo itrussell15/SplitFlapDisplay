@@ -49,6 +49,7 @@ def get_env_vars() -> Dict[str, str]:
         "DISP_MAX_COLUMNS",
         "DISP_USB_PORT",
         "DISP_APP_PATHS",
+        "DISP_NUM_FLAPS"
     ]
     for var in VARS:
         value = os.getenv(var)

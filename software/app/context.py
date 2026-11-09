@@ -24,6 +24,7 @@ VARS = utils.get_env_vars()
 
 ROWS = utils.Range(1, int(VARS["DISP_MAX_ROWS"]))
 COLUMNS = utils.Range(1, int(VARS["DISP_MAX_COLUMNS"]))
+NUM_FLAPS = int(VARS["DISP_NUM_FLAPS"])
 DEFAULT_RATE = {"minutes": 1, "seconds": 0}
 APP_PATHS = VARS["DISP_APP_PATHS"]
 DATABASE_PATH = utils.get_database_path()
@@ -33,8 +34,11 @@ DATABASE_PATH = utils.get_database_path()
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # app startup
     logger.info("Initializing App")
-    app.state.database = SplitFlapDatabase(DATABASE_PATH)
+    app.state.database = SplitFlapDatabase(DATABASE_PATH, NUM_FLAPS)
     app.state.database.init()
+    if not app.state.database.flap_positions_initialized():
+        logger.warning("Flap positions are not initialized.")
+        # raise RuntimeError("Flap positions not ready")
     
     # Display Connection
     ports = get_ports()

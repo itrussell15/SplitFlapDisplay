@@ -10,7 +10,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 print(sys.path)
 from app.context import lifespan
 from app.api.base import API_VERSION
-from app.api import display, base, module, rate, apps, playlist, static_items
+from app.api import (
+    display,
+    base,
+    module,
+    rate,
+    apps,
+    playlist,
+    static_items,
+    flaps
+)
 from app.frontend import frontend
 from utils import create_logger
 
@@ -28,6 +37,7 @@ app.include_router(module.router, prefix=f"/api/{API_VERSION}")
 app.include_router(apps.router, prefix=f"/api/{API_VERSION}")
 app.include_router(playlist.router, prefix=f"/api/{API_VERSION}")
 app.include_router(static_items.router, prefix=f"/api/{API_VERSION}")
+app.include_router(flaps.router, prefix=f"/api/{API_VERSION}")
 # app.include_router(rate.router, prefix=f"/api/{API_VERSION}")
 app.mount("/static", StaticFiles(directory=os.path.join(base_dir, "frontend", "static")), name="static")
 app.mount("/", StaticFiles(directory=os.path.join(base_dir, "frontend"), html=True), name="frontend")

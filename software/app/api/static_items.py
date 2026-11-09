@@ -20,8 +20,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 logger = logging.getLogger("StaticApps")
 router = APIRouter(prefix="/static", tags=["Static"])
 
-STATIC_PATH = utils.get_static_item_path()
-
 @router.post("/add", response_model=AddStaticItemResponse)
 def add_static_item(request: StaticItemRequest, database = Depends(get_database)):
 
