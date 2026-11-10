@@ -1,23 +1,10 @@
 const FLIP_SPEED_MS = 50;
 
-const SPECIAL_FLAPS = [
-  { char: "w", label: "White",  display: "■", color: "#ffffff" },
-  { char: "h", label: "Heart",  display: "♥", color: "#ffffff" },
-  { char: "s", label: "Star",   display: "★", color: "#ffffff" },
-  { char: "m", label: "Music",   display: "♫", color: "#ffffff" },
-  { char: "e", label: "Message",   display: "✉", color: "#ffffff" },
-  { char: "f", label: "Filled Smiley",   display: "☻", color: "#ffffff" },
-  { char: "y", label: "Smiley",   display: "☺", color: "#ffffff" },
-  { char: "q", label: "Sun",   display: "☀", color: "#ffffff" },
-  { char: "r", label: "Umbrella",   display: "☂", color: "#ffffff" },
-  { char: "l", label: "Lightning",   display: "\u26A1\uFE0E", color: "#ffffff" },
-  { char: "u", label: "Up",   display: "↑", color: "#ffffff" },
-  { char: "d", label: "Down",   display: "↓", color: "#ffffff" },
-];
-
 let flapMap = {};
 let flapChars = [];
 let charToNameMap = {};
+let flapByPosition = new Map();
+let flapByCharacter = new Map();
 let gridRows = 0;
 let gridCols = 0;
 let activeCell = -1;
@@ -27,17 +14,49 @@ let selectedColor = null;
 
 // ── Init ──
 
+function normalizeColor(color) {
+  if (!color) return "#ffffff";
+  return color.startsWith("#") ? color : `#${color}`;
+}
+
+function cacheFlapsFromApi(apiFlaps) {
+  flapMap = apiFlaps || {};
+  flapChars = Object.keys(flapMap);
+  flapByPosition.clear();
+  flapByCharacter.clear();
+
+  Object.values(flapMap).forEach((flap) => {
+    if (!flap || flap.position == null) return;
+
+    const position = Number(flap.position);
+    const character = String(flap.character ?? " ");
+    const entry = {
+      position,
+      character,
+      color: normalizeColor(flap.color_hex),
+    };
+
+    flapByPosition.set(position, entry);
+    flapByCharacter.set(character, entry);
+    flapByCharacter.set(character.toUpperCase(), entry);
+    flapByCharacter.set(character.toLowerCase(), entry);
+  });
+
+  charToNameMap = buildCharToNameMap(flapMap);
+  console.log(`Loaded ${flapChars.length} flaps, ${Object.keys(charToNameMap).length} typeable chars`);
+}
+
 async function init() {
   const dot = document.getElementById("display-status-dot");
   const text = document.getElementById("status-text");
 
   try {
-    const flapRes = await fetch("/api/v1/display/flap");
+    const flapRes = await fetch("/api/v1/flaps/");
     if (!flapRes.ok) throw new Error(`Flap fetch failed: HTTP ${flapRes.status}`);
-    flapMap = await flapRes.json();
-    flapChars = Object.keys(flapMap);
-    charToNameMap = buildCharToNameMap(flapMap);
-    console.log(`Loaded ${flapChars.length} flaps, ${Object.keys(charToNameMap).length} typeable chars`);
+
+    const flapData = await flapRes.json();
+    const allFlaps = flapData.flaps || flapData;
+    cacheFlapsFromApi(allFlaps);
 
     const infoRes = await fetch("/api/v1/display/info");
     if (!infoRes.ok) throw new Error(`Info fetch failed: HTTP ${infoRes.status}`);
@@ -95,9 +114,18 @@ function setActiveCell(index) {
 // ── Flap Display ──
 
 function getCharDisplay(ch) {
-  const special = SPECIAL_FLAPS.find(c => c.char === ch);
-  if (special) return { text: special.display, color: special.color };
-  return { text: ch === " " ? "" : ch.toUpperCase(), color: "#fff" };
+  const key = String(ch ?? "");
+  const lookup = flapByCharacter.get(key)
+    || flapByCharacter.get(key.toUpperCase())
+    || flapByCharacter.get(key.toLowerCase());
+
+  if (lookup) {
+    const text = lookup.character === " " ? "" : lookup.character;
+    return { text, color: lookup.color || "#fff" };
+  }
+
+  const fallback = key === " " ? "" : key.toUpperCase();
+  return { text: fallback, color: "#fff" };
 }
 
 function renderChar(index, ch) {
@@ -202,9 +230,13 @@ function handleKeyDown(e) {
 
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
     e.preventDefault();
-    const ch = e.key.toUpperCase();
-    if (charToFlapName(ch)) {
-      flipTo(activeCell, ch);
+    const ch = e.key;
+    const resolved = flapByCharacter.get(ch)
+      || flapByCharacter.get(ch.toUpperCase())
+      || flapByCharacter.get(ch.toLowerCase());
+
+    if (resolved) {
+      flipTo(activeCell, resolved.character);
       if (activeCell < boardState.length - 1) setActiveCell(activeCell + 1);
     }
   }
@@ -216,25 +248,23 @@ function buildColorPalette() {
   const palette = document.getElementById("color-palette");
   palette.innerHTML = "";
 
-  SPECIAL_FLAPS.forEach(cf => {
-    if (!charToFlapName(cf.char)) return;
+  const paletteEntries = [...new Map([...flapByCharacter.values()].map(flap => [flap.character, flap])).values()]
+    .filter(flap => flap.character && flap.character.trim() !== "" && !/[A-Za-z0-9]/.test(flap.character));
+
+  paletteEntries.forEach((flap) => {
     const swatch = document.createElement("div");
     swatch.className = "color-swatch";
-    swatch.title = cf.label;
-    if (cf.display === "■") {
-      swatch.style.background = cf.color;
-    } else {
-      swatch.style.background = "#222";
-      swatch.style.display = "flex";
-      swatch.style.alignItems = "center";
-      swatch.style.justifyContent = "center";
-      swatch.style.fontSize = "18px";
-      swatch.style.color = cf.color;
-      swatch.textContent = cf.display;
-    }
+    swatch.title = flap.character;
+    swatch.style.background = "#222";
+    swatch.style.display = "flex";
+    swatch.style.alignItems = "center";
+    swatch.style.justifyContent = "center";
+    swatch.style.fontSize = "18px";
+    swatch.style.color = flap.color || "#fff";
+    swatch.textContent = flap.character;
     swatch.addEventListener("click", () => {
       if (activeCell < 0) return;
-      flipTo(activeCell, cf.char);
+      flipTo(activeCell, flap.character);
       if (activeCell < boardState.length - 1) setActiveCell(activeCell + 1);
     });
     palette.appendChild(swatch);
@@ -298,6 +328,12 @@ async function buildLoadPopup() {
 
 // ── Actions ──
 
+function getPositionForCharacter(ch) {
+  const key = String(ch ?? " ");
+  const lookup = flapByCharacter.get(key) || flapByCharacter.get(key.toUpperCase()) || flapByCharacter.get(key.toLowerCase());
+  return lookup ? Number(lookup.position) : null;
+}
+
 async function collectDisplayInputs() {
   const total = gridRows * gridCols;
   const requests = [];
@@ -306,26 +342,23 @@ async function collectDisplayInputs() {
     const row = Math.floor(i / gridCols) + 1;
     const col = (i % gridCols) + 1;
     const ch = boardState[i] || " ";
+    const position = getPositionForCharacter(ch);
 
-    const flapName = charToFlapName(ch);
-    if (!flapName) continue;
+    if (position == null || position < 0) continue;
 
-    // console.log(`Moving (${row}, ${col})`);
     requests.push({
       location: { row, column: col },
-      flap: flapName,
+      position,
     });
   }
   return requests;
 }
 
 async function submitBoard() {
-  // Collect inputs from app
   const displayInputs = await collectDisplayInputs();
 
-  document.select
   try {
-    const res = await fetch("/api/v1/display/flap", {
+    const res = await fetch("/api/v1/display/positions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -396,22 +429,16 @@ async function loadBoardFromUuid(uuid)
     const modules = itemData?.data ?? [];
     modules.forEach((module) => {
       const index = ((module.location.row - 1) * gridCols) + (module.location.column - 1);
-      console.log(`Setting ${index}: (${module.location.row}, ${module.location.column}) to ${module.value}`);
-      console.log(`Resolved Flap Value: ${FLAP_TO_SPECIAL_CHAR_MAP[module.value]}`);
-      
-      let char_val = module.value.toUpperCase();
-      if (char_val in FLAP_TO_SPECIAL_CHAR_MAP)
-      {
-        char_val = FLAP_TO_SPECIAL_CHAR_MAP[char_val]
-      }
-      flipTo(index, char_val);
-    })
+      const rawNumericPosition = Number(module.position ?? module.value ?? -1);
+      const flap = flapByPosition.get(rawNumericPosition);
+      const charValue = flap ? flap.character : " ";
+      flipTo(index, charValue);
+    });
     showToast("Load successful");
   } else {
     const err = await res.json();
     showToast(err.detail || "Loading item failed");
   }
-
 }
 
 function clearBoard() {
@@ -437,40 +464,20 @@ async function homeAll() {
 
 // ── Helpers ──
 
-const SPECIAL_CHAR_TO_FLAP_MAP = {
-  " ": "BLANK", "!": "EXCLAIMATION", "?": "QUESTION_MARK", "@": "AT",
-  "#": "POUND", "$": "DOLLAR", "%": "PERCENT", "&": "AMPERSAND",
-  "(": "LEFT_PAREN", ")": "RIGHT_PAREN", "-": "HYPHEN",
-  "=": "EQUALS", "+": "PLUS", "*": "STAR",
-  ":": "COLON", "'": "APOSTRAPHE",
-  "0": "ZERO", "1": "ONE", "2": "TWO", "3": "THREE", "4": "FOUR",
-  "5": "FIVE", "6": "SIX", "7": "SEVEN", "8": "EIGHT", "9": "NINE",
-  "w": "WHITE", "h": "HEART", "s": "STAR", "m": "MUSIC",
-  "e": "MESSAGE", "f": "SMILEY_FILLED", "y": "SMILEY",
-  "q": "SUN", "u": "UP", "d": "DOWN", "r": "UMBRELLA", "l": "LIGHTNING",
-};
-
-const FLAP_TO_SPECIAL_CHAR_MAP = Object.fromEntries(
-  Object.entries(SPECIAL_CHAR_TO_FLAP_MAP).map(([char, flapName]) => [flapName, char])
-);
-
 function buildCharToNameMap(serverFlapMap) {
   const map = {};
-  for (const name of Object.keys(serverFlapMap)) {
-    if (name.length === 1) {
-      map[name] = name;
-    }
-  }
-  for (const [ch, name] of Object.entries(SPECIAL_CHAR_TO_FLAP_MAP)) {
-    if (name in serverFlapMap) {
-      map[ch] = name;
-    }
-  }
-  return map;
-}
+  const flapValues = Object.values(serverFlapMap || {});
 
-function charToFlapName(ch) {
-  return charToNameMap[ch] || null;
+  flapValues.forEach((flap) => {
+    if (!flap || typeof flap !== "object") return;
+    const character = String(flap.character ?? "").trim();
+    if (!character) return;
+    map[character] = character;
+    map[character.toUpperCase()] = character;
+    map[character.toLowerCase()] = character;
+  });
+
+  return map;
 }
 
 // ── Toast ──

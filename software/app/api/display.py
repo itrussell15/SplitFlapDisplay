@@ -187,30 +187,30 @@ def move_to_positions(
         )
     return package_display_response(response)
 
-@router.post("/flap", response_model=resps.DisplayResponse)
-def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
-    # if rate_limiter.is_active:
-    #     raise RateLimited(target_time=rate_limiter.target_time)
+# @router.post("/flap", response_model=resps.DisplayResponse)
+# def move_to_flaps(flaps: reqs.DisplayFlapRequest, display=Depends(get_display)):
+#     # if rate_limiter.is_active:
+#     #     raise RateLimited(target_time=rate_limiter.target_time)
 
-    request_data = {}
-    for request in flaps.module_requests:
-        try:
-            flap = Flap[request.flap.upper()]
-        except KeyError:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Flap value '{request.flap}' is not valid",
-            )
-        request_data[request.location.as_tuple()] = flap
+#     request_data = {}
+#     for request in flaps.module_requests:
+#         try:
+#             flap = Flap[request.flap.upper()]
+#         except KeyError:
+#             raise HTTPException(
+#                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#                 detail=f"Flap value '{request.flap}' is not valid",
+#             )
+#         request_data[request.location.as_tuple()] = flap
 
-    try:
-        response = display.move_to_flaps(request_data)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error while trying to move to flap: {str(e)}",
-        )
-    return package_display_response(response)
+#     try:
+#         response = display.move_to_flaps(request_data)
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Error while trying to move to flap: {str(e)}",
+#         )
+#     return package_display_response(response)
 
 @router.post("/home", response_model=resps.DisplayResponse)
 def home_all(display=Depends(get_display)):

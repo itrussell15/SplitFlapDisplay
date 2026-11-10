@@ -1,18 +1,17 @@
 from pydantic import BaseModel
-from .requests import DisplayFlapRequest, Location
-from .responses import ModuleResponse
+from app.api.models.common import Location
+from .requests import DisplayPositionRequest
 
 from typing import Dict, List
 
 
-
-class StaticItemRequest(DisplayFlapRequest):
+class StaticItemRequest(DisplayPositionRequest):
     name: str
 
 
 class StaticModuleData(BaseModel):
     location: Location
-    value: str
+    position: int
 
 
 class StaticItemResponse(BaseModel):

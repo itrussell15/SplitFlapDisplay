@@ -30,12 +30,17 @@ const cal = {
 
 let available = []; // discovered modules [{row, column}]
 const selected = new Set(); // selected "r,c" keys
-let flapByValue = {}; // value -> NAME
+let flapByPosition = new Map(); // position -> {position, character, color_hex}
 
 const k = (m) => `${m.row},${m.column}`;
 const clampStep = (s) => Math.max(0, Math.min(s, MOTOR_RESOLUTION - 1));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const flapName = (value) => flapByValue[value] || `#${value}`;
+const flapName = (value) => {
+  const flap = flapByPosition.get(Number(value));
+  if (!flap) return `#${value}`;
+  if (flap.character === " ") return "BLANK";
+  return flap.character;
+};
 
 // ── API helpers ──
 async function api(path, opts = {}) {
@@ -309,8 +314,8 @@ async function nextHomeModule() {
 
 // ── Flap position flow ──
 async function startFlap() {
-  const startName = document.getElementById("cal-flap-start").value;
-  cal.position = startName in window.__flapByName ? window.__flapByName[startName] : 0;
+  const startValue = Number(document.getElementById("cal-flap-start").value || 0);
+  cal.position = Number.isFinite(startValue) ? startValue : 0;
   const guess = clampStep(parseInt(document.getElementById("cal-flap-guess").value, 10) || 0);
   await runBusy("Preparing modules…", async () => {
     for (const m of cal.modules) await setCalMode(m, true);
@@ -445,20 +450,36 @@ function resetWizard() {
 // ── Boot ──
 async function initCalibration() {
   try {
-    const flaps = await api("/display/flap"); // {NAME: value}
-    window.__flapByName = flaps;
-    flapByValue = {};
+    const data = await api("/flaps/");
+    const flapList = Object.values(data.flaps || {});
+    flapByPosition = new Map();
+
+    flapList.forEach((flap) => {
+      if (!flap || flap.position == null) return;
+      const position = Number(flap.position);
+      flapByPosition.set(position, {
+        position,
+        character: flap.character ?? " ",
+        color_hex: flap.color_hex ?? "#ffffff",
+      });
+    });
+
     const sel = document.getElementById("cal-flap-start");
     sel.innerHTML = "";
-    Object.entries(flaps)
-      .sort((a, b) => a[1] - b[1])
-      .forEach(([name, value]) => {
-        flapByValue[value] = name;
+    [...flapByPosition.keys()]
+      .sort((a, b) => a - b)
+      .forEach((position) => {
+        const flap = flapByPosition.get(position);
+        const label = `${position} · ${flapName(position)}`;
         const opt = document.createElement("option");
-        opt.value = name;
-        opt.textContent = `${value} · ${name}`;
+        opt.value = String(position);
+        opt.textContent = label;
         sel.appendChild(opt);
       });
+
+    if (sel.options.length > 0) {
+      sel.value = String(Math.min(0, sel.options.length - 1));
+    }
   } catch (err) {
     showToast("Could not load flap list", "error");
   }

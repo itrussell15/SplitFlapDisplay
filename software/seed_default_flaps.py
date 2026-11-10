@@ -6,7 +6,7 @@ from typing import List
 
 import requests
 
-DEFAULT_CHARACTERS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!@#$&[]-+=:%'✉★☀↑↓°☺☻♥♫☂a■"
+DEFAULT_CHARACTERS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?!@#$&[]-+=:%'✉★☀↑↓°☺☻♥♫☂⚡︎■"
 WHITE = "#FFFFFF"
 
 
@@ -27,13 +27,17 @@ def main() -> int:
             "color_hex": WHITE,
         }
         try:
-            response = requests.put(endpoint, json=payload, timeout=10)
+            response = requests.post(endpoint, json=payload, timeout=10)
             if response.status_code not in (200, 201):
-                print(f"Failed at position {index}: {response.status_code} - {response.text}")
-                response.raise_for_status()
-                print(f"{index:02d}: {character!r} -> {response.status_code}")
+                if response.status_code in (400, 409, 422):
+                    response = requests.put(endpoint, json=payload, timeout=10)
+                if response.status_code not in (200, 201):
+                    print(f"Failed at position {index}: {response.status_code} - {response.text}")
+                    response.raise_for_status()
+            print(f"{index:02d}: {character!r} -> {response.status_code}")
         except Exception as e:
-            print(str(e))
+            print(f"Error at position {index}: {e}")
+            return 1
     print("All default flaps sent successfully.")
     return 0
 

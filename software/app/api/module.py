@@ -67,21 +67,21 @@ def move_to_module_steps(steps: int, location: Location, display=Depends(get_dis
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)
 
-@router.post("/flap", response_model=ModuleResponse)
-def move_to_flap(request: FlapRequest, display=Depends(get_display)):
-    try:
-        flap = Flap[request.flap.upper()]
-    except KeyError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Invalid flap input - {request.flap}",
-        )
+# @router.post("/flap", response_model=ModuleResponse)
+# def move_to_flap(request: FlapRequest, display=Depends(get_display)):
+#     try:
+#         flap = Flap[request.flap.upper()]
+#     except KeyError:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"Invalid flap input - {request.flap}",
+#         )
 
-    try:
-        response = display.get_module(*request.location.as_tuple()).move_to_position(flap.value)
-    except Exception as e:
-        raise exception_response(e)
-    return package_incoming_message_as_module_response(response)
+#     try:
+#         response = display.get_module(*request.location.as_tuple()).move_to_position(flap.value)
+#     except Exception as e:
+#         raise exception_response(e)
+#     return package_incoming_message_as_module_response(response)
 
 @router.get("/position", response_model=PositionResponse)
 def get_all_positions(row: int, column: int, display=Depends(get_display)):

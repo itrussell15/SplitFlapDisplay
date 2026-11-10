@@ -32,7 +32,7 @@ class StaticItemRowEntry:
     def as_static_module_data(self) -> StaticModuleData:
         return StaticModuleData(
             location=Location(row=self.row, column=self.column),
-            value=self.value
+            position=int(self.value)
         )
 
 class Connection(DatabaseConnection):
@@ -74,14 +74,14 @@ class Connection(DatabaseConnection):
             location = cell["location"]
             row = location["row"]
             column = location["column"]
-            value = cell["value"]
+            value = cell.get("position", cell.get("value"))
 
             self._cursor.execute(
                 f"""
                 INSERT INTO {self.STATIC_CELL_TABLE} (static_item_id, row_index, column_index, value)
                 VALUES (?, ?, ?, ?)
                 """,
-                (item_id, row, column, value),
+                (item_id, row, column, int(value)),
             )
 
         self._connection.commit()
@@ -328,7 +328,7 @@ class Connection(DatabaseConnection):
                 )
             """)
             self._connection.commit()
-        
+
         if self.STATIC_CELL_TABLE not in self.tables:
             self.logger.debug("Creating item cell table")
             self._cursor.execute(f"""
@@ -337,7 +337,7 @@ class Connection(DatabaseConnection):
                     static_item_id INTEGER NOT NULL,
                     row_index INTEGER NOT NULL,
                     column_index INTEGER NOT NULL,
-                    value TEXT NOT NULL,
+                    value INTEGER NOT NULL,
                     FOREIGN KEY (static_item_id) REFERENCES static_item(id),
                     UNIQUE (static_item_id, row_index, column_index)
                 )

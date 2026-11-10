@@ -26,36 +26,39 @@ def add_static_item(request: StaticItemRequest, database = Depends(get_database)
     output = {"timestamp": time.time()}
     modules = []
     for module in request.module_requests:
-        try:
-            # Ensure that the flap is valid
-            Flap[module.flap]
-
-            modules.append(
-                {
-                    "location": module.location.as_dict(),
-                    "value": module.flap.upper()
-                }
-            )
-        except KeyError:
+        if not isinstance(module.position, int) or module.position < 0:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Flap value '{module.flap}' is not valid",
+                detail=f"Position value '{module.position}' is not valid",
             )
+
+        modules.append(
+            {
+                "location": module.location.as_dict(),
+                "position": module.position,
+            }
+        )
     this_id = str(uuid.uuid4())
 
     output["name"] = request.name
     output["uuid"] = this_id
     output["cells"] = modules
-    
+
     # Save to database
     with database.connect() as db:
         db.add_static_item(**output)
-    
+
     return AddStaticItemResponse(
         name=request.name,
         uuid=this_id,
         creation_time=request.request_time,
-        data=modules
+        data=[
+            {
+                "location": module["location"],
+                "position": module["position"],
+            }
+            for module in modules
+        ]
     )
 
 @router.get("/names")
