@@ -47,5 +47,6 @@ class StaticDisplayItem(DisplayItem):
     def __repr__(self) -> str:
         return f"StaticDisplayItem({self.name})"
 
+    # TODO Update this to conform to positions based calls
     def update(self, display_info: DisplayInfo) -> Dict[Tuple[int, int], str]:
         return self.flaps

@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from .dependencies import get_display
 from .common import exception_response, package_incoming_message_as_module_response
-from control.source.flaps import Flap
 from control.source.module_controller import EepromLocations, ModuleInfo
 from app.api.models.common import Location 
 from app.api.models.responses import ModuleResponse, PositionResponse, ModuleInfoResponse, ModuleInfo

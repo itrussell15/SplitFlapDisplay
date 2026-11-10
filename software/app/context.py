@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from control.source.bus_controller import BusController
-from control.source.display_controller import DisplayController
+from control.source.display_controller import DisplayController, DisplayCharMap
 from app.components.core.app_loader import AppLoader
 from app.components.display_playlist.playlist import DisplayPlaylist
 from app.components.database.split_flap_database import SplitFlapDatabase
@@ -20,7 +20,7 @@ import utils
 
 
 logger = logging.getLogger(__name__)
-VARS = utils.get_env_vars()
+VARS = utils.get_all_env_vars()
 
 ROWS = utils.Range(1, int(VARS["DISP_MAX_ROWS"]))
 COLUMNS = utils.Range(1, int(VARS["DISP_MAX_COLUMNS"]))
@@ -38,13 +38,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.database.init()
     if not app.state.database.flap_positions_initialized():
         logger.warning("Flap positions are not initialized.")
-        # raise RuntimeError("Flap positions not ready")
+    
+    with app.state.database.connect() as db:
+        display_position_map = db.get_all_flap_position_by_character()["flaps"]
+        print(display_position_map)
     
     # Display Connection
     ports = get_ports()
     logging.getLogger("BusController(/tmp/vcom_host)").setLevel(logging.WARNING)
     logging.getLogger("OutgoingMessage").setLevel(logging.WARNING)
-    app.state.display = connect_to_display(ports)
+    app.state.display = connect_to_display(ports, display_position_map)
     logger.info(f"Display connected with {app.state.display.num_modules} modules found")
 
     # App Loading
@@ -85,8 +88,8 @@ def get_app_paths() -> List[str]:
         output.append(path.strip())
     return output
 
-def connect_to_display(ports: List[str]) -> DisplayController:
-    display = DisplayController()
+def connect_to_display(ports: List[str], char_map: DisplayCharMap) -> DisplayController:
+    display = DisplayController(char_map)
     ports = get_ports()
     if ports is None:
         raise ConnectionError(f"No port to connect to. Please set a port to connect to with 'export DISP_USB_PORT=<port>'")

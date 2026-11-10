@@ -42,7 +42,13 @@ def get_database_path() -> str:
     
     return path
 
-def get_env_vars() -> Dict[str, str]:
+def get_env_var(value: str) -> str:
+    value = os.getenv(var)
+    if value is None:
+        raise ValueError(f"Environment variable {var} was not set. Please set it with 'export {var}=<value>'")
+    return value
+
+def get_all_env_vars() -> Dict[str, str]:
     output: Dict[str, str] = {}
     VARS = [
         "DISP_MAX_ROWS",
@@ -52,10 +58,7 @@ def get_env_vars() -> Dict[str, str]:
         "DISP_NUM_FLAPS"
     ]
     for var in VARS:
-        value = os.getenv(var)
-        if value is None:
-            raise ValueError(f"Environment variable {var} was not set. Please set it with 'export {var}=<value>'")
-        output[var] = value
+        output[var] = get_env_var(value)
     return output
 
 @dataclass(frozen=True)

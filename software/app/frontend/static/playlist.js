@@ -145,7 +145,13 @@ function loadAppParams(app_index) {
     const container = popup.querySelector(".parameter-container");
     if (!container || !app || !app.parameters) return;
 
+    
     container.replaceChildren();
+    console.log(app);
+    if (app.name == "StaticDisplayItem") {
+        _loadStaticItem(container);
+        return;
+    }
 
     Object.entries(app.parameters).forEach(([key, value]) => {
         const paramRow = document.createElement("div");
@@ -163,6 +169,56 @@ function loadAppParams(app_index) {
         paramRow.appendChild(paramForm);
         container.appendChild(paramRow);
     });
+}
+
+async function _loadStaticItem(container)
+{
+    const selectRow = document.createElement("div");
+    selectRow.className = "parameter-row";
+    selectRow.dataset.key = "static_item_uuid";
+
+    const label = document.createElement("div");
+    label.textContent = "Saved static item";
+
+    const select = document.createElement("select");
+    select.className = "parameter-form";
+    select.name = "item_uuid";
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choose a saved layout";
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+
+    try {
+        const response = await fetch("/api/v1/static/names");
+        if (!response.ok) {
+            throw new Error(`Static item fetch failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const names = data?.names ?? {};
+
+        Object.entries(names).forEach(([name, uuid]) => {
+            const option = document.createElement("option");
+            option.value = uuid;
+            option.textContent = name;
+            select.appendChild(option);
+        });
+    } catch (err) {
+        console.error("Failed to load static items:", err);
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No saved layouts available";
+        option.disabled = true;
+        option.selected = true;
+        select.appendChild(option);
+    }
+
+    selectRow.appendChild(label);
+    selectRow.appendChild(select);
+    container.appendChild(selectRow);
 }
 
 function getPopup() {

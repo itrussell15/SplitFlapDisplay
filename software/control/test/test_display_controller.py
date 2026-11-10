@@ -16,11 +16,11 @@ from source.flaps import Flap
 from source.display_controller import DisplayController
 from source.dataclasses_ import IncomingMessage, ModuleCommand, OutgoingMessage
 from source.module_controller import MAX_SPEED, ModuleController, MOTOR_RESOLUTION, FirmwareException
-from utils import create_logger, get_env_vars, Range
+from utils import create_logger, get_all_env_vars, Range
 
 SLEEP_TIME_S = 1.0
 
-env_vars = get_env_vars()
+env_vars = get_all_env_vars()
 NUM_ROWS = int(env_vars["DISP_MAX_ROWS"])
 NUM_COLS = int(env_vars["DISP_MAX_COLUMNS"])
 

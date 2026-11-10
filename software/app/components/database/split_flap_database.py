@@ -370,5 +370,3 @@ class SplitFlapDatabase(DatabaseHandler):
             db_flap_count = connection.get_num_rows_in_table(connection.FLAP_POSITION_TABLE)
             self.logger.info(f"Desired Flaps: {self._num_flaps} - Found Flaps: {db_flap_count}")
         return db_flap_count == self._num_flaps
-
-    

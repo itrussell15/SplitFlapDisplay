@@ -14,6 +14,7 @@ from .dataclasses_ import (
     OutgoingMessage,
     LatencyMs
 )
+from utils import get_all_env_vars
 
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
@@ -58,7 +59,7 @@ from .dataclasses_ import (
 
 MOTOR_RESOLUTION = 4096
 MAX_SPEED = 10
-NUM_POSITIONS = 64
+NUM_POSITIONS = get_env_var("DISP_NUM_FLAPS")
 
 MIN_ROW_VALUE = 0
 MAX_ROW_VALUE = 255
@@ -366,6 +367,10 @@ class ModuleController:
             EepromLocations.MINOR_FIRMWARE_LOCATION
         ).data_value
         return f"v{major}.{minor}"
+
+    @property
+    def num_positions(self) -> int:
+        return NUM_POSITIONS
 
     @property
     def current_position(self) -> int:

@@ -1,6 +1,6 @@
 import logging
 
-from .dependencies import get_playlist, get_app_loader
+from .dependencies import get_playlist, get_app_loader, get_database
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import ValidationError
@@ -97,7 +97,7 @@ def get_current_playlist(playlist=Depends(get_playlist)):
     )
 
 @router.post("/add")
-def add_playlist_item(request: AddItemRequest, apps=Depends(get_app_loader), playlist=Depends(get_playlist)):
+def add_playlist_item(request: AddItemRequest, database=Depends(get_database), apps=Depends(get_app_loader), playlist=Depends(get_playlist)):
     try:
         app_info = apps.get(request.item_type)
     except AppNotAvailable as exc:
@@ -112,7 +112,13 @@ def add_playlist_item(request: AddItemRequest, apps=Depends(get_app_loader), pla
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"App '{request.item_type}' did not resolve to a class object",
         )
-
-    item = app_class(**request.parameters)
+    
+    if request.item_type == "StaticDisplayItem":
+        assert "static_item_uuid" in request.parameters, "No UUID included in request"
+        with database.connect() as db:
+            item = db.get_item_from_uuid(request.parameters["static_item_uuid"])
+            print(item)
+    else:
+        item = app_class(**request.parameters)
     playlist.add_item(item)
     return {"status": "ok", "item_type": request.item_type, "uuid": item.uuid}

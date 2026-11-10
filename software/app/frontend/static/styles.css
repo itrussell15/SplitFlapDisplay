@@ -949,14 +949,17 @@ body {
   border: 1px solid red;
 }
 
-
 .parameter-row input.parameter-form {
   height: 25px;
   width: 70%;
-  margin: 5px 0px;
+  margin: 10px 0px;
   margin-left: auto;
   justify-self: right;
   align-items: center;
+}
+
+.parameter-row div {
+  margin: 0 10px;
 }
 
 .btn-playlist-create-item {

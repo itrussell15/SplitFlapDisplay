@@ -11,7 +11,6 @@ from app.api.models.static_items import (
 )
 from app.api.dependencies import get_database
 from .common import exception_response
-from control.source.flaps import Flap
 import utils
 
 from app.components.display_playlist.base_apps.static import StaticDisplayItem
