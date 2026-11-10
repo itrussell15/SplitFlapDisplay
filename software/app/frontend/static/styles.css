@@ -177,7 +177,7 @@ body {
 /* ── MAIN CONTENT ── */
 .container {
   flex: 1;
-  max-width: 80%;
+  max-width: 99%;
   margin: 5px;
   padding: 20px 16px;
 }

@@ -2,6 +2,8 @@
 
 Forked from [Adam G Makes - SplitFlapDisplay](https://github.com/adamgmakes/split-flap-display)
 
+![Landing Page Image](docs/images/home-page-screenshot.png)
+
 ## Background
 I had long been obsessed with split flap displays, but the price point for something like a [Vestaboard](https://www.vestaboard.com/note) made it feel not feasible for some decor in my house. So I decided to spend more money AND time on it by trying to make it myself.
 
