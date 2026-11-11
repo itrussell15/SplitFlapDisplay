@@ -240,6 +240,7 @@ __marimo__/
 software/app/frontend/static/node_modules
 
 # Database Files
-
 *.db
 
+# Allow Env Example
+!.env.example

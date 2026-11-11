@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from control.source.bus_controller import BusController
-from control.source.display_controller import DisplayController, DisplayCharMap
+from control.source.display_controller import DisplayController
 from app.components.core.app_loader import AppLoader
 from app.components.display_playlist.playlist import DisplayPlaylist
 from app.components.database.split_flap_database import SplitFlapDatabase
@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     ports = get_ports()
     logging.getLogger("BusController(/tmp/vcom_host)").setLevel(logging.WARNING)
     logging.getLogger("OutgoingMessage").setLevel(logging.WARNING)
-    app.state.display = connect_to_display(ports, display_position_map)
+    app.state.display = connect_to_display(ports)
     logger.info(f"Display connected with {app.state.display.num_modules} modules found")
 
     # App Loading
@@ -88,8 +88,8 @@ def get_app_paths() -> List[str]:
         output.append(path.strip())
     return output
 
-def connect_to_display(ports: List[str], char_map: DisplayCharMap) -> DisplayController:
-    display = DisplayController(char_map)
+def connect_to_display(ports: List[str]) -> DisplayController:
+    display = DisplayController()
     ports = get_ports()
     if ports is None:
         raise ConnectionError(f"No port to connect to. Please set a port to connect to with 'export DISP_USB_PORT=<port>'")

@@ -2,50 +2,7 @@ import enum
 import logging
 import struct
 import time
-from concurrent.futures import Future
-from queue import Queue
-from typing import Any, Dict, List, Optional, Tuple, Union
 from dataclasses import dataclass
-
-from .dataclasses_ import (
-    IncomingMessage,
-    ModuleCommand,
-    ModuleErrorCodes,
-    OutgoingMessage,
-    LatencyMs
-)
-from utils import get_all_env_vars
-
-MOTOR_RESOLUTION = 4096
-MAX_SPEED = 10
-NUM_POSITIONS = 64
-
-MIN_ROW_VALUE = 0
-MAX_ROW_VALUE = 255
-MIN_COLUMN_VALUE = 0
-MAX_COLUMN_VALUE = 255
-
-NUM_EEPROM_BYTES = 256
-
-
-class FirmwareException(Exception):
-    pass
-
-
-class EepromLocations(enum.IntEnum):
-    MODULE_ROW_LOCATION = 0
-    MODULE_COLUMN_LOCATION = 1
-    MAJOR_FIRMWARE_LOCATION = 2
-    MINOR_FIRMWARE_LOCATION = 3
-    AUTO_HOME_LOCATION = 4
-    HOME_OFFSET_VALUE_LOCATION = 5
-    MAX_STEP_LOCATION = 7
-    POSITION_VALUES_START_LOCATION = 100
-
-
-import logging
-import struct
-import time
 from concurrent.futures import Future
 from queue import Queue
 from typing import Any, Dict, Optional, Tuple
@@ -55,18 +12,19 @@ from .dataclasses_ import (
     ModuleCommand,
     ModuleErrorCodes,
     OutgoingMessage,
+    LatencyMs
 )
 
-MOTOR_RESOLUTION = 4096
-MAX_SPEED = 10
-NUM_POSITIONS = get_env_var("DISP_NUM_FLAPS")
+import utils
 
 MIN_ROW_VALUE = 0
 MAX_ROW_VALUE = 255
 MIN_COLUMN_VALUE = 0
 MAX_COLUMN_VALUE = 255
-
 NUM_EEPROM_BYTES = 256
+
+MOTOR_RESOLUTION = int(utils.get_env_var("DISP_MOTOR_RESOLUTION", "4096"))
+NUM_POSITIONS = int(utils.get_env_var("DISP_NUM_FLAPS", "64"))
 
 
 class FirmwareException(Exception):
@@ -82,6 +40,7 @@ class EepromLocations(enum.IntEnum):
     HOME_OFFSET_VALUE_LOCATION = 5
     MAX_STEP_LOCATION = 7
     POSITION_VALUES_START_LOCATION = 100
+
 
 @dataclass
 class ModuleInfo:

@@ -22,31 +22,23 @@ def create_logger(level=logging.DEBUG, spacing: int = 15):
 def get_current_timestamp() -> str:
     return datetime.datetime.now().strftime(TIMESTAMP_FORMAT)
 
-def get_static_item_path() -> str:
-    var = "DISP_STATIC_ITEM_PATH"
+def get_env_var(var: str, default: Optional[str] = None) -> str:
+    value = os.getenv(var)
+    if value is None:
+        if default is None:
+            raise ValueError(f"Environment variable {var} was not set. Please set it with 'export {var}=<value>'")
+        else:
+            return default
+    return value
+
+def get_env_path(var: str, fail_if_missing: bool = True) -> str:
     path = os.getenv(var)
-    if path is None:
-        raise ValueError(f"Environment variable {var} was not set.")
-    if not os.path.exists(path):
+    if not os.path.exists(path) and fail_if_missing:
         raise FileNotFoundError(f"{path} was not found")
-    if not os.path.isdir(path):
-        raise RuntimeError(f"Path provided was for a file, not a directory")
-    
     return path
 
 def get_database_path() -> str:
-    var = "DISP_DB"
-    path = os.getenv(var)
-    if path is None:
-        raise ValueError(f"Environment variable {var} was not set.")
-    
-    return path
-
-def get_env_var(value: str) -> str:
-    value = os.getenv(var)
-    if value is None:
-        raise ValueError(f"Environment variable {var} was not set. Please set it with 'export {var}=<value>'")
-    return value
+    return get_env_path("DISP_DB", fail_if_missing=False)
 
 def get_all_env_vars() -> Dict[str, str]:
     output: Dict[str, str] = {}
@@ -58,7 +50,7 @@ def get_all_env_vars() -> Dict[str, str]:
         "DISP_NUM_FLAPS"
     ]
     for var in VARS:
-        output[var] = get_env_var(value)
+        output[var] = get_env_var(var)
     return output
 
 @dataclass(frozen=True)

@@ -8,6 +8,7 @@ from app.api.models.static_items import (
 )
 from app.api.models.flaps import AllFlaps, FlapData
 from app.api.common import exception_response
+from utils import get_env_var
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class StaticItemRowEntry:
 class Connection(DatabaseConnection):
 
     FLAP_POSITION_TABLE: str = "flap_positions"
+    FLAP_ALIAS_TABLE: str = "flap_aliases"
     STATIC_ITEM_TABLE: str = "static_item"
     STATIC_CELL_TABLE: str = "static_item_cell"
 
@@ -47,10 +49,17 @@ class Connection(DatabaseConnection):
 
     def init(self) -> None:
         self._create_static_item_tables()
-        self._create_flap_position_table()
         self.get_static_item_names()
+        self._create_flap_tables()
 
-        return True
+    def get_num_rows_in_table(self, table: str) -> int:
+        self._ensure_connection()
+        count = self._cursor.execute(
+            f"""
+            SELECT COUNT(*) FROM {table};
+            """
+        ).fetchone()
+        return int(count[0]) if count is not None else 0
 
     def add_static_item(self, name: str, uuid: str, timestamp: float, cells: list[dict]) -> int:
         self._ensure_connection()
@@ -95,102 +104,7 @@ class Connection(DatabaseConnection):
             """
         ).fetchall()
         return {name[0]: name[1] for name in names}
-
-    def add_flap(self, position: int, character: str, color_hex: str) -> FlapData:
-        self._cursor.execute(
-            f"""
-            INSERT INTO {self.FLAP_POSITION_TABLE} (flap_index, character, color_hex)
-            VALUES (?, ?, ?)
-            """,
-            (position, character, color_hex),
-        )
-        self.logger.info(f"Assigning {character} to flap {position}")
-        self._connection.commit()
-        return FlapData(
-            position=position,
-            character=character,
-            color_hex=color_hex
-        )
-
-    def get_flaps(self) -> AllFlaps:
-        rows = self._cursor.execute(
-            f"""
-            SELECT *
-            FROM {self.FLAP_POSITION_TABLE}
-            """
-        ).fetchall()
-
-        flaps = {}
-        for row in rows:
-            flap = FlapData(position=row[1], character=row[2], color_hex=row[3])
-            flaps[flap.position] = flap
-        return AllFlaps(
-            num_flaps=len(flaps),
-            flaps=flaps
-        )
-
-    def get_all_flap_characters_by_position(self) -> Dict[str, Any]:
-        rows = self._cursor.execute(
-            f"""
-            SELECT flap_index, character
-            FROM {self.FLAP_POSITION_TABLE}
-            """
-        ).fetchall()
-        map_ = {row[0]: row[1] for row in rows}
-        return {
-            "num_flaps": len(rows),
-            "flaps": map_
-        }
-
-    def get_flap_data_by_position(self, position: int) -> FlapData:
-        if position < 0 or position > self._num_flaps:
-            raise DatabaseError(f"Position {position} out of bounds. Must be 0-{self._num_flaps}")
-
-        row = self._cursor.execute(
-            f"""
-            SELECT flap_index, character, color_hex
-            FROM {self.FLAP_POSITION_TABLE}
-            WHERE flap_index = ?
-            """,
-            (position,)
-        ).fetchone()
-        return FlapData(
-            position=row[0],
-            character=row[1],
-            color_hex=row[2]
-        )
-
-    def get_all_flap_position_by_character(self) -> Dict[str, Any]:
-        rows = self._cursor.execute(
-            f"""
-            SELECT flap_index, character
-            FROM {self.FLAP_POSITION_TABLE}
-            """
-        ).fetchall()
-        map_ = {row[1]: row[0] for row in rows}
-        return {
-            "num_flaps": len(rows),
-            "flaps": map_
-        }
-
-    def get_flap_data_by_character(self, character: str) -> FlapData:
-        row = self._cursor.execute(
-            f"""
-            SELECT flap_index, character, color_hex
-            FROM {self.FLAP_POSITION_TABLE}
-            WHERE character = ?
-            """,
-            (character,)
-        ).fetchone()
-        if row is None:
-            return exception_response(f"{character} was not associated with a flap")
-
-        return FlapData(
-            position=row[0],
-            character=row[1],
-            color_hex=row[2]
-        )
-
+    
     def get_item_from_uuid(self, uuid: str) -> StaticItem:
         self._ensure_connection()
 
@@ -277,43 +191,162 @@ class Connection(DatabaseConnection):
         self._connection.commit()
         return True
 
-    def get_num_rows_in_table(self, table: str) -> int:
-        self._ensure_connection()
-        count = self._cursor.execute(
+    def add_flap(self, position: int, key: str, glyph: str, color_hex: str) -> FlapData:
+        self._cursor.execute(
             f"""
-            SELECT COUNT(*) FROM {table};
+            INSERT INTO {self.FLAP_POSITION_TABLE} (position, key, glyph, color_hex)
+            VALUES (?, ?, ?, ?)
+            """,
+            (position, key, glyph, color_hex),
+        )
+        self.logger.info(f"Assigning {(key, glyph)} to flap {position}")
+        self._connection.commit()
+        return FlapData(
+            position=position,
+            key=key,
+            glyph=glyph,
+            color_hex=color_hex
+        )
+
+    def get_flaps(self) -> AllFlaps:
+        rows = self._cursor.execute(
+            f"""
+            SELECT *
+            FROM {self.FLAP_POSITION_TABLE}
             """
+        ).fetchall()
+
+        flaps = {}
+        for row in rows:
+            flap = FlapData(position=row[1], key=row[2], glyph=row[3], color_hex=row[4])
+            flaps[flap.position] = flap
+        return AllFlaps(
+            num_flaps=len(flaps),
+            flaps=flaps
+        )
+
+    def get_all_flap_characters_by_position(self) -> Dict[str, Any]:
+        rows = self._cursor.execute(
+            f"""
+            SELECT position, key, glyph
+            FROM {self.FLAP_POSITION_TABLE}
+            """
+        ).fetchall()
+        map_ = {row[0]: row[1] for row in rows}
+        return {
+            "num_flaps": len(rows),
+            "flaps": map_
+        }
+
+    def get_flap_data_by_position(self, position: int) -> FlapData:
+        if position < 0 or position > self._num_flaps:
+            raise DatabaseError(f"Position {position} out of bounds. Must be 0-{self._num_flaps}")
+
+        row = self._cursor.execute(
+            f"""
+            SELECT position, key, glyph, color_hex
+            FROM {self.FLAP_POSITION_TABLE}
+            WHERE position = ?
+            """,
+            (position,)
         ).fetchone()
-        return int(count[0]) if count is not None else 0
+        return FlapData(
+            position=row[0],
+            key=row[1],
+            glyph=row[2],
+            color_hex=row[3]
+        )
+
+    def get_all_flap_position_by_character(self) -> Dict[str, Any]:
+        rows = self._cursor.execute(
+            f"""
+            SELECT position, key, glyph
+            FROM {self.FLAP_POSITION_TABLE}
+            """
+        ).fetchall()
+        map_ = {row[1]: row[0] for row in rows}
+        return {
+            "num_flaps": len(rows),
+            "flaps": map_
+        }
+
+    def get_flap_data_by_key(self, key: str) -> FlapData:
+        row = self._cursor.execute(
+            f"""
+            SELECT position, key, glyph, color_hex
+            FROM {self.FLAP_POSITION_TABLE}
+            WHERE key = ?
+            """,
+            (key,)
+        ).fetchone()
+        if row is None:
+            return exception_response(f"{key} was not associated with a flap")
+
+        return FlapData(
+            position=row[0],
+            key=row[1],
+            glyph=row[2],
+            color_hex=row[3]
+        )
 
     def update_flap(self, position: int, flap_data: FlapData) -> None:
         self._ensure_connection()
         self._cursor.execute(f"""
             UPDATE flap_positions
-            SET character = ?,
+            SET key = ?,
+                glyph = ?,
                 color_hex = ?
-            WHERE flap_index = ?;
+            WHERE position = ?;
             """,
-            (flap_data.character, flap_data.color_hex, flap_data.position,)
+            (flap_data.key, flap_data.glyph, flap_data.color_hex, flap_data.position,)
         )
         self._connection.commit()
 
-    def _create_flap_position_table(self) -> None:
+    def _create_flap_tables(self) -> None:
         self._ensure_connection()
 
         if self.FLAP_POSITION_TABLE not in self.tables:
             self.logger.debug("Creating flap position table")
             self._cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS {self.FLAP_POSITION_TABLE} (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    flap_index INTEGER NOT NULL CHECK (flap_index >= 0 AND flap_index < 64),
-                    character TEXT NOT NULL,
-                    color_hex TEXT NOT NULL CHECK (length(color_hex) = 7 AND color_hex LIKE '#%'),
-                    created_at REAL NOT NULL DEFAULT (strftime('%s', 'now')),
-                    UNIQUE (flap_index)
+                    position INTEGER PRIMARY KEY
+                        CHECK (position >= 0 AND position < {self._num_flaps}),
+                    key TEXT NOT NULL
+                        COLLATE NOCASE
+                        UNIQUE
+                        CHECK (length(trim(key)) > 0),
+                    glyph TEXT NOT NULL
+                        UNIQUE
+                        CHECK (length(glyph) > 0), 
+                    color_hex TEXT NOT NULL DEFAULT '#FFFFFF'
+                        CHECK (
+                        length(color_hex) = 7
+                        AND color_hex GLOB
+                            '#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]'
+                            || '[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]'
+                    ),
+                    created_at INTEGER NOT NULL
+                        DEFAULT (unixepoch())
                 )
             """)
+            self._create_flap_alias_table()
             self._connection.commit()
+
+    def _create_flap_alias_table(self) -> None:
+        self._ensure_connection()
+        self.logger.debug("Creating flap position table")
+        if self.FLAP_ALIAS_TABLE not in self.tables:
+            self._cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS {self.FLAP_ALIAS_TABLE} (
+                    alias TEXT PRIMARY KEY COLLATE NOCASE,
+                    position INTEGER NOT NULL,
+                    FOREIGN KEY (position)
+                        REFERENCES flap_map(position)
+                        ON UPDATE CASCADE
+                        ON DELETE CASCADE,
+                    CHECK (length(trim(alias)) > 0)
+                )
+            """)
 
     def _create_static_item_tables(self) -> None:
         self._ensure_connection()

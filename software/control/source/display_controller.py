@@ -20,21 +20,12 @@ class DisplayInfo:
     def module_locations(self) -> List[Tuple[int, int]]:
         return [i.location for i in self.modules]
 
-
-class DisplayCharMap:
-
-    def __init__(self) -> None:
-        self.logger.info(self.__class__.__name__)
-        pass
-
-
 class DisplayController:
 
-    def __init__(self, char_map: DisplayCharMap, timeout: float = 0.3) -> None:
+    def __init__(self, timeout: float = 0.3) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}")
         self.buses = {}
         self.modules = {}
-        self.char_map = char_map
 
     def add_bus_controller(self, bus: BusController) -> None:
         if bus.port in self.buses:

@@ -7,7 +7,8 @@ from pydantic import BaseModel
 
 class FlapData(BaseModel):
     position: int
-    character: str
+    key: str
+    glyph: str
     color_hex: str
 
 

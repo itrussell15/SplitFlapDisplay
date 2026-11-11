@@ -62,22 +62,23 @@ def get_flap_data_by_position(character: str, database=Depends(get_database)):
 
 @router.post("/", response_model=FlapData)
 def add_flap(request: FlapData, database=Depends(get_database)):
-    logger.info(f"Request received to add {request.character} at position {request.position}")
+    logger.info(f"Request received to add {(request.key, request.glyph)} at position {request.position}")
     with database.connect() as db:
-        row = db.add_flap(request.position, request.character, request.color_hex)
+        row = db.add_flap(request.position, request.key, request.glyph, request.color_hex)
     return row
 
 @router.put("/")
 def update_flap(request: FlapUpdateRequest, database=Depends(get_database)):
     if not database.flap_positions_initialized():
         exception_response("Flap posiitons not initialized")
-    logger.info(f"Request received to update flap {request.position} to {request.character}")
+    logger.info(f"Request received to update flap {request.position} to {(request.key, request.glyph)}")
     with database.connect() as db:
         db.update_flap(
             position=request.position,
             flap_data=FlapData(
                 position=request.position,
-                character=request.character,
+                key=request.key,
+                glyph=request.glyph,
                 color_hex=request.color_hex,
             ),
         )
