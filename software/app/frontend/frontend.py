@@ -62,6 +62,11 @@ async def read_apps(request: Request):
     return _render(request, "modules.html", active="modules")
 
 
+@router.get("/flap-management")
+async def read_flaps(request: Request):
+    return _render(request, "flaps.html", active="flaps")
+
+
 @router.get("/calibration")
 async def read_calibration(request: Request):
     return _render(request, "calibration.html", active="calibration")
