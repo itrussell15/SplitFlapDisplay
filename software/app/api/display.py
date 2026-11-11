@@ -13,7 +13,7 @@ from app.api.dependencies import get_display
 import app.api.models.responses as resps
 from app.api.models.common import AverageLatencyResponse
 from app.api.models.display import DisplayLatencyResponse
-from control.source.dataclasses_ import IncomingMessage
+from control.source.dataclasses_ import IncomingMessage, LatencyMs
 from control.source.flaps import Flap
 from control.source.module_controller import ModuleController
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -62,7 +62,7 @@ def package_location(location: Tuple[int, int], module: ModuleController) -> res
     return resps.ModuleInfoResponse(
         location=Location(row=location[0], column=location[1]),
         info=response,
-        latency=avg_latency
+        avg_latency=avg_latency
     )
 
 def _list_modules(display: DisplayController) -> List[Dict[str, Any]]:
@@ -226,14 +226,17 @@ def home_all(display=Depends(get_display)):
 
 @router.get("/latency", response_model=DisplayLatencyResponse)
 def bus_latency_info(display=Depends(get_display)):
+    estimated_display_latency = LatencyMs(0, 0, 0)
+
     output = {}
     for name, bus in display.buses.items():
         count, latency_data = bus.average_latency
+        estimated_display_latency += (latency_data * bus.num_modules)
         latency_data = asdict(latency_data)
         latency_data["count"] = count
         output[name] = {
             "average": latency_data,
             "current_window": bus.latency_window
         }
-
-    return {"buses": output}
+    
+    return {"display_repaint_estimate": estimated_display_latency, "buses": output}

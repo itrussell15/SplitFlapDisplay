@@ -30,7 +30,7 @@ const cal = {
 
 let available = []; // discovered modules [{row, column}]
 const selected = new Set(); // selected "r,c" keys
-let flapByPosition = new Map(); // position -> {position, character, color_hex}
+let flapByPosition = new Map(); // position -> {position, glyph, color_hex}
 
 const k = (m) => `${m.row},${m.column}`;
 const clampStep = (s) => Math.max(0, Math.min(s, MOTOR_RESOLUTION - 1));
@@ -38,8 +38,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const flapName = (value) => {
   const flap = flapByPosition.get(Number(value));
   if (!flap) return `#${value}`;
-  if (flap.character === " ") return "BLANK";
-  return flap.character;
+  const glyph = String(flap.glyph ?? flap.key ?? flap.character ?? " ");
+  if (glyph === " ") return "BLANK";
+  return glyph;
 };
 
 // ── API helpers ──
@@ -124,17 +125,46 @@ async function loadModules() {
 function renderModuleGrid() {
   const grid = document.getElementById("cal-modules");
   grid.innerHTML = "";
+
+  const rows = new Map();
   available.forEach((m) => {
-    const cell = document.createElement("button");
-    cell.type = "button";
-    cell.className = "cal-module-cell" + (selected.has(k(m)) ? " selected" : "");
-    cell.textContent = `${m.row},${m.column}`;
-    cell.onclick = () => {
-      selected.has(k(m)) ? selected.delete(k(m)) : selected.add(k(m));
-      renderModuleGrid();
-    };
-    grid.appendChild(cell);
+    if (!rows.has(m.row)) rows.set(m.row, []);
+    rows.get(m.row).push(m);
   });
+
+  [...rows.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .forEach(([row, modules]) => {
+      const group = document.createElement("div");
+      group.className = "cal-module-row-group";
+
+      const label = document.createElement("div");
+      label.className = "cal-module-row-label";
+      label.textContent = `Row ${row}`;
+
+      const cells = document.createElement("div");
+      cells.className = "cal-module-row";
+
+      modules
+        .sort((a, b) => a.column - b.column)
+        .forEach((m) => {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "cal-module-cell" + (selected.has(k(m)) ? " selected" : "");
+          cell.textContent = `${m.column}`;
+          cell.title = `(${m.row}, ${m.column})`;
+          cell.onclick = () => {
+            selected.has(k(m)) ? selected.delete(k(m)) : selected.add(k(m));
+            renderModuleGrid();
+          };
+          cells.appendChild(cell);
+        });
+
+      group.appendChild(label);
+      group.appendChild(cells);
+      grid.appendChild(group);
+    });
+
   document.getElementById("cal-selected-count").textContent = `${selected.size} selected`;
 }
 
@@ -159,6 +189,21 @@ function chooseType(type) {
 
 function selectedModules() {
   return available.filter((m) => selected.has(k(m)));
+}
+
+async function getStartFlapGuess(module, flapPosition) {
+  const guessField = document.getElementById("cal-flap-guess");
+  const fallback = clampStep(parseInt(guessField ? guessField.value : "0", 10) || 0);
+
+  try {
+    const data = await api(`/modules/position?row=${module.row}&column=${module.column}&position=${flapPosition}`);
+    const value = Number(data && data.data_value != null ? data.data_value : NaN);
+    if (Number.isFinite(value)) return clampStep(value);
+  } catch (err) {
+    console.warn(`Could not load saved position ${flapPosition} for (${module.row},${module.column}):`, err);
+  }
+
+  return fallback;
 }
 
 function showSection(id) {
@@ -316,12 +361,14 @@ async function nextHomeModule() {
 async function startFlap() {
   const startValue = Number(document.getElementById("cal-flap-start").value || 0);
   cal.position = Number.isFinite(startValue) ? startValue : 0;
-  const guess = clampStep(parseInt(document.getElementById("cal-flap-guess").value, 10) || 0);
+
   await runBusy("Preparing modules…", async () => {
     for (const m of cal.modules) await setCalMode(m, true);
     for (const m of cal.modules) await homeModule(m);
     await settle("Homing all selected modules…");
+
     for (const m of cal.modules) {
+      const guess = await getStartFlapGuess(m, cal.position);
       const r = await moveToStep(m, guess);
       cal.steps[k(m)] = r && r.data_value != null ? r.data_value : guess;
     }
@@ -457,9 +504,11 @@ async function initCalibration() {
     flapList.forEach((flap) => {
       if (!flap || flap.position == null) return;
       const position = Number(flap.position);
+      const glyph = String(flap.glyph ?? flap.key ?? flap.character ?? " ");
       flapByPosition.set(position, {
         position,
-        character: flap.character ?? " ",
+        key: String(flap.key ?? flap.character ?? glyph),
+        glyph,
         color_hex: flap.color_hex ?? "#ffffff",
       });
     });

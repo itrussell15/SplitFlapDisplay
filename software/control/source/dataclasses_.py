@@ -167,6 +167,13 @@ class LatencyMs:
             total=self.total + item.total
         ) 
 
+    def __mul__(self, value: int) -> LatencyMs:
+        return LatencyMs(
+            send=self.send * value,
+            receive=self.receive * value,
+            total=self.total * value
+        ) 
+
 
 @dataclass(kw_only=True)
 class IncomingMessage(BaseMessage):

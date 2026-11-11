@@ -50,8 +50,10 @@ class DisplayController:
             module_locations = bus.discover(row_value, column_value)
             modules.extend(module_locations)
             self._update_modules(bus)
-            bus.get_module_info()
+        
         self._check_display_for_gaps(row_value, column_value, fail_if_gaps)
+        for bus in self.buses.values():
+            bus.get_module_info()
         return modules
 
     def home_all(self) -> None:

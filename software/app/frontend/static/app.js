@@ -19,6 +19,23 @@ function normalizeColor(color) {
   return color.startsWith("#") ? color : `#${color}`;
 }
 
+function normalizeFlapEntry(flap) {
+  if (!flap || typeof flap !== "object") return null;
+
+  const position = Number(flap.position);
+  if (!Number.isFinite(position)) return null;
+
+  const key = String(flap.key ?? flap.character ?? flap.glyph ?? " ");
+  const glyph = String(flap.glyph ?? flap.character ?? flap.key ?? " ");
+
+  return {
+    position,
+    key,
+    glyph,
+    color: normalizeColor(flap.color_hex ?? flap.color ?? "#ffffff"),
+  };
+}
+
 function cacheFlapsFromApi(apiFlaps) {
   flapMap = apiFlaps || {};
   flapChars = Object.keys(flapMap);
@@ -26,20 +43,23 @@ function cacheFlapsFromApi(apiFlaps) {
   flapByCharacter.clear();
 
   Object.values(flapMap).forEach((flap) => {
-    if (!flap || flap.position == null) return;
+    const entry = normalizeFlapEntry(flap);
+    if (!entry) return;
 
-    const position = Number(flap.position);
-    const character = String(flap.character ?? " ");
-    const entry = {
-      position,
-      character,
-      color: normalizeColor(flap.color_hex),
-    };
+    flapByPosition.set(entry.position, entry);
 
-    flapByPosition.set(position, entry);
-    flapByCharacter.set(character, entry);
-    flapByCharacter.set(character.toUpperCase(), entry);
-    flapByCharacter.set(character.toLowerCase(), entry);
+    const aliases = new Set([
+      entry.key,
+      entry.glyph,
+      entry.key.toUpperCase(),
+      entry.glyph.toUpperCase(),
+      entry.key.toLowerCase(),
+      entry.glyph.toLowerCase(),
+    ]);
+
+    aliases.forEach((value) => {
+      if (value) flapByCharacter.set(value, entry);
+    });
   });
 
   charToNameMap = buildCharToNameMap(flapMap);
@@ -120,7 +140,8 @@ function getCharDisplay(ch) {
     || flapByCharacter.get(key.toLowerCase());
 
   if (lookup) {
-    const text = lookup.character === " " ? "" : lookup.character;
+    const glyph = String(lookup.glyph ?? lookup.key ?? lookup.character ?? " ");
+    const text = glyph === " " ? "" : glyph;
     return { text, color: lookup.color || "#fff" };
   }
 
@@ -236,7 +257,8 @@ function handleKeyDown(e) {
       || flapByCharacter.get(ch.toLowerCase());
 
     if (resolved) {
-      flipTo(activeCell, resolved.character);
+      const glyph = String(resolved.glyph ?? resolved.key ?? resolved.character ?? " ");
+      flipTo(activeCell, glyph);
       if (activeCell < boardState.length - 1) setActiveCell(activeCell + 1);
     }
   }
@@ -248,23 +270,27 @@ function buildColorPalette() {
   const palette = document.getElementById("color-palette");
   palette.innerHTML = "";
 
-  const paletteEntries = [...new Map([...flapByCharacter.values()].map(flap => [flap.character, flap])).values()]
-    .filter(flap => flap.character && flap.character.trim() !== "" && !/[A-Za-z0-9]/.test(flap.character));
+  const paletteEntries = [...new Map([...flapByCharacter.values()].map(flap => [flap.glyph ?? flap.key ?? flap.character ?? " ", flap])).values()]
+    .filter(flap => {
+      const glyph = String(flap.glyph ?? flap.key ?? flap.character ?? "").trim();
+      return glyph && !/[A-Za-z0-9]/.test(glyph);
+    });
 
   paletteEntries.forEach((flap) => {
+    const glyph = String(flap.glyph ?? flap.key ?? flap.character ?? " ");
     const swatch = document.createElement("div");
     swatch.className = "color-swatch";
-    swatch.title = flap.character;
+    swatch.title = glyph;
     swatch.style.background = "#222";
     swatch.style.display = "flex";
     swatch.style.alignItems = "center";
     swatch.style.justifyContent = "center";
     swatch.style.fontSize = "18px";
     swatch.style.color = flap.color || "#fff";
-    swatch.textContent = flap.character;
+    swatch.textContent = glyph;
     swatch.addEventListener("click", () => {
       if (activeCell < 0) return;
-      flipTo(activeCell, flap.character);
+      flipTo(activeCell, glyph);
       if (activeCell < boardState.length - 1) setActiveCell(activeCell + 1);
     });
     palette.appendChild(swatch);
@@ -431,7 +457,7 @@ async function loadBoardFromUuid(uuid)
       const index = ((module.location.row - 1) * gridCols) + (module.location.column - 1);
       const rawNumericPosition = Number(module.position ?? module.value ?? -1);
       const flap = flapByPosition.get(rawNumericPosition);
-      const charValue = flap ? flap.character : " ";
+      const charValue = flap ? (flap.glyph ?? flap.key ?? flap.character ?? " ") : " ";
       flipTo(index, charValue);
     });
     showToast("Load successful");
@@ -470,11 +496,11 @@ function buildCharToNameMap(serverFlapMap) {
 
   flapValues.forEach((flap) => {
     if (!flap || typeof flap !== "object") return;
-    const character = String(flap.character ?? "").trim();
-    if (!character) return;
-    map[character] = character;
-    map[character.toUpperCase()] = character;
-    map[character.toLowerCase()] = character;
+    const keyValue = String(flap.key ?? flap.glyph ?? flap.character ?? "").trim();
+    if (!keyValue) return;
+    map[keyValue] = keyValue;
+    map[keyValue.toUpperCase()] = keyValue;
+    map[keyValue.toLowerCase()] = keyValue;
   });
 
   return map;

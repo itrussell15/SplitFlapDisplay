@@ -97,5 +97,5 @@ def connect_to_display(ports: List[str]) -> DisplayController:
         bus = BusController(port=port, timeout=0.5)
         display.add_bus_controller(bus)
 
-    display.discover(ROWS, COLUMNS)
+    display.discover(ROWS, COLUMNS, fail_if_gaps=bool(utils.get_env_var("DISP_FAIL_IF_MODULE_GAPS")))
     return display

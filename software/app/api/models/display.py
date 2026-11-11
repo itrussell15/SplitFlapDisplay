@@ -10,4 +10,5 @@ class BusLatencyResponse(BaseModel):
 
 
 class DisplayLatencyResponse(BaseModel):
+    display_repaint_estimate: LatencyResponse
     buses: Dict[str, BusLatencyResponse]

@@ -52,7 +52,6 @@ class DatabaseConnection(ABC):
         self.close()
 
     def connect(self) -> None:
-        self.logger.debug("Opening database")
         if self._connection is None:
             self._connection = sqlite3.connect(self._file)
             self._cursor = self._connection.cursor()
@@ -62,7 +61,6 @@ class DatabaseConnection(ABC):
 
     def close(self) -> None:
         if self._connection is not None:
-            self.logger.debug("Closing Database")
             self._connection.close()
             self._connection = None
             self._cursor = None

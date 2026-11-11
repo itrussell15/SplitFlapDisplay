@@ -218,7 +218,7 @@ class Connection(DatabaseConnection):
 
         flaps = {}
         for row in rows:
-            flap = FlapData(position=row[1], key=row[2], glyph=row[3], color_hex=row[4])
+            flap = FlapData(position=row[0], key=row[1], glyph=row[2], color_hex=row[3])
             flaps[flap.position] = flap
         return AllFlaps(
             num_flaps=len(flaps),

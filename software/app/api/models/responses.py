@@ -20,7 +20,7 @@ class ModuleInfo(BaseModel):
 class ModuleInfoResponse(BaseModel):
     location: Location
     info: ModuleInfo
-    latency: Optional[AverageLatencyResponse]
+    avg_latency: Optional[AverageLatencyResponse]
 
 class ModuleResponse(BaseModel):
     location: Location
@@ -40,7 +40,7 @@ class DiscoverResponse(BaseModel):
     num_buses: int
     modules: List[ModuleInfoResponse]
 
-class PositionResponse(BaseModel):
+class PositionsResponse(BaseModel):
     request_time: str
     positions: Dict[int, int]
 

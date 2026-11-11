@@ -197,11 +197,10 @@ class ModuleController:
     def get_all_positions(self) -> Dict[int, int]:
         for position in self._positions_to_steps:
             result = self.get_position(position)
-            time.sleep(0.2)
         return self._positions_to_steps
 
     def home(self) -> IncomingMessage:
-        self.logger.info(f"Homing")
+        self.logger.info("Homing")
         output = self._send_packet(ModuleCommand.HOME)
         self.is_homed = True
         self._current_position = 0

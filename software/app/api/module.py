@@ -7,7 +7,7 @@ from .dependencies import get_display
 from .common import exception_response, package_incoming_message_as_module_response
 from control.source.module_controller import EepromLocations, ModuleInfo
 from app.api.models.common import Location 
-from app.api.models.responses import ModuleResponse, PositionResponse, ModuleInfoResponse, ModuleInfo
+from app.api.models.responses import ModuleResponse, PositionsResponse, ModuleInfoResponse, ModuleInfo
 from app.api.models.requests import (
     StepRequest,
     FlapRequest,
@@ -82,7 +82,7 @@ def move_to_module_steps(steps: int, location: Location, display=Depends(get_dis
 #         raise exception_response(e)
 #     return package_incoming_message_as_module_response(response)
 
-@router.get("/position", response_model=PositionResponse)
+@router.get("/positions", response_model=PositionsResponse)
 def get_all_positions(row: int, column: int, display=Depends(get_display)):
     try:
         response = display.get_module(row, column).get_all_positions()
@@ -92,9 +92,16 @@ def get_all_positions(row: int, column: int, display=Depends(get_display)):
     output = {"request_time": get_current_timestamp(), "positions": response}
     return output
 
+@router.get("/position", response_model=ModuleResponse)
+def get_module_position(position: int, row: int, column: int, display=Depends(get_display)):
+    try:
+        response = display.get_module(row, column).get_position(position)
+    except Exception as e:
+        raise exception_response(e)
+    return package_incoming_message_as_module_response(response)
+
 @router.post("/position", response_model=ModuleResponse)
 def move_to_position(request: PositionRequest, display=Depends(get_display)):
-    print(request)
     try:
         response = display.get_module(*request.location.as_tuple()).move_to_position(request.position)
     except Exception as e:
@@ -151,21 +158,3 @@ def save_position(position: int, request: LocationRequest, display=Depends(get_d
     except Exception as e:
         raise exception_response(e)
     return package_incoming_message_as_module_response(response)
-
-@router.get("/position/{position}", response_model=ModuleResponse)
-def get_module_position(position: int, row: int, column: int, display=Depends(get_display)):
-    try:
-        response = display.get_module(*location.as_tuple()).get_position(position)
-    except Exception as e:
-        raise exception_response(e)
-    return package_incoming_message_as_module_response(response)
-
-# This is on hold as the current firmware requires you to move to the position to save it 
-# @router.post("/position/{position}")
-# def get_module_position(position: int, steps_request: StepRequest, display=Depends(get_display)):
-#     try:
-#         response = display.get_module(*steps_request.location.as_tuple()).set_position(position)
-#     except Exception as e:
-#         raise exception_response(e)
-#     return package_incoming_message_as_module_response(response)
-
