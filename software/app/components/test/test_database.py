@@ -33,8 +33,15 @@ class TestSplitFlapDatabase(unittest.TestCase):
         self.assertEqual(flaps.num_flaps, 2)
         self.assertEqual(flaps.flaps[0].key, "A")
         self.assertEqual(flaps.flaps[3].glyph, "Z")
+        self.assertEqual(flaps.flaps[0].aliases, None)
 
-
+    def test_add_alias(self):
+        self._add_flaps()
+        with self.database.connect() as db:
+            db.add_flap_alias(position=0, alias="LETTER_A")
+            flaps = db.get_flaps()
+        
+        
     def test_flap_positions_initialized_starts_false(self):
         self.assertFalse(self.database.flap_positions_initialized())
 

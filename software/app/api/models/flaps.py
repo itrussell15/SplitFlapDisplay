@@ -10,9 +10,10 @@ class FlapData(BaseModel):
     key: str
     glyph: str
     color_hex: str
+    aliases: List[str]
 
 
-class AllFlaps(BaseModel):
+class Flaps(BaseModel):
     num_flaps: int
     flaps: Dict[int, FlapData]
 

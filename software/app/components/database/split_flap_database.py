@@ -6,7 +6,7 @@ from ..core.database_handler import DatabaseHandler, DatabaseConnection, Databas
 from app.api.models.static_items import (
     StaticModuleData, StaticItem, StaticItems, Location
 )
-from app.api.models.flaps import AllFlaps, FlapData
+from app.api.models.flaps import Flaps, FlapData
 from app.api.common import exception_response
 from utils import get_env_var
 
@@ -35,6 +35,19 @@ class StaticItemRowEntry:
             location=Location(row=self.row, column=self.column),
             position=int(self.value)
         )
+
+@dataclass(frozen=True)
+class FlapRowEntry:
+    position: int
+    key: str
+    glyph: str
+    color_hex: str
+    alias: Optional[str]
+
+    def to_flap_data(self) -> FlapData:
+        values = vars(self)
+        values["aliases"] = [self.alias] if self.alias else []
+        return FlapData(**values)    
 
 class Connection(DatabaseConnection):
 
@@ -208,19 +221,39 @@ class Connection(DatabaseConnection):
             color_hex=color_hex
         )
 
-    def get_flaps(self) -> AllFlaps:
+    def get_flaps(self) -> Flaps:
         rows = self._cursor.execute(
             f"""
-            SELECT *
-            FROM {self.FLAP_POSITION_TABLE}
+            SELECT 
+                fp.position,
+                fp.key,
+                fp.glyph,
+                fp.color_hex,
+                fa.alias
+            FROM {self.FLAP_POSITION_TABLE} fp
+            LEFT JOIN {self.FLAP_ALIAS_TABLE} fa
+                ON fa.position = fp.position
+            ORDER BY fp.position, fa.alias
             """
         ).fetchall()
 
+        self._flap_query_to_flap_data(rows)
+
         flaps = {}
-        for row in rows:
-            flap = FlapData(position=row[0], key=row[1], glyph=row[2], color_hex=row[3])
-            flaps[flap.position] = flap
-        return AllFlaps(
+        for position, key, glyph, color_hex, alias in rows:
+            flap = FlapData(
+                position=position,
+                key=key,
+                glyph=glyph,
+                color_hex=color_hex,
+                aliases=[]
+            )
+            if position not in flaps:
+                flaps[position] = flap
+            if alias and position in flaps:
+                flaps[position].aliases.append(alias)
+                
+        return Flaps(
             num_flaps=len(flaps),
             flaps=flaps
         )
@@ -302,6 +335,42 @@ class Connection(DatabaseConnection):
         )
         self._connection.commit()
 
+    def add_flap_alias(self, position: int, alias: str) -> None:
+        self._ensure_connection()
+        self.logger.info(f"Adding {alias} as an alias to position {position}")
+        self._cursor.execute(
+            f"""
+            INSERT INTO {self.FLAP_ALIAS_TABLE} (alias, position)
+            VALUES (?, ?);
+            """,
+            (alias, position)
+        )
+        self._connection.commit()
+
+    def get_flap_aliases(self, position: int) -> None:
+        self._ensure_connection()
+        aliases = self._cursor.execute(
+            f"""
+            SELECT alias  
+            FROM {self.FLAP_ALIAS_TABLE}
+            WHERE position = ?
+            """,
+            (position, )
+        ).fetchall()
+        return aliases
+
+    def _flap_query_to_flap_data(self, query_response: List[Any]) -> Dict[int, FlapData]:
+        flaps = {}
+        for row in query_response:
+            row = FlapRowEntry(*row)
+            flap_data = flaps.get(row.position, None)
+            if flap_data is None:
+                flaps[row.position] = row.to_flap_data()
+            else:
+                if row.alias:
+                    flap_data.aliases.append(row.alias)
+        return flaps
+        
     def _create_flap_tables(self) -> None:
         self._ensure_connection()
 
@@ -341,7 +410,7 @@ class Connection(DatabaseConnection):
                     alias TEXT PRIMARY KEY COLLATE NOCASE,
                     position INTEGER NOT NULL,
                     FOREIGN KEY (position)
-                        REFERENCES flap_map(position)
+                        REFERENCES {self.FLAP_POSITION_TABLE}(position)
                         ON UPDATE CASCADE
                         ON DELETE CASCADE,
                     CHECK (length(trim(alias)) > 0)

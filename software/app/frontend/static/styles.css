@@ -177,7 +177,7 @@ body {
 /* ── MAIN CONTENT ── */
 .container {
   flex: 1;
-  max-width: 99%;
+  max-width: 95%;
   margin: 5px;
   padding: 20px 16px;
 }
@@ -679,6 +679,7 @@ body {
 
 .section-card {
   background: var(--panel);
+  border: 1px solid var(--panel);
   height: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -688,7 +689,7 @@ body {
 
 .section-card:hover{
   background: var(--border);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border);
 }
 
 .section-title {
@@ -739,6 +740,7 @@ body {
 
 .section-card-module {
   height: auto;
+  border: 1px solid var(--border);
   min-height: 300px;
   min-width: 375px;
   padding: 12px 0px;
@@ -772,14 +774,14 @@ body {
 
 .btn-template {
   color: var(--text-dark);
-  background-color: var(--accent);
+  background-color: rgb(var(--accent));
   width: auto;
   height: 45px;
   margin: 5px;
 }
 
 .btn-template:hover {
-  background-color: var(--accent-hover);
+  background-color: rgb(var(--accent-hover));
 }
 
 .btn-container{
@@ -949,17 +951,14 @@ body {
   border: 1px solid red;
 }
 
+
 .parameter-row input.parameter-form {
   height: 25px;
   width: 70%;
-  margin: 10px 0px;
+  margin: 5px 0px;
   margin-left: auto;
   justify-self: right;
   align-items: center;
-}
-
-.parameter-row div {
-  margin: 0 10px;
 }
 
 .btn-playlist-create-item {
@@ -1050,29 +1049,8 @@ body {
 .cal-count { margin-left: auto; color: var(--text-muted); font-size: 0.85rem; }
 
 .cal-module-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.cal-module-row-group {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.cal-module-row-label {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.cal-module-row {
-  display: grid;
-  grid-template-columns: repeat(15, minmax(30px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
   gap: 6px;
 }
 
@@ -1081,8 +1059,7 @@ body {
   color: var(--text-muted);
   border: 1px solid var(--border);
   border-radius: 6px;
-  min-height: 34px;
-  padding: 8px 0;
+  padding: 10px 0;
   font-family: "Courier New", Courier, monospace;
   font-size: 0.85rem;
   cursor: pointer;

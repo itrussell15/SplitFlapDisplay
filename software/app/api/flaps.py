@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Tuple
 
 import app.api.common as common
 from app.api.dependencies import get_database
-from app.api.models.flaps import AllFlaps, FlapData, FlapUpdateRequest
+from app.api.models.flaps import Flaps, FlapData, FlapUpdateRequest
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from utils import get_current_timestamp, TIMESTAMP_FORMAT
 
@@ -20,7 +20,7 @@ logger = logging.getLogger("DisplayAPI")
 def are_flaps_valid(database=Depends(get_database)):
     return {"valiid": database.flap_positions_initialized()}
 
-@router.get("/", response_model=AllFlaps)
+@router.get("/", response_model=Flaps)
 def get_flaps(database=Depends(get_database)):
     if not database.flap_positions_initialized():
         exception_response("Flap posiitons not initialized")

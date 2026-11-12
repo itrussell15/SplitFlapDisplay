@@ -41,10 +41,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     with app.state.database.connect() as db:
         display_position_map = db.get_all_flap_position_by_character()["flaps"]
-        print(display_position_map)
+        print(db.get_flaps())
     
     # Display Connection
-    ports = get_ports()
+    ports = get_ports() 
     logging.getLogger("BusController(/tmp/vcom_host)").setLevel(logging.WARNING)
     logging.getLogger("OutgoingMessage").setLevel(logging.WARNING)
     app.state.display = connect_to_display(ports)
