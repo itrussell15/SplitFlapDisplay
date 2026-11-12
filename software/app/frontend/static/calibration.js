@@ -126,44 +126,47 @@ function renderModuleGrid() {
   const grid = document.getElementById("cal-modules");
   grid.innerHTML = "";
 
-  const rows = new Map();
-  available.forEach((m) => {
-    if (!rows.has(m.row)) rows.set(m.row, []);
-    rows.get(m.row).push(m);
+  const rows = [...new Set(available.map((m) => m.row))].sort((a, b) => a - b);
+  const columns = [...new Set(available.map((m) => m.column))].sort((a, b) => a - b);
+  const maxColumns = Math.max(1, columns.length || 15);
+  const moduleByKey = new Map(available.map((m) => [k(m), m]));
+
+  grid.style.gridTemplateColumns = `72px repeat(${maxColumns}, minmax(34px, 1fr))`;
+
+  const rowHeader = document.createElement("div");
+  rowHeader.className = "cal-module-empty";
+  grid.appendChild(rowHeader);
+
+  for (let col = 1; col <= maxColumns; col++) {
+    const colHeader = document.createElement("div");
+    colHeader.className = "cal-module-col-label";
+    colHeader.textContent = `${col}`;
+    grid.appendChild(colHeader);
+  }
+
+  rows.forEach((row) => {
+    const rowLabel = document.createElement("div");
+    rowLabel.className = "cal-module-row-label";
+    rowLabel.textContent = `R${row}`;
+    grid.appendChild(rowLabel);
+
+    for (let column = 1; column <= maxColumns; column++) {
+      const module = moduleByKey.get(`${row},${column}`);
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "cal-module-cell" + (module && selected.has(k(module)) ? " selected" : "");
+      cell.textContent = module ? `${column}` : "";
+      cell.title = module ? `(${row}, ${column})` : "";
+      cell.disabled = !module;
+      if (module) {
+        cell.onclick = () => {
+          selected.has(k(module)) ? selected.delete(k(module)) : selected.add(k(module));
+          renderModuleGrid();
+        };
+      }
+      grid.appendChild(cell);
+    }
   });
-
-  [...rows.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .forEach(([row, modules]) => {
-      const group = document.createElement("div");
-      group.className = "cal-module-row-group";
-
-      const label = document.createElement("div");
-      label.className = "cal-module-row-label";
-      label.textContent = `Row ${row}`;
-
-      const cells = document.createElement("div");
-      cells.className = "cal-module-row";
-
-      modules
-        .sort((a, b) => a.column - b.column)
-        .forEach((m) => {
-          const cell = document.createElement("button");
-          cell.type = "button";
-          cell.className = "cal-module-cell" + (selected.has(k(m)) ? " selected" : "");
-          cell.textContent = `${m.column}`;
-          cell.title = `(${m.row}, ${m.column})`;
-          cell.onclick = () => {
-            selected.has(k(m)) ? selected.delete(k(m)) : selected.add(k(m));
-            renderModuleGrid();
-          };
-          cells.appendChild(cell);
-        });
-
-      group.appendChild(label);
-      group.appendChild(cells);
-      grid.appendChild(group);
-    });
 
   document.getElementById("cal-selected-count").textContent = `${selected.size} selected`;
 }

@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from dataclasses import dataclass
 
@@ -6,7 +6,7 @@ from ..core.database_handler import DatabaseHandler, DatabaseConnection, Databas
 from app.api.models.static_items import (
     StaticModuleData, StaticItem, StaticItems, Location
 )
-from app.api.models.flaps import Flaps, FlapData
+from app.api.models.flaps import FlapsByKey, FlapsByPosition, FlapData
 from app.api.common import exception_response
 from utils import get_env_var
 
@@ -48,6 +48,7 @@ class FlapRowEntry:
         values = vars(self)
         values["aliases"] = [self.alias] if self.alias else []
         return FlapData(**values)    
+
 
 class Connection(DatabaseConnection):
 
@@ -205,6 +206,7 @@ class Connection(DatabaseConnection):
         return True
 
     def add_flap(self, position: int, key: str, glyph: str, color_hex: str) -> FlapData:
+        key = key.upper()
         self._cursor.execute(
             f"""
             INSERT INTO {self.FLAP_POSITION_TABLE} (position, key, glyph, color_hex)
@@ -218,10 +220,11 @@ class Connection(DatabaseConnection):
             position=position,
             key=key,
             glyph=glyph,
-            color_hex=color_hex
+            color_hex=color_hex,
+            aliases=[]
         )
 
-    def get_flaps(self) -> Flaps:
+    def get_flaps(self) -> FlapsByPosition:
         rows = self._cursor.execute(
             f"""
             SELECT 
@@ -237,101 +240,93 @@ class Connection(DatabaseConnection):
             """
         ).fetchall()
 
-        self._flap_query_to_flap_data(rows)
-
-        flaps = {}
-        for position, key, glyph, color_hex, alias in rows:
-            flap = FlapData(
-                position=position,
-                key=key,
-                glyph=glyph,
-                color_hex=color_hex,
-                aliases=[]
-            )
-            if position not in flaps:
-                flaps[position] = flap
-            if alias and position in flaps:
-                flaps[position].aliases.append(alias)
-                
-        return Flaps(
+        flaps = self._flap_query_to_flap_data(rows)
+        return FlapsByPosition(
             num_flaps=len(flaps),
             flaps=flaps
         )
 
-    def get_all_flap_characters_by_position(self) -> Dict[str, Any]:
+    def get_flap_data_by_position(self, position: int) -> FlapData:
+        if not 0 <= position < self._num_flaps:
+            raise DatabaseError(f"Position {position} out of bounds. Must be 0-{self._num_flaps - 1}")
+
         rows = self._cursor.execute(
             f"""
-            SELECT position, key, glyph
-            FROM {self.FLAP_POSITION_TABLE}
-            """
-        ).fetchall()
-        map_ = {row[0]: row[1] for row in rows}
-        return {
-            "num_flaps": len(rows),
-            "flaps": map_
-        }
-
-    def get_flap_data_by_position(self, position: int) -> FlapData:
-        if position < 0 or position > self._num_flaps:
-            raise DatabaseError(f"Position {position} out of bounds. Must be 0-{self._num_flaps}")
-
-        row = self._cursor.execute(
-            f"""
-            SELECT position, key, glyph, color_hex
-            FROM {self.FLAP_POSITION_TABLE}
-            WHERE position = ?
+            SELECT 
+                fp.position,
+                fp.key,
+                fp.glyph,
+                fp.color_hex,
+                fa.alias
+            FROM {self.FLAP_POSITION_TABLE} fp
+            LEFT JOIN {self.FLAP_ALIAS_TABLE} fa
+                ON fa.position = fp.position
+            WHERE fp.position = ?
+            ORDER BY fp.position, fa.alias
             """,
             (position,)
-        ).fetchone()
-        return FlapData(
-            position=row[0],
-            key=row[1],
-            glyph=row[2],
-            color_hex=row[3]
-        )
+        ).fetchall()
+        flaps = self._flap_query_to_flap_data(rows)
+        if position not in flaps:
+            raise DatabaseError(f"No flap configured at position {position}")
+        return flaps[position]
 
-    def get_all_flap_position_by_character(self) -> Dict[str, Any]:
+    def get_all_flap_position_by_key(self) -> Dict[str, Any]:
         rows = self._cursor.execute(
             f"""
-            SELECT position, key, glyph
-            FROM {self.FLAP_POSITION_TABLE}
+            SELECT 
+                fp.position,
+                fp.key,
+                fp.glyph,
+                fp.color_hex,
+                fa.alias
+            FROM {self.FLAP_POSITION_TABLE} fp
+            LEFT JOIN {self.FLAP_ALIAS_TABLE} fa
+                ON fa.position = fp.position
+            ORDER BY fp.position, fa.alias
             """
         ).fetchall()
-        map_ = {row[1]: row[0] for row in rows}
+        flaps = self._flap_query_to_flap_data(rows)
         return {
-            "num_flaps": len(rows),
-            "flaps": map_
+            "num_flaps": len(flaps),
+            "flaps": {flap.key: flap for flap in flaps.values()}
         }
 
     def get_flap_data_by_key(self, key: str) -> FlapData:
         row = self._cursor.execute(
             f"""
-            SELECT position, key, glyph, color_hex
-            FROM {self.FLAP_POSITION_TABLE}
-            WHERE key = ?
+            SELECT 
+                fp.position,
+                fp.key,
+                fp.glyph,
+                fp.color_hex,
+                fa.alias
+            FROM {self.FLAP_POSITION_TABLE} fp
+            LEFT JOIN {self.FLAP_ALIAS_TABLE} fa
+                ON fa.position = fp.position
+            WHERE fp.key = ?
+            ORDER BY fp.position, fa.alias
             """,
-            (key,)
-        ).fetchone()
-        if row is None:
+            (key.upper(),)
+        ).fetchall()
+        if not row:
             return exception_response(f"{key} was not associated with a flap")
 
-        return FlapData(
-            position=row[0],
-            key=row[1],
-            glyph=row[2],
-            color_hex=row[3]
-        )
+        flaps = self._flap_query_to_flap_data(row)
+        if len(flaps) > 1:
+            raise DatabaseError(f"Multiple flaps found for {key}")
+        return list(flaps.values())[0]
 
     def update_flap(self, position: int, flap_data: FlapData) -> None:
         self._ensure_connection()
         self._cursor.execute(f"""
-            UPDATE flap_positions
+            UPDATE {self.FLAP_POSITION_TABLE}
             SET key = ?,
                 glyph = ?,
                 color_hex = ?
             WHERE position = ?;
             """,
-            (flap_data.key, flap_data.glyph, flap_data.color_hex, flap_data.position,)
+            (flap_data.key.upper(), flap_data.glyph, flap_data.color_hex, flap_data.position,)
         )
         self._connection.commit()
 
@@ -343,7 +338,7 @@ class Connection(DatabaseConnection):
             INSERT INTO {self.FLAP_ALIAS_TABLE} (alias, position)
             VALUES (?, ?);
             """,
-            (alias, position)
+            (alias.upper(), position)
         )
         self._connection.commit()
 

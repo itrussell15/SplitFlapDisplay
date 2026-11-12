@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Tuple
 
 import app.api.common as common
 from app.api.dependencies import get_database
-from app.api.models.flaps import Flaps, FlapData, FlapUpdateRequest
+from app.api.models.flaps import FlapsByKey, FlapsByPosition, FlapData, FlapUpdateRequest
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from utils import get_current_timestamp, TIMESTAMP_FORMAT
 
@@ -20,45 +20,13 @@ logger = logging.getLogger("DisplayAPI")
 def are_flaps_valid(database=Depends(get_database)):
     return {"valiid": database.flap_positions_initialized()}
 
-@router.get("/", response_model=Flaps)
+@router.get("/", response_model=FlapsByPosition)
 def get_flaps(database=Depends(get_database)):
     if not database.flap_positions_initialized():
         exception_response("Flap posiitons not initialized")
     with database.connect() as db:
         flaps = db.get_flaps()
     return flaps
-
-@router.get("/position")
-def get_flap_characters_by_position(database=Depends(get_database)):
-    if not database.flap_positions_initialized():
-        exception_response("Flap posiitons not initialized")
-    with database.connect() as db:
-        chars = db.get_all_flap_characters_by_position()
-    return chars
-
-@router.get("/position/{position}")
-def get_flap_data_by_position(position: int, database=Depends(get_database)):
-    if not database.flap_positions_initialized():
-        exception_response("Flap posiitons not initialized")
-    with database.connect() as db:
-        flap_data = db.get_flap_data_by_position(position)
-    return flap_data
-
-@router.get("/character")
-def get_flap_position_by_character(database=Depends(get_database)):
-    if not database.flap_positions_initialized():
-        exception_response("Flap posiitons not initialized")
-    with database.connect() as db:
-        chars = db.get_all_flap_position_by_character()
-    return chars
-
-@router.get("/character/{character}")
-def get_flap_data_by_position(character: str, database=Depends(get_database)):
-    if not database.flap_positions_initialized():
-        exception_response("Flap posiitons not initialized")
-    with database.connect() as db:
-        flap_data = db.get_flap_data_by_character(character)
-    return flap_data
 
 @router.post("/", response_model=FlapData)
 def add_flap(request: FlapData, database=Depends(get_database)):
@@ -82,3 +50,27 @@ def update_flap(request: FlapUpdateRequest, database=Depends(get_database)):
                 color_hex=request.color_hex,
             ),
         )
+
+@router.get("/position/{position}", response_model=FlapData)
+def get_flap_data_by_position(position: int, database=Depends(get_database)):
+    if not database.flap_positions_initialized():
+        exception_response("Flap posiitons not initialized")
+    with database.connect() as db:
+        flap_data = db.get_flap_data_by_position(position)
+    return flap_data
+
+@router.get("/key", response_model=FlapsByKey)
+def get_flap_data_by_key(database=Depends(get_database)):
+    if not database.flap_positions_initialized():
+        exception_response("Flap posiitons not initialized")
+    with database.connect() as db:
+        map_ = db.get_all_flap_position_by_key()
+    return map_
+
+@router.get("/key/{key}", response_model=FlapData)
+def get_flap_data_by_key(key: str, database=Depends(get_database)):
+    if not database.flap_positions_initialized():
+        exception_response("Flap posiitons not initialized")
+    with database.connect() as db:
+        flap_data = db.get_flap_data_by_key(key)
+    return flap_data

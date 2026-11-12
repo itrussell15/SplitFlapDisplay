@@ -1050,8 +1050,27 @@ body {
 
 .cal-module-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  grid-template-columns: 72px repeat(15, minmax(34px, 1fr));
   gap: 6px;
+  align-items: center;
+}
+
+.cal-module-empty,
+.cal-module-col-label,
+.cal-module-row-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cal-module-row-label {
+  justify-content: flex-start;
+  padding-left: 4px;
 }
 
 .cal-module-cell {
@@ -1064,6 +1083,13 @@ body {
   font-size: 0.85rem;
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.cal-module-cell:disabled {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+  opacity: 0.2;
 }
 
 .cal-module-cell:hover { background: #1a1a1a; color: #fff; }

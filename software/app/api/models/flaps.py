@@ -12,11 +12,21 @@ class FlapData(BaseModel):
     color_hex: str
     aliases: List[str]
 
+    @property
+    def name_map(self) -> Dict[str, FlapData]:
+        output = {}
+        values = self.aliases + [self.key, self.glyph]
+        return {value: self for value in values}
+ 
 
-class Flaps(BaseModel):
+class FlapsByPosition(BaseModel):
     num_flaps: int
     flaps: Dict[int, FlapData]
 
+
+class FlapsByKey(BaseModel):
+    num_flaps: int
+    flaps: Dict[str, FlapData]
 
 class FlapUpdateRequest(BaseModel):
     position: int
