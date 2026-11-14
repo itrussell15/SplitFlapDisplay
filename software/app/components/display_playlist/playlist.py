@@ -19,15 +19,15 @@ class DisplayPlaylist(Playlist):
 
     def __init__(
         self,
-        display_obj: DisplayController,
         frequency: UpdateFrequency,
         items: Optional[List[DisplayItem]] = None,
         app_folders: List[str] = [BASE_APP_PATH]
     ) -> None:
         super().__init__(frequency)
-        self._display = display_obj
+        self._display_info = None
+        self._resolve_function = None
+        self._display_function = None
         self._apps = self._load_apps(app_folders)
-
         if items is not None:
             for item in items:
                 self.add_item(item)
@@ -77,9 +77,11 @@ class DisplayPlaylist(Playlist):
     def start(self) -> None:
         if len(self.items) < 1:
             raise PlaylistEmptyError()
+        self._time_status = self._update_time_status()
         super().start()
 
     def update(self) -> None:
+        self._time_status = self._update_time_status()
         self.logger.info("Updating")
         if self.current_item.is_alive:
             self.current_item.stop()
@@ -88,13 +90,34 @@ class DisplayPlaylist(Playlist):
             self.logger.info(f"Starting next item {next_item.name} {next_item.uuid}")
             next_item.start()
 
+    def add_display_info(self, display_info: DisplayInfo) -> None:
+        self.logger.debug("Added display info")
+        self._display_info = display_info
+
+    def add_resolve_function(self, function: Callable[Dict[Tuple[int, int], str], Dict[Tuple[int, int]]]):
+        self.logger.debug(f"Added resolve function -> {function.__name__}")
+        self._resolve_function = function
+
+    def add_display_function(self, function: Callable[Dict[Tuple[int, int], int], None]) -> None:
+        self.logger.debug(f"Added display function -> {function.__name__}")
+        self._display_function = function
+
     def add_item(self, item: DisplayItem) -> None:
+        self.logger.info(f"Adding item {item.name} to playlist")
         if not isinstance(item, DisplayItem):
             raise TypeError(f"Cannot add {type(item)} to DisplayPlaylist, must be of DisplayItem")
+        if self._display_info is None:
+            raise RuntimeError("No display info set. Set it with `add_display_info`")
+        item.add_display_info(self._display_info)
+        if self._resolve_function is None:
+            raise RuntimeError("No display function set. Set it with `add_resolve_function`")
+        item.add_resolve_function(self._resolve_function)
+        if self._display_function is None:
+            raise RuntimeError("No display function set. Set it with `add_display_function`")
+        item.add_display_function(self._display_function)
         super().add_item(item)
-        item.add_display_info(self._display.info)
-        item.add_display_function(self._display.move_to_flaps)
-
+        self.logger.info(f"Items now in queue: {self.items}")
+        
     @property
     def apps(self) -> AppLoader:
         return self._apps
@@ -108,36 +131,3 @@ class DisplayPlaylist(Playlist):
     @property
     def available_apps(self) -> List[str]:
         return self._apps.list()
-
-if __name__ == "__main__":
-    import os
-    from utils import create_logger
-    create_logger()
-
-    from app.components.display_playlist.display_item import DisplayItem, StaticDisplayItem
-    from control.source.bus_controller import BusController
-    from control.source.display_controller import DisplayController
-    from app.components.display_playlist.base_apps.clock import ClockApp
-
-    display = DisplayController()
-    value = os.getenv("DISP_USB_PORT")
-    bus = BusController(port=value, timeout=0.5)
-    display.add_bus_controller(bus)
-    display.discover([1, 2], [1, 10])
-
-    playlist = DisplayPlaylist.from_json(
-        path="/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/playlist.json",
-        display_obj=display,
-        app_folders=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/other_apps", BASE_APP_PATH]
-    )
-    
-    # item1 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example_symbols1.json")
-    # item2 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example_symbols2.json")
-    # item3 = StaticDisplayItem.from_json("/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/examples/static_example_symbols3.json")
-
-    # playlist.add_item(item1)
-    # playlist.add_item(item2)
-    # playlist.add_item(item3)
-    # playlist.add_item(ClockApp())
-
-    playlist.start()

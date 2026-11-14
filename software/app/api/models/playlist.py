@@ -19,7 +19,7 @@ class ItemResponse(BaseModel):
     name: str
     uuid: str
     index: int
-    frequency: FrequencyResponse
+    frequency: Optional[FrequencyResponse]
     params: Dict[str, Any]
 
 
@@ -32,7 +32,7 @@ class TimeData(BaseModel):
 
 class ActiveItemResponse(BaseModel):
     item: ItemResponse
-    time_data: TimeData
+    time_data: Optional[TimeData]
 
 
 class PlaylistResponse(BaseModel):
@@ -45,5 +45,7 @@ class PlaylistResponse(BaseModel):
 class StatusResponse(BaseModel):
     is_active: bool
     numItems: int
+    playlistFrequency: FrequencyResponse
     currentItem: Optional[ItemResponse]
+    playlistTime: Optional[TimeData]
     currentItemTime: Optional[TimeData]

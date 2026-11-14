@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
-from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
+from app.components.display_playlist.display_item import DisplayItem, DisplayItemType, DisplayItemUpdate
 from control.source.display_controller import DisplayInfo
 
 class ClockApp(DisplayItem):
@@ -32,7 +32,7 @@ class ClockApp(DisplayItem):
         self._start_location = start_location
 
 
-    def update(self, display_info: DisplayInfo) -> Dict[Tuple[int, int], str]:
+    def update(self, display_info: DisplayInfo) -> DisplayItemUpdate:
         now = datetime.datetime.now()
         hour = now.strftime("%I").lstrip("0")
         minute = now.strftime("%M")

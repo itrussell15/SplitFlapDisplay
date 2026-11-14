@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from app.api.models.common import Location
+from app.components.display_playlist.base_apps.static import StaticDisplayItem
 from .requests import DisplayPositionRequest
+
 
 from typing import Dict, List
 
@@ -28,7 +30,13 @@ class StaticItem(BaseModel):
     uuid: str
     request_time: str
     data: List[StaticModuleData]
-    
+
+    def to_static_display_item(self) -> StaticDisplayItem:
+        output = {}
+        for item in self.data:
+            output[(item.location.as_tuple())] = item.position
+        return StaticDisplayItem(name=self.name, flaps=output, needs_resolving=False)
+
 
 class StaticItems(BaseModel):
     num_items: int

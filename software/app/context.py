@@ -56,7 +56,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     paths = get_app_paths()
     app.state.app_loader = AppLoader(DisplayItem, sources=paths)
     
-    app.state.playlist = DisplayPlaylist(app.state.display, frequency=UpdateFrequency(seconds=30))
+    app.state.playlist = DisplayPlaylist(frequency=UpdateFrequency(seconds=30))
+    app.state.playlist.add_display_info(app.state.display.info)
+    app.state.playlist.add_resolve_function(app.state.resolver.resolve)
+    app.state.playlist.add_display_function(app.state.display.move_to_position)
     logger.info(f"Loaded {len(app.state.app_loader)} apps from {len(paths)} path(s)")
     
     

@@ -19,6 +19,10 @@ class TestFlapResolver(unittest.TestCase):
             FlapData(position=3, key='UP', glyph="↑", color_hex="#FFFFF", aliases=["UP_ARROW", "ARROW"]),
         ]
 
+        self.flaps_from_display_item = {}
+        for n, flap in enumerate(self.flaps):
+            self.flaps_from_display_item[(n, n)] = flap.key
+
     def tearDown(self):
         pass
 
@@ -33,18 +37,23 @@ class TestFlapResolver(unittest.TestCase):
         with self.assertRaises(AssertionError):
             flaps = FlapResolver(self.flaps[0])
         
-    def test_resolution_from_alias(self):
+    def test_resolve_from_alias(self):
         resolver = self._create_resolver()
         for alias in self.flaps[-1].aliases:
-            flap_data = resolver.resolve(alias)
+            flap_data = resolver.resolve_value(alias)
             self.assertEqual(flap_data, self.flaps[-1])
+
+    def test_resolve_from_position(self):
+        resolver = self._create_resolver()
+        for flap in self.flaps:
+            self.assertEqual(resolver.resolve_position(flap.position), flap)
 
     def test_unknown_value(self):
         resolver = self._create_resolver()
         with self.assertRaises(ResolutionError):
-            resolver.resolve("FOO", fail_if_not_found=True)
+            resolver.resolve_value("FOO", fail_if_not_found=True)
         
-        flap_data = resolver.resolve("FOO")
+        flap_data = resolver.resolve_value("FOO")
         self.assertEqual(flap_data, self.flaps[0])
 
     def test_non_flap_data(self):
@@ -52,7 +61,12 @@ class TestFlapResolver(unittest.TestCase):
         with self.assertRaises(AssertionError):
             resolver = FlapResolver(self.flaps)
 
-
+    def test_resolve_many(self):
+        resolver = self._create_resolver()
+        result = resolver.resolve(self.flaps_from_display_item)
+        for i in range(len(result)):
+            self.assertEqual(result[(i, i)].position, self.flaps[i].position)
+        
 
 if __name__ == "__main__":
     unittest.main()

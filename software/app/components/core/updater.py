@@ -50,7 +50,7 @@ class UpdateFrequency:
         self._seconds = max(0, value)
 
     @property
-    def interval(self) -> int:
+    def interval(self) -> Optional[int]:
         return (self.minutes * 60)  + self.seconds
 
 
@@ -115,8 +115,10 @@ class TimeBasedUpdater(ABC):
     def start(self, update_on_start: bool = True) -> None:
         if self._timer is not None:
             raise RuntimeError("Can not start another updater with one running. Please stop it and try again")
-        
+
+        self.logger.info(f"Item starting dynamic - {self.is_dynamic}")
         if not self.is_dynamic:
+            self.logger.info("Item is not dynamic invoking once.")
             self._invoke_update()
             return 
 
@@ -183,7 +185,9 @@ class Updater(TimeBasedUpdater):
         """
         pass
 
-    def _update_time_status(self) -> TimeStatus:
+    def _update_time_status(self) -> Optional[TimeStatus]:
+        if self.frequency is None:
+            return None
         return TimeStatus(start=time.time(), end=time.time() + self.frequency.interval)
 
     def _invoke_update(self) -> None:

@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
 from app.components.core.rate_limiter import RateLimiter
-from app.components.display_playlist.display_item import DisplayItem, DisplayItemType
+from app.components.display_playlist.display_item import DisplayItem, DisplayItemType, DisplayItemUpdate
 from control.source.display_controller import DisplayInfo
 
 class WeatherData:
@@ -81,7 +81,7 @@ class TemperatureApp(DisplayItem):
             description=data["weather"][0]["description"],
         )
 
-    def update(self, display_info: DisplayInfo) -> Dict[Tuple[int, int], str]:
+    def update(self, display_info: DisplayInfo) -> DisplayItemUpdate:
         weather = self.get_data()
         row, start_col = self._start_location
 
@@ -93,5 +93,5 @@ class TemperatureApp(DisplayItem):
         data[(row, start_col + 2)] = "DEGREE"
         data[(row, start_col + 3)] = "F" if weather.unit == "imperial" else "C"
 
-        return data
+        return DisplayItemUpdate(flaps=data)
         
