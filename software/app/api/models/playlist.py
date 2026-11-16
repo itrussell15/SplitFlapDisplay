@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
-from app.components.display_playlist.display_item import DisplayItem
+from app.components.display.display_item import DisplayItem
 
 
 class FrequencyResponse(BaseModel):

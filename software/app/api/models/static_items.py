@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from app.api.models.common import Location
-from app.components.display_playlist.base_apps.static import StaticDisplayItem
+from app.components.display.base_apps.static import StaticDisplayItem
 from .requests import DisplayPositionRequest
 
 

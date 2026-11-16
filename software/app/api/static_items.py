@@ -13,7 +13,7 @@ from app.api.dependencies import get_database
 from .common import exception_response
 import utils
 
-from app.components.display_playlist.base_apps.static import StaticDisplayItem
+from app.components.display.base_apps.static import StaticDisplayItem
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 logger = logging.getLogger("StaticApps")

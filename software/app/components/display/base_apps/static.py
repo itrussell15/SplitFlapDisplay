@@ -7,7 +7,7 @@ from typing import Dict, Tuple, Union
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
-from app.components.display_playlist.display_item import DisplayItem, DisplayItemUpdate, DisplayItemType
+from app.components.display.display_item import DisplayItem, DisplayItemUpdate, DisplayItemType
 from control.source.display_controller import DisplayInfo
 
 class StaticDisplayItem(DisplayItem):

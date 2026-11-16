@@ -188,11 +188,11 @@ if __name__ == "__main__":
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-    from app.components.display_playlist.display_item import DisplayItem, DisplayItemType, StaticDisplayItem
+    from app.components.display.display_item import DisplayItem, DisplayItemType, StaticDisplayItem
     from utils import create_logger
     create_logger()
 
-    apps = AppLoader(DisplayItem, sources=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/base_apps"])
+    apps = AppLoader(DisplayItem, sources=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display/base_apps"])
     print(apps)
-    # other_apps = AppLoader(DisplayItem, sources=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display_playlist/other_apps"])
+    # other_apps = AppLoader(DisplayItem, sources=["/home/isaac/projects/SplitFlapDisplay/software/app/components/display/other_apps"])
     # all_apps = apps + other_apps

@@ -12,9 +12,9 @@ from control.source.bus_controller import BusController
 from control.source.display_controller import DisplayController
 from app.components.core.app_loader import AppLoader
 from app.components.core.flap_resolver import FlapResolver
-from app.components.display_playlist.playlist import DisplayPlaylist
+from app.components.display.playlist import DisplayPlaylist
 from app.components.database.split_flap_database import SplitFlapDatabase
-from app.components.display_playlist.display_item import DisplayItem
+from app.components.display.display_item import DisplayItem
 from app.components.core.rate_limiter import RateLimiter
 from app.components.core.updater import UpdateFrequency
 import utils
@@ -58,8 +58,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     app.state.playlist = DisplayPlaylist(frequency=UpdateFrequency(seconds=30))
     app.state.playlist.add_display_info(app.state.display.info)
-    app.state.playlist.add_resolve_function(app.state.resolver.resolve)
+    app.state.playlist.add_resolve_function(app.state.resolver.for_display)
     app.state.playlist.add_display_function(app.state.display.move_to_position)
+
     logger.info(f"Loaded {len(app.state.app_loader)} apps from {len(paths)} path(s)")
     
     

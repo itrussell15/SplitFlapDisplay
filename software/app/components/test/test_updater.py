@@ -11,7 +11,7 @@ from pathlib import Path
 # Add the parent directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.components.core.updater import Updater, UpdateFrequency
+from app.components.core.updater import TimeBasedUpdater, TimeStatus, Updater, UpdateFrequency
 from app.components.core.rate_limiter import RateLimiter, RateLimitError
 from utils import create_logger
 
@@ -102,6 +102,35 @@ class TestTimeBasedUpdater(ABC):
         self.assertTrue(self.updater.is_dynamic)
         self.updater.frequency = None
         self.assertFalse(self.updater.is_dynamic)
+
+    def test_timer_worker_invokes_update_method(self) -> None:
+        self.updater._worker_invoked_update()
+        self.assertGreaterEqual(self.updater.update_count, 1)
+
+
+class TestTimeBasedUpdaterDirect(unittest.TestCase):
+    def test_worker_callback_uses_invoke_method(self) -> None:
+        updater = DirectTimeBasedUpdater(UpdateFrequency(seconds=1))
+        updater._worker_invoked_update()
+        self.assertEqual(updater.update_count, 1)
+
+    def test_expired_timer_reports_zero_remaining(self) -> None:
+        status = TimeStatus(start=time.time() - 10, end=time.time() - 1)
+        self.assertEqual(status.remaining, 0.0)
+        self.assertGreaterEqual(status.elapsed, 1.0)
+
+
+class DirectTimeBasedUpdater(TimeBasedUpdater):
+    def __init__(self, frequency: UpdateFrequency) -> None:
+        super().__init__(frequency)
+        self.update_count = 0
+
+    def update(self) -> None:
+        self.update_count += 1
+
+    def _invoke_update(self) -> None:
+        self.update_count += 1
+
 
 class TestUpdater(TestTimeBasedUpdater, unittest.TestCase):
 

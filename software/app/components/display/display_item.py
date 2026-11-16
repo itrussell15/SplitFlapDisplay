@@ -42,13 +42,11 @@ class DisplayItem(PlaylistItem):
         item_type: DisplayItemType,
         params: Dict[str, Any],
         frequency: Optional[UpdateFrequency] = None,
-        default_flap: Flap = Flap.BLANK
     ) -> None:
         super().__init__(name, frequency)
         self._display_info = None
         self._display_function = None
         self._resolve_function = None
-        self._default_flap = default_flap
         self._display_data = {}
         self.params = self._filter_params(params)
 
@@ -60,8 +58,7 @@ class DisplayItem(PlaylistItem):
         pass
 
     def start(self, update_on_start: bool = True) -> None:
-        if self._display_info is None:
-            raise RuntimeError("No display info set. Set it with `add_display_info`")
+        self._check_missing_display_info()
         if self._display_function is None:
             raise RuntimeError("No display function set. Set it with `add_display_function`")
         if self._resolve_function is None:
@@ -80,6 +77,13 @@ class DisplayItem(PlaylistItem):
         self.logger.debug(f"Added display function -> {function.__name__}")
         self._display_function = function
 
+    def default_display(self) -> Dict[Tuple[int, int], int]:
+        self._check_missing_display_info()
+        output = {}
+        for row in range(self._display_info.rows):
+            for column in self._display_info.columns:
+                output[(row, column)] = self.default_flap
+
     def _invoke_update(self) -> None:
         self._is_updating = True
         self._time_status = self._update_time_status()
@@ -88,7 +92,6 @@ class DisplayItem(PlaylistItem):
             self.logger.debug(f"Update invoked, but not change in output - skipping")
             self._is_updating = False
             return
-
         if request.needs_resolving:
             self.logger.debug("Update requires resolving")
             request.flaps = self._resolve_function(request.flaps)
@@ -104,3 +107,7 @@ class DisplayItem(PlaylistItem):
                 continue
             output[key] = value
         return output
+
+    def _check_missing_display_info(self) -> None:
+        if self._display_info is None:
+            raise RuntimeError("No display info set. Set it with `add_display_info`")

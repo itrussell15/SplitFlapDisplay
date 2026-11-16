@@ -68,27 +68,22 @@ class TimeStatus:
         if self.end is None:
             self.logger.warning("No end time set. Unable to calculate time left")
             return None
-            
+
         this_time = time.time()
-        if this_time - self.end > 0.25:
-            self.logger.warning("Unable to calculate time left because current time is already greater than end time")
-            self.logger.warning(f"Start: {self.start} End: {self.end} - Current Time: {this_time}")
-            return None
+        if this_time >= self.end:
+            return 0.0
 
         return self.end - this_time
 
     @property
     def elapsed(self) -> float:
-        this_time = time.time()
         if self.start is None:
             self.logger.warning("No start time set. Unable to calculate time elapsed")
             return None
-            
+
         this_time = time.time()
         if this_time < self.start:
-            self.logger.warning("Unable to calculate time elapsed because current time is less than start time")
-            self.logger.warning(f"Start: {self.start} End: {self.end} - Current Time: {this_time}")
-            return None
+            return 0.0
 
         return this_time - self.start
 
@@ -143,7 +138,7 @@ class TimeBasedUpdater(ABC):
 
     def _worker_invoked_update(self) -> None:
         # If we are here, then the timer has completed and we want to start another one.
-        self._top_level_update()
+        self._invoke_update()
         if self._timer is not None:
             self._schedule_timer()
         

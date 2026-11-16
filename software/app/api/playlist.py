@@ -64,7 +64,7 @@ def playlist_active(playlist=Depends(get_playlist)):
 
 @router.post("/start")
 def start_playlist(playlist=Depends(get_playlist)):
-    logger.info("Stopping playlist")
+    logger.info("Starting playlist")
     try:
         playlist.start()
     except Exception as e:

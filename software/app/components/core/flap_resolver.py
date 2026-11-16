@@ -36,8 +36,14 @@ class FlapResolver:
             raise ResolutionError(f"Unable resolve position {position}")
         return output
 
-    def resolve(self, values: Dict[Tuple[int, int], str], fail_if_not_found: bool = False) -> Dict[Tuple[int, int], int]:
+    def resolve(self, values: Dict[Tuple[int, int], str], fail_if_not_found: bool = False) -> Dict[Tuple[int, int], FlapData]:
         output = {}
         for location, value in values.items():
-            output[location] = self.resolve_value(value)
+            output[location] = self.resolve_value(value.upper())
+        return output
+
+    def for_display(self, values: Dict[Tuple[int, int], str], fail_if_not_found: bool = False) -> Dict[Tuple[int, int], int]:
+        output = {}
+        for location, value in values.items():
+            output[location] = self.resolve_value(value).position
         return output
