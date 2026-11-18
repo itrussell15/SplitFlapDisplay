@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from app.components.core.app_loader import AppLoader
+from app.components.core.playlist import Playlist, PlaylistEntry
 from app.components.core.trigger import IntervalTrigger, ManualTrigger, PollingTrigger
 from app.components.core.updater import UpdateFrequency
 from app.components.display.base_apps.clock import DateTimeApp
@@ -186,29 +187,29 @@ class TestExampleApps(unittest.TestCase):
             self.assertNotIn("trigger_factory", params)
         json.dumps(parameters)
 
-    def test_playlist_example_app_arguments_use_current_constructors(self):
+    def test_app_loader_constructs_items_for_playlist_entries(self):
         loader = self.load_apps()
-        data = json.loads((DISPLAY_PATH / "examples" / "playlist.json").read_text())
-        for entry in data["items"]:
-            if entry["item_type"].lower() == "app":
-                item = loader.instantiate_app(entry["app_name"], **entry.get("args", {}))
-                self.assertIsInstance(item.trigger, IntervalTrigger)
-            else:
-                flaps = {(module["location"]["row"], module["location"]["column"]): module["flap"] for module in entry["modules"]}
-                item = StaticDisplayItem(name=entry["name"], flaps=flaps)
-                self.assertIsNone(item.trigger)
-            self.assertIsInstance(item, DisplayItem)
-
-    def test_standalone_static_json_examples_use_constructor(self):
-        for path in sorted((DISPLAY_PATH / "examples").glob("static_example*.json")):
-            with self.subTest(example=path.name):
-                data = json.loads(path.read_text())
-                flaps = {(module["location"]["row"], module["location"]["column"]): module["flap"] for module in data["data"]}
-                item = StaticDisplayItem(name=data["name"], flaps=flaps)
-                outputs = self.configure(item)
-                item.activate()
-                self.assertEqual(outputs, [flaps])
-                self.assertEqual(len(flaps), 5)
+        clock = loader.instantiate_app("DateTimeApp", start_location=[1, 1])
+        static = loader.get_app_class("StaticDisplayItem")("Example", flaps={(1, 1): 3}, needs_resolving=False)
+        clock_outputs = self.configure(clock)
+        static_outputs = self.configure(static)
+        playlist = Playlist([
+            PlaylistEntry(clock, UpdateFrequency(minutes=1)),
+            PlaylistEntry(static, UpdateFrequency(seconds=10)),
+        ])
+        self.addCleanup(playlist.stop)
+        playlist.start()
+        pending_refresh, countdown = self.timers
+        self.assertEqual(pending_refresh.interval, 10)
+        self.assertEqual(countdown.interval, 60)
+        self.assertEqual(len(clock_outputs), 1)
+        countdown.fire()
+        self.assertIs(playlist.current_item, static)
+        self.assertFalse(clock.trigger.is_active)
+        self.assertEqual(static_outputs, [{(1, 1): 3}])
+        self.assertEqual(self.timers[-1].interval, 10)
+        pending_refresh.fire()
+        self.assertEqual(len(clock_outputs), 1)
 
 
 if __name__ == "__main__":
