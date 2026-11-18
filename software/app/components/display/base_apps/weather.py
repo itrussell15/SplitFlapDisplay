@@ -5,12 +5,12 @@ import datetime
 from zoneinfo import ZoneInfo
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
-from app.components.core.rate_limiter import RateLimiter
+from app.components.core.trigger import IntervalTrigger, Trigger
 from app.components.display.display_item import DisplayItem, DisplayItemType, DisplayItemUpdate
 from control.source.display_controller import DisplayInfo
 
@@ -42,6 +42,10 @@ class WeatherData:
 
 REQUEST_URL = "https://api.openweathermap.org/data/4.0/onecall/current?lat={lat}2&lon=-{lon}&units={units}&appid={api_key}"
 
+def _weather_trigger_factory(callback: Callable[[], None]) -> Trigger:
+    return IntervalTrigger(callback, frequency=UpdateFrequency(seconds=60))
+
+
 class TemperatureApp(DisplayItem):
 
     description = "Weather App that pulls data from Open Weather Map"
@@ -50,12 +54,19 @@ class TemperatureApp(DisplayItem):
     # TODO Add rate limiter?
     # TODO Add env variable for API key?
 
-    def __init__(self, api_key: str, lat: str, lon: str, metric_units: bool = False, start_location: List[int] = [1, 1]) -> None:
-        frequency = UpdateFrequency(seconds = 60)
+    def __init__(
+        self,
+        api_key: str,
+        lat: str,
+        lon: str,
+        metric_units: bool = False,
+        start_location: List[int] = [1, 1],
+        trigger_factory: Optional[Callable[[Callable[[], None]], Trigger]] = _weather_trigger_factory,
+    ) -> None:
         super().__init__(
             name="TempApp",
             item_type=DisplayItemType.APP,
-            frequency=frequency,
+            trigger_factory=trigger_factory,
             params=locals()
         )
         self._api_key = api_key
@@ -94,4 +105,3 @@ class TemperatureApp(DisplayItem):
         data[(row, start_col + 3)] = "F" if weather.unit == "imperial" else "C"
 
         return DisplayItemUpdate(flaps=data)
-        

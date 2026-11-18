@@ -2,14 +2,19 @@ import os
 import sys
 import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
 from app.components.core.updater import UpdateFrequency
+from app.components.core.trigger import IntervalTrigger, Trigger
 from app.components.display.display_item import DisplayItem, DisplayItemType, DisplayItemUpdate
 from app.components.display.display_helper import DisplayHelper
 from control.source.display_controller import DisplayInfo
+
+
+def _clock_trigger_factory(callback: Callable[[], None]) -> Trigger:
+    return IntervalTrigger(callback, frequency=UpdateFrequency(seconds=10))
 
 
 class DateTimeApp(DisplayItem):
@@ -17,13 +22,15 @@ class DateTimeApp(DisplayItem):
     description = "Basic clock app that shows the current time"
     app_image = "static/images/clock-icon.png"
 
-    def __init__(self, start_location: List[int] = [1, 1]) -> None:
-        frequency = UpdateFrequency(seconds = 10)
-
+    def __init__(
+        self,
+        start_location: List[int] = [1, 1],
+        trigger_factory: Optional[Callable[[Callable[[], None]], Trigger]] = _clock_trigger_factory,
+    ) -> None:
         super().__init__(
             name="DateTimeApp",
             item_type=DisplayItemType.APP,
-            frequency=frequency,
+            trigger_factory=trigger_factory,
             params = locals()
         )
         self._previous_output = None

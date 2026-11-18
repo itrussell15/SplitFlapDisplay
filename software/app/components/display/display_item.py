@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-import os
-import sys
 import enum
 import inspect
-from munch import munchify
 import json
-from abc import abstractmethod
 import logging
-from pathlib import Path
+import os
+import sys
+from abc import abstractmethod
 from dataclasses import dataclass, field
-
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple, Union
+
+from munch import munchify
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from app.components.core.playlist import PlaylistItem
-from app.components.core.updater import UpdateFrequency
-from control.source.flaps import Flap
+from app.components.core.trigger import Trigger
 from control.source.display_controller import DisplayInfo
+from control.source.flaps import Flap
+
 
 class DisplayItemType(enum.Enum):
     STATIC = 0
@@ -27,7 +28,7 @@ class DisplayItemType(enum.Enum):
 
 @dataclass
 class DisplayItemUpdate:
-    flaps: Union[Dict[Tuple[int, int], str], Dict[Tuple[int, int], str]]
+    flaps: Union[Dict[Tuple[int, int], str], Dict[Tuple[int, int], int]]
     needs_resolving: bool = True
 
 
@@ -41,9 +42,9 @@ class DisplayItem(PlaylistItem):
         name: str,
         item_type: DisplayItemType,
         params: Dict[str, Any],
-        frequency: Optional[UpdateFrequency] = None,
+        trigger_factory: Optional[Callable[[Callable[[], None]], Trigger]] = None,
     ) -> None:
-        super().__init__(name, frequency)
+        super().__init__(name, trigger_factory=trigger_factory)
         self._display_info = None
         self._display_function = None
         self._resolve_function = None
@@ -54,26 +55,34 @@ class DisplayItem(PlaylistItem):
         return f"DisplayPlaylistItem({self._name})"
 
     @abstractmethod
-    def update(self, display_info: DisplayInfo) -> DisplayItemUpdate:
+    def update(self, display_info: DisplayInfo) -> Optional[DisplayItemUpdate]:
         pass
 
-    def start(self, update_on_start: bool = True) -> None:
+    def activate(self, update_on_start: bool = True) -> None:
         self._check_missing_display_info()
         if self._display_function is None:
-            raise RuntimeError("No display function set. Set it with `add_display_function`")
+            raise RuntimeError(
+                "No display function set. Set it with `add_display_function`"
+            )
         if self._resolve_function is None:
-            raise RuntimeError("No display function set. Set it with `add_resolve_function`")
-        super().start(update_on_start)
+            raise RuntimeError(
+                "No display function set. Set it with `add_resolve_function`"
+            )
+        super().activate(update_on_start)
 
     def add_display_info(self, display_info: DisplayInfo) -> None:
         self.logger.debug("Added display info")
         self._display_info = display_info
 
-    def add_resolve_function(self, function: Callable[Dict[Tuple[int, int], str], Dict[Tuple[int, int]]]):
+    def add_resolve_function(
+        self, function: Callable[Dict[Tuple[int, int], str], Dict[Tuple[int, int]]]
+    ):
         self.logger.debug(f"Added resolve function -> {function.__name__}")
         self._resolve_function = function
 
-    def add_display_function(self, function: Callable[Dict[Tuple[int, int], int], None]) -> None:
+    def add_display_function(
+        self, function: Callable[Dict[Tuple[int, int], int], None]
+    ) -> None:
         self.logger.debug(f"Added display function -> {function.__name__}")
         self._display_function = function
 
@@ -84,26 +93,41 @@ class DisplayItem(PlaylistItem):
             for column in self._display_info.columns:
                 output[(row, column)] = self.default_flap
 
-    def _invoke_update(self) -> None:
-        self._is_updating = True
-        self._time_status = self._update_time_status()
-        request = self.update(self._display_info)
-        if request is None:
-            self.logger.debug(f"Update invoked, but not change in output - skipping")
-            self._is_updating = False
-            return
-        if request.needs_resolving:
-            self.logger.debug("Update requires resolving")
-            request.flaps = self._resolve_function(request.flaps)
-        self._display_function(request.flaps)
-        self._is_updating = False
+    def _execute_update(self) -> None:
+        """Generate, resolve and render content for the current activation.
+
+        Stale results and overlapping updates are skipped. Once rendering
+        begins, deactivation waits for that render to finish.
+        """
+        with self._lifecycle_lock:
+            if not self._is_active or self._is_updating:
+                return
+            self._is_updating = True
+            generation = self._generation
+            display_info = self._display_info
+        try:
+            request = self.update(display_info)
+            if request is None:
+                self.logger.debug("Update produced no output - skipping")
+                return
+            flaps = request.flaps
+            if request.needs_resolving:
+                self.logger.debug("Update requires resolving")
+                flaps = self._resolve_function(flaps)
+            with self._lifecycle_lock:
+                if not self._is_active or generation != self._generation:
+                    return
+                self._display_function(flaps)
+        finally:
+            with self._lifecycle_lock:
+                self._is_updating = False
 
     def _filter_params(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         output = {}
         for key, value in parameters.items():
             if key.startswith("__") or key.startswith("_"):
                 continue
-            if key in ["self", "frequency"]:
+            if key in ["self", "frequency", "trigger_factory"]:
                 continue
             output[key] = value
         return output

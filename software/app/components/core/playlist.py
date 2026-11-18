@@ -41,7 +41,7 @@ class PlaylistItem(ABC):
         if trigger_factory is not None:
             if not callable(trigger_factory):
                 raise TypeError("trigger_factory must be callable")
-            trigger = trigger_factory(self._invoke_update)
+            trigger = trigger_factory(self._execute_update)
             if not isinstance(trigger, Trigger):
                 raise TypeError("trigger_factory must return a Trigger")
             if trigger.is_active:
@@ -65,7 +65,7 @@ class PlaylistItem(ABC):
             generation = self._generation
         try:
             if update_on_start:
-                self._invoke_update()
+                self._execute_update()
             with self._lifecycle_lock:
                 # An initial update may stop or restart its own item.
                 if self._is_active and generation == self._generation:
@@ -75,7 +75,7 @@ class PlaylistItem(ABC):
             with self._lifecycle_lock:
                 # A failed earlier start must not stop a newer run.
                 if generation == self._generation:
-                    self.stop()
+                    self.deactivate()
             raise
 
     def deactivate(self) -> None:
@@ -86,7 +86,7 @@ class PlaylistItem(ABC):
             if self._trigger is not None:
                 self._trigger.stop()
 
-    def _invoke_update(self) -> None:
+    def _execute_update(self) -> None:
         """Run the content callback while active, preventing overlapping updates.
 
         Subclasses may override this hook to adapt their content method, such
@@ -130,13 +130,13 @@ class Playlist(Updater):
 
     def start(self) -> None:
         super().start(update_on_start=False)
-        self.current_item.start()
+        self.current_item.activate()
 
     def stop(self) -> None:
         super().stop()
         if self.current_item.is_alive:
             self.logger.debug(f"Shutting down current item - {self.current_item}")
-            self.current_item.stop()
+            self.current_item.deactivate()
         else:
             raise RuntimeError("Playlist not running, nothing to stop")
 
@@ -186,10 +186,10 @@ class Playlist(Updater):
 
     def update(self) -> None:
         if self.current_item.is_alive:
-            self.current_item.stop()
+            self.current_item.deactivate()
         next_item = self.next()
         if next_item is not None:
-            next_item.start()
+            next_item.activate()
 
     @property
     def items(self) -> List[PlaylistItem]:

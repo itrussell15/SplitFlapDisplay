@@ -5,10 +5,10 @@ The existing `Updater` combines a timer with an inherited `update()` method.
 playlist or display item can own a trigger and supply its own method as the
 callback. Only triggering strategies inherit from `Trigger`.
 
-This first step adds `software/app/components/core/trigger.py` independently.
-Existing `Updater` consumers still use their current implementation. An
-`IntervalTrigger` supplies timer-based scheduling. Polling strategies,
-playlist integration, and item integration come later.
+`PlaylistItem` and `DisplayItem` own triggers created by factories. The example
+clock, weather, and static items use that interface. The playlist's advancement
+schedule and its API status fields still use the older updater implementation;
+per-entry durations are a separate migration.
 
 ## Contract
 
@@ -22,14 +22,13 @@ playlist integration, and item integration come later.
 | `invoke()` | Call the supplied callback once if active. Return `True` if called, `False` if inactive or the strategy skips an overlapping call. |
 
 A new trigger is inactive and can be restarted after stopping. `start()` does
-not run the callback. This keeps enabling a schedule separate from performing
-an initial update; a future owner can explicitly do that update when needed.
+not run the callback. Items perform their initial update in `activate()`.
 
 The constructor requires one synchronous, zero-argument callback. Bound methods
 work directly; use a closure or `functools.partial` when arguments are needed.
-Callback results are ignored. Exceptions propagate from `invoke()`, and do not
-automatically deactivate the trigger. A future background strategy must define
-how it reports failures and whether it keeps scheduling after them.
+Callback results are ignored. Exceptions propagate from `invoke()`. Interval
+and polling triggers log background callback failures and keep scheduling;
+one-shot triggers finish their run even if the callback fails.
 
 ## Try it without scheduling
 
@@ -97,44 +96,158 @@ otherwise finished application alive. `trigger.frequency` exposes the original
 object. Changing its `minutes` or `seconds` affects the next timer scheduled;
 a timer already waiting keeps its existing interval.
 
-## Composition in a future owner
+## Polling with a cooldown
 
-This is a standalone example of the intended relationship, rather than a
-change to the current playlist or item classes:
+`PollingTrigger` checks a zero-argument evaluation function on an
+`UpdateFrequency` schedule. A true result invokes its callback unless a
+cooldown is active. Polling continues during cooldown and suppressed results
+do not extend it:
 
 ```python
-class ExampleItem:
-    def __init__(self):
-        self.trigger = ManualTrigger(self.update)
+from app.components.core.trigger import PollingTrigger
+from app.components.core.updater import UpdateFrequency
 
-    def update(self):
-        print("Generate and display the next output")
-
-    def start(self):
-        self.update()         # Owner chooses to display an initial value
-        self.trigger.start()
-
-    def stop(self):
-        self.trigger.stop()
+trigger = PollingTrigger(
+    callback=lambda: print("Update accepted"),
+    frequency=UpdateFrequency(seconds=0.1),
+    evaluation=lambda: True,
+    cooldown=UpdateFrequency(seconds=5),
+)
 ```
 
-Later, an owner could accept a trigger factory, constructing a strategy with
-`self.update` as its callback. That lets callers choose the strategy without
-requiring the owner to inherit scheduling behavior or replacing callbacks on
-an already-running trigger.
+Each accepted result starts a cooldown before the callback runs, including if
+the callback fails. `cooldown_status` exposes a `TimeStatus` with elapsed and
+remaining time. It is `None` before the first accepted result. Both cooldowns
+and countdown status use `TimeStatus`'s existing wall-clock timestamps.
 
-`IntervalTrigger` schedules a callback after each interval. A future
-`PollingTrigger` would check a condition and call `invoke()` when its policy
-says the condition warrants an update. Interval configuration and next-run
-timing belong to the interval strategy; polling conditions belong to the
-polling strategy. Neither is required by the abstract class. Strategies that
-introduce background work must coordinate start, stop, and callback execution
-and decide how to handle overlapping events.
+## One-shot countdowns
 
-Verify the triggers without hardware. The interval tests use controlled timer
-delivery for lifecycle races and real timer threads for repeated callbacks:
+`OneShotTrigger` invokes its callback once after its duration, then becomes
+inactive. It supports cancellation, early invocation, and restarting:
+
+```python
+from app.components.core.trigger import OneShotTrigger
+from app.components.core.updater import UpdateFrequency
+
+trigger = OneShotTrigger(
+    callback=lambda: print("Countdown finished"),
+    duration=UpdateFrequency(seconds=10),
+)
+trigger.start()
+# trigger.time_status exposes the countdown's elapsed and remaining time.
+# Keep the application alive for the timer to fire, or cancel with stop().
+```
+
+An explicit `invoke()` fires early and cancels the pending timer. Repeated
+`start()` calls while active do not reset the countdown. The trigger becomes
+inactive before its callback runs. This strategy can later drive playlist
+advancement independently of an item's content refresh trigger.
+
+## Items and trigger factories
+
+An item passes its `_execute_update()` callback to the supplied factory. The
+factory creates a new trigger bound to that item. Items use `activate()` and
+`deactivate()`; triggers use `start()` and `stop()`:
+
+```python
+from app.components.core.playlist import PlaylistItem
+from app.components.core.trigger import ManualTrigger
+
+class ExampleItem(PlaylistItem):
+    def update(self):
+        print("Update this item's content")
+
+item = ExampleItem("Example", trigger_factory=ManualTrigger)
+item.activate()        # Performs the initial update, then starts the trigger
+item.trigger.invoke()  # Performs another update
+item.deactivate()      # Stops the item's trigger
+```
+
+Pass `update_on_start=False` to `activate()` to defer the initial update. An
+item stays active until deactivated, including if it has no trigger or its
+one-shot trigger completes. `DisplayItem._execute_update()` supplies display
+information to `update(display_info)`, resolves generated flap values, and
+renders the result.
+
+## Example display apps
+
+The example apps accept an optional `trigger_factory`:
+
+| App | Default behavior |
+| --- | --- |
+| `DateTimeApp` | Initial update, then an interval trigger every 10 seconds |
+| `TemperatureApp` | Initial update, then an interval trigger every 60 seconds |
+| `StaticDisplayItem` | One initial update and no recurring trigger |
+
+Each default factory constructs a fresh trigger and `UpdateFrequency` object.
+Passing `None` disables recurring updates; passing another factory selects a
+different strategy. Factories are excluded from serialized item parameters and
+the app loader's user-facing parameter metadata.
+
+```python
+from app.components.core.trigger import PollingTrigger
+from app.components.core.updater import UpdateFrequency
+from app.components.display.base_apps.clock import DateTimeApp
+
+clock = DateTimeApp()  # Uses its default 10-second interval trigger
+static_clock = DateTimeApp(trigger_factory=None)
+polling_clock = DateTimeApp(
+    trigger_factory=lambda callback: PollingTrigger(
+        callback,
+        frequency=UpdateFrequency(seconds=0.1),
+        evaluation=lambda: True,
+        cooldown=UpdateFrequency(seconds=5),
+    ),
+)
+```
+
+Before activating a display app, supply its display information, resolver, and
+output function. This static example runs without hardware:
+
+```python
+from app.components.display.base_apps.static import StaticDisplayItem
+from control.source.display_controller import DisplayInfo
+
+outputs = []
+item = StaticDisplayItem(
+    "Example", {(1, 1): 3}, needs_resolving=False,
+)
+item.add_display_info(DisplayInfo(rows=3, columns=15, modules=[]))
+item.add_resolve_function(lambda flaps: flaps)
+item.add_display_function(outputs.append)
+item.activate()
+print(outputs)  # [{(1, 1): 3}]
+item.deactivate()
+```
+
+The standalone static JSON examples contain a `data` list. Convert it to the
+constructor's flap map:
+
+```python
+import json
+from pathlib import Path
+from app.components.display.base_apps.static import StaticDisplayItem
+
+data = json.loads(Path("app/components/display/examples/static_example.json").read_text())
+item = StaticDisplayItem(
+    name=data["name"],
+    flaps={
+        (module["location"]["row"], module["location"]["column"]): module["flap"]
+        for module in data["data"]
+    },
+)
+```
+
+Static items have no `from_json` or `from_dict` loaders. The playlist JSON
+example names the clock `DateTimeApp` and relies on app defaults; its top-level
+`frequency` still describes the playlist's older schedule. The playlist loader
+needs migration before it can run this configuration, including constructing
+static items directly from its `modules` list.
+
+Verify the examples and triggers without hardware or weather network requests:
 
 ```bash
 cd software
-../.venv/bin/python -m unittest app.components.test.test_trigger app.components.test.test_interval_trigger -v
+../.venv/bin/python -m unittest app.components.test.test_example_apps app.components.test.test_display_item -v
+../.venv/bin/python -m unittest discover -s app/components/test -p 'test_*trigger.py' -v
 ```

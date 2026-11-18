@@ -2,20 +2,20 @@ import enum
 import logging
 import struct
 import time
-from dataclasses import dataclass
 from concurrent.futures import Future
+from dataclasses import dataclass
 from queue import Queue
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
+
+import utils
 
 from .dataclasses_ import (
     IncomingMessage,
+    LatencyMs,
     ModuleCommand,
     ModuleErrorCodes,
     OutgoingMessage,
-    LatencyMs
 )
-
-import utils
 
 MIN_ROW_VALUE = 0
 MAX_ROW_VALUE = 255
@@ -53,7 +53,6 @@ class ModuleInfo:
     auto_home: bool
     home_offset: int
     max_steps: int
-    
 
     @property
     def location(self) -> Tuple[int, int]:
@@ -68,7 +67,7 @@ class ModuleController:
     def __init__(self, row: int, column: int, log_level: int = logging.INFO) -> None:
         self.logger = logging.getLogger(f"{self.__class__.__name__}({row}, {column})")
         self.logger.setLevel(log_level)
-        
+
         self.logger.debug(f"Module at ({row}, {column}) created")
 
         if row < MIN_ROW_VALUE or row > MAX_ROW_VALUE:
@@ -117,10 +116,10 @@ class ModuleController:
 
         # Update self._current_step
         self.get_steps()
-        
+
         major_firmware = self.get_eeprom_value(EepromLocations.MAJOR_FIRMWARE_LOCATION)
         minor_firmware = self.get_eeprom_value(EepromLocations.MINOR_FIRMWARE_LOCATION)
-        
+
         info = ModuleInfo(
             row=self.row,
             column=self.column,
@@ -130,11 +129,11 @@ class ModuleController:
             steps=self._current_step,
             max_steps=max_steps,
             auto_home=bool(auto_home),
-            home_offset=int(home_offset)
+            home_offset=int(home_offset),
         )
         self._info = info
         return self._info
-        
+
     def move_to_step(self, step: int) -> IncomingMessage:
         self.logger.info(f"Moving to {step}")
         if not self.is_valid_step(step):
@@ -360,4 +359,3 @@ class ModuleController:
             self._lifetime_latency.total / self._message_count,
         )
         return self._message_count, output
-
