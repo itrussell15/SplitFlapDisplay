@@ -5,7 +5,7 @@ import datetime
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
-from typing import Optional
+from typing import Dict, Optional
 
 class UpdateFrequency:
     def __init__(self, minutes: int = 0, seconds: int = 0) -> None:
