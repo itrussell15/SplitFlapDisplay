@@ -51,6 +51,10 @@ class DisplayItem(PlaylistItem):
         self._display_data = {}
         self.params = self._filter_params(params)
 
+    @classmethod
+    @abstractmethod
+    def trigger_factory(cls, callback: Callable[[], None]) -> Trigger: ...
+
     def __repr__(self) -> str:
         return f"DisplayPlaylistItem({self._name})"
 

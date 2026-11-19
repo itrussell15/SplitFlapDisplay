@@ -1,51 +1,52 @@
 import logging
 
-from .dependencies import get_playlist, get_app_loader, get_database
-
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import ValidationError
+from app.api.common import exception_response
 from app.api.models.playlist import (
     ActiveItemResponse,
     AddItemRequest,
+    EntryResponse,
+    FrequencyModel,
     ItemResponse,
     PlaylistResponse,
-    FrequencyResponse,
-    StatusResponse
+    StatusResponse,
 )
-
 from app.api.models.static_items import StaticItem
-from app.api.common import exception_response
 from app.components.core.app_loader import AppNotAvailable
 from app.components.core.playlist import PlaylistItem
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import ValidationError
+
+from .dependencies import get_app_loader, get_database, get_playlist
 
 
 router = APIRouter(prefix="/playlist", tags=["Playlist"])
 logger = logging.getLogger("DisplayAPI")
 
-def item_response(index: int, item: PlaylistItem) -> ItemResponse:
+
+def item_response(index: int, entry: PlaylistEntry) -> EntryResponse:
     return ItemResponse(
-            index=index,
-            name=item.name,
-            uuid=item.uuid,
-            frequency=item.frequency.to_dict() if item.frequency else None,
-            params=item.params,
-        )
+        index=index,
+        name=item.name,
+        uuid=item.uuid,
+        frequency=item.frequency.to_dict() if item.frequency else None,
+        params=item.params,
+    )
+
 
 def create_status_response(playlist: DisplayPlaylist) -> StatusResponse:
 
     item = None
     if playlist.size > 0:
-        item = item_response(
-            index=playlist.current_index,
-            item=playlist.current_item
-        )
+        item = item_response(index=playlist.current_index, item=playlist.current_item)
 
     item_time_data = None
     playlist_time_data = None
     if playlist.is_alive:
         if playlist.current_item.is_dynamic:
             item_time_data = playlist.current_item.time_status.to_dict()
-        playlist_time_data = playlist.time_status.to_dict() if playlist.time_status else None
+        playlist_time_data = (
+            playlist.time_status.to_dict() if playlist.time_status else None
+        )
 
     return StatusResponse(
         is_active=playlist.is_alive,
@@ -53,7 +54,7 @@ def create_status_response(playlist: DisplayPlaylist) -> StatusResponse:
         playlistFrequency=playlist.frequency.to_dict(),
         currentItem=item,
         currentItemTime=item_time_data,
-        playlistTime=playlist_time_data
+        playlistTime=playlist_time_data,
     )
 
 
@@ -61,6 +62,7 @@ def create_status_response(playlist: DisplayPlaylist) -> StatusResponse:
 def playlist_active(playlist=Depends(get_playlist)):
     # Respond with status
     return create_status_response(playlist)
+
 
 @router.post("/start")
 def start_playlist(playlist=Depends(get_playlist)):
@@ -72,10 +74,8 @@ def start_playlist(playlist=Depends(get_playlist)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error occurred starting playlist: {str(e)}",
         )
-    return item_response(
-            index=playlist.current_index,
-            item=playlist.current_item
-        )
+    return item_response(index=playlist.current_index, item=playlist.current_item)
+
 
 @router.post("/stop")
 def stop_playlist(playlist=Depends(get_playlist)):
@@ -88,30 +88,29 @@ def stop_playlist(playlist=Depends(get_playlist)):
             detail=f"Error occurred stopping playlist: {str(e)}",
         )
     return item_response(index=playlist.current_index, item=playlist.current_item)
-    
+
+
 @router.get("/list", response_model=PlaylistResponse)
 def get_current_playlist(playlist=Depends(get_playlist)):
     items = []
     for index, item in enumerate(playlist.items):
-        this_item = item_response(
-            index=index,
-            item=item
-        )
+        this_item = item_response(index=index, item=item)
         items.append(this_item)
-    
+
     return PlaylistResponse(
         is_active=playlist.is_alive,
         current_index=playlist.current_index,
         frequency=playlist.frequency.to_dict(),
-        items=items
+        items=items,
     )
+
 
 @router.post("/add")
 def add_playlist_item(
-    request: AddItemRequest,
+    request: AddEntryRequest,
     database=Depends(get_database),
     apps=Depends(get_app_loader),
-    playlist=Depends(get_playlist)
+    playlist=Depends(get_playlist),
 ):
 
     try:
@@ -128,7 +127,7 @@ def add_playlist_item(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"App '{request.item_type}' did not resolve to a class object",
         )
-    
+
     if request.item_type == "StaticDisplayItem":
         if "static_item_uuid" not in request.parameters:
             raise HTTPException(
@@ -136,8 +135,18 @@ def add_playlist_item(
                 detail=f"No uuid provided for static display item",
             )
         with database.connect() as db:
-            item = db.get_item_from_uuid(request.parameters["static_item_uuid"]).to_static_display_item()
+            item = db.get_item_from_uuid(
+                request.parameters["static_item_uuid"]
+            ).to_static_display_item()
     else:
-        item = app_class(**request.parameters)
-    playlist.add_item(item)
-    return {"status": "ok", "item_type": request.item_type, "uuid": item.uuid}
+        item = app_class(
+            trigger_factory=app_class.trigger_factory,
+            **request.parameters,
+        )
+    playlist.add_entry(item=item, duration=request.duration.to_update_frequency())
+    return {
+        "status": "ok",
+        "item_type": request.item_type,
+        "uuid": item.uuid,
+        "frequency": request.duration.to_update_frequency().to_dict(),
+    }

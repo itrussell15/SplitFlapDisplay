@@ -1,18 +1,24 @@
-import sys
-import enum
-import requests
 import datetime
-from zoneinfo import ZoneInfo
+import enum
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
+
+import requests
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
-from app.components.core.updater import UpdateFrequency
 from app.components.core.trigger import IntervalTrigger, Trigger
-from app.components.display.display_item import DisplayItem, DisplayItemType, DisplayItemUpdate
+from app.components.core.updater import UpdateFrequency
+from app.components.display.display_item import (
+    DisplayItem,
+    DisplayItemType,
+    DisplayItemUpdate,
+)
 from control.source.display_controller import DisplayInfo
+
 
 class WeatherData:
 
@@ -30,20 +36,20 @@ class WeatherData:
         description: str,
         timezone: str,
         unit: str,
-        **kwargs
+        **kwargs,
     ) -> None:
 
         for key, value in locals().items():
             if key != "kwargs":
-                setattr(self, key, value if not isinstance(value, float) else int(value))
+                setattr(
+                    self, key, value if not isinstance(value, float) else int(value)
+                )
         self.timezone = ZoneInfo(self.timezone)
         self.sunrise = datetime.datetime.fromtimestamp(self.sunrise, tz=self.timezone)
         self.sunset = datetime.datetime.fromtimestamp(self.sunset, tz=self.timezone)
 
-REQUEST_URL = "https://api.openweathermap.org/data/4.0/onecall/current?lat={lat}2&lon=-{lon}&units={units}&appid={api_key}"
 
-def _weather_trigger_factory(callback: Callable[[], None]) -> Trigger:
-    return IntervalTrigger(callback, frequency=UpdateFrequency(seconds=60))
+REQUEST_URL = "https://api.openweathermap.org/data/4.0/onecall/current?lat={lat}2&lon=-{lon}&units={units}&appid={api_key}"
 
 
 class TemperatureApp(DisplayItem):
@@ -54,20 +60,24 @@ class TemperatureApp(DisplayItem):
     # TODO Add rate limiter?
     # TODO Add env variable for API key?
 
+    @classmethod
+    def trigger_factory(cls, callback: Callable[[], None]) -> Trigger:
+        return IntervalTrigger(callback, frequency=UpdateFrequency(seconds=60))
+
     def __init__(
         self,
+        trigger_factory: Optional[Callable[[Callable[[], None]], Trigger]],
         api_key: str,
         lat: str,
         lon: str,
         metric_units: bool = False,
         start_location: List[int] = [1, 1],
-        trigger_factory: Optional[Callable[[Callable[[], None]], Trigger]] = _weather_trigger_factory,
     ) -> None:
         super().__init__(
             name="TempApp",
             item_type=DisplayItemType.APP,
             trigger_factory=trigger_factory,
-            params=locals()
+            params=locals(),
         )
         self._api_key = api_key
         self.lat_value = lat

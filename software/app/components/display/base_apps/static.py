@@ -16,12 +16,14 @@ from control.source.display_controller import DisplayInfo
 
 class StaticDisplayItem(DisplayItem):
 
+    trigger_factory = None
+
     def __init__(
         self,
         name: str,
+        trigger_factory: Callable[[Callable[[], None]], Trigger],
         flaps: Union[Dict[Tuple[int, int], str], Dict[Tuple[int, int], int]],
         needs_resolving: bool = True,
-        trigger_factory: Optional[Callable[[Callable[[], None]], Trigger]] = None,
     ) -> None:
         super().__init__(
             name,
