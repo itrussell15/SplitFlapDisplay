@@ -59,9 +59,7 @@ def create_status_response(playlist: DisplayPlaylist) -> StatusResponse:
         numItems=playlist.size,
         currentEntry=entry,
         currentEntryTime=(
-            TimeData(**playlist.time_status.to_dict())
-            if playlist.time_status
-            else None
+            TimeData(**playlist.time_status.to_dict()) if playlist.time_status else None
         ),
     )
 
@@ -107,7 +105,9 @@ def get_current_playlist(playlist=Depends(get_playlist)):
     return PlaylistResponse(
         is_active=playlist.is_active,
         current_index=playlist.current_index if not playlist.is_empty else None,
-        current_entry=entries[playlist.current_index] if not playlist.is_empty else None,
+        current_entry=(
+            entries[playlist.current_index] if not playlist.is_empty else None
+        ),
         entries=entries,
     )
 
@@ -145,13 +145,13 @@ def add_playlist_item(
             item = db.get_item_from_uuid(
                 request.parameters["static_item_uuid"]
             ).to_static_display_item()
-            
+
     else:
         item = app_class(
             trigger_factory=app_class.trigger_factory,
             **request.parameters,
         )
-    
+
     duration = request.duration.to_update_frequency()
     entry = playlist.add_entry(item=item, duration=duration)
     return {
@@ -162,7 +162,7 @@ def add_playlist_item(
     }
 
 
-@router.delete("/entry/{entry_uuid}")
+@router.delete("/delete/{entry_uuid}")
 def remove_playlist_entry(entry_uuid: str, playlist=Depends(get_playlist)):
     for index, entry in enumerate(playlist.entries):
         if entry.uuid == entry_uuid:

@@ -15,13 +15,15 @@ async function init()
     if (!popup) return;
 
     createItemButton?.addEventListener("click", async (event) => {
-        const isItemCreated = createItem();
-        if (isItemCreated) {
-            popup.classList.remove("open");
-            popup.setAttribute("aria-hidden", "true");
+        createItemButton.disabled = true;
+        try {
+            const isItemCreated = await createItem();
+            if (isItemCreated) {
+                closePopup(popup);
+            }
         }
-        else {
-            console.warn("Unable to close due to invalid form entry");
+        finally {
+            createItemButton.disabled = false;
         }
     });
 
@@ -60,6 +62,11 @@ async function createSelectItems(){
 
 async function createItem() {
     console.log("Creating Item");
+    const errorMessage = document.getElementById("playlist-create-error");
+    errorMessage.hidden = true;
+    const duration = readPlaylistDuration();
+    if (!duration) return false;
+
     let validEntry = true;
     const entries = {};
     const itemSelect = document.querySelector("#app-selector");
@@ -84,17 +91,59 @@ async function createItem() {
         const body = {
             "item_type": itemSelect.value,
             "parameters": entries,
-            "duration": {"minutes": 1, "seconds": 0} // TODO Hardcoded for now!
+            "duration": duration
         };
-        const response = await fetch(`/api/v1/playlist/add`, {
-            method: 'POST',
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(body)
-        });
-        await updatePlaylistContainer();
+        try {
+            const response = await fetch(`/api/v1/playlist/add`, {
+                method: 'POST',
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+            }
+        } catch (error) {
+            console.error("Failed to add playlist item:", error);
+            errorMessage.textContent = "Could not add the playlist item. Please try again.";
+            errorMessage.hidden = false;
+            return false;
+        }
+
+        try {
+            await updatePlaylistContainer();
+        } catch (error) {
+            console.error("Failed to refresh playlist:", error);
+            showToast("Item added, but the playlist could not refresh. Reload the page to see it.", "error");
+        }
     }
     
     return validEntry;
+}
+
+function readPlaylistDuration() {
+    const minutesInput = document.getElementById("playlist-duration-minutes");
+    const secondsInput = document.getElementById("playlist-duration-seconds");
+    minutesInput.setCustomValidity("");
+    secondsInput.setCustomValidity("");
+
+    if (!minutesInput.reportValidity() || !secondsInput.reportValidity()) {
+        return null;
+    }
+
+    const minutes = minutesInput.valueAsNumber;
+    const seconds = secondsInput.valueAsNumber;
+    if (!Number.isSafeInteger(minutes * 60 + seconds)) {
+        minutesInput.setCustomValidity("Please enter a smaller duration.");
+        minutesInput.reportValidity();
+        return null;
+    }
+    if (minutes === 0 && seconds === 0) {
+        secondsInput.setCustomValidity("Duration must be at least one second.");
+        secondsInput.reportValidity();
+        return null;
+    }
+
+    return {minutes, seconds};
 }
 
 async function updatePlaylistContainer() {
@@ -122,6 +171,11 @@ async function updatePlaylistContainer() {
                 <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
             </div>
         `;
+
+        const durationLabel = document.createElement("div");
+        durationLabel.className = "playlist-item-duration";
+        durationLabel.textContent = `${entry.duration.minutes}m ${entry.duration.seconds}s`;
+        playlistItem.querySelector(".playlist-item-name").after(durationLabel);
 
         const deleteButton = playlistItem.querySelector(".playlist-item-delete");
         deleteButton.addEventListener("click", (event) => {

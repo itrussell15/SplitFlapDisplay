@@ -982,6 +982,41 @@ body {
   text-align: center;
 }
 
+.playlist-duration {
+  margin: 20px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+}
+
+.playlist-duration legend {
+  padding: 0 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.playlist-duration .field-row {
+  margin-top: 12px;
+}
+
+.playlist-duration input {
+  width: 100%;
+  margin: 0;
+}
+
+.modal-panel .playlist-create-error {
+  color: var(--red);
+  margin-bottom: 12px;
+}
+
+.playlist-item-duration {
+  margin-left: 16px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 /* ── SETTINGS ── */
 .settings-card {
   background: var(--panel);
