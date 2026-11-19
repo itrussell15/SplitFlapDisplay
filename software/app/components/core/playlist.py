@@ -22,14 +22,14 @@ class PlaylistEntry:
     """Pair content with its duration in this playlist, independently of refreshes."""
 
     item: PlaylistItem
-    duration: UpdateFrequency
+    duration: Optional[UpdateFrequency]
     uuid: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     def __post_init__(self) -> None:
         if not isinstance(self.item, PlaylistItem):
             raise TypeError("item must be a PlaylistItem")
         if not isinstance(self.duration, UpdateFrequency):
-            raise TypeError("duration must be an UpdateFrequency")
+            raise TypeError(f"duration must be an UpdateFrequency, not {type(self.duration)}")
         if not math.isfinite(self.duration.interval) or self.duration.interval <= 0:
             raise ValueError("duration interval must be positive and finite")
 
@@ -55,7 +55,6 @@ class PlaylistItem(ABC):
         self._is_updating = False
         self._lifecycle_lock = threading.RLock()
         self._generation = 0
-        self.uuid = str(uuid.uuid4())
         self._trigger: Optional[Trigger] = None
         if trigger_factory is not None:
             if not callable(trigger_factory):

@@ -35,7 +35,12 @@ class StaticItem(BaseModel):
         output = {}
         for item in self.data:
             output[(item.location.as_tuple())] = item.position
-        return StaticDisplayItem(name=self.name, flaps=output, needs_resolving=False)
+        return StaticDisplayItem(
+            name=self.name,
+            flaps=output,
+            needs_resolving=False,
+            trigger_factory=None
+        )
 
 
 class StaticItems(BaseModel):

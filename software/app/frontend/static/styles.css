@@ -54,9 +54,10 @@ body {
   left: 220px;
   right: 0;
   bottom: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 7ch 15% minmax(0, 1fr) 11ch;
   align-items: center;
-  justify-content: space-between;
+  justify-content: initial;
   border-bottom: none;
   border-top: 1px solid var(--border);
   margin-top: auto;
@@ -74,11 +75,26 @@ body {
   margin: auto 0;
 }
 
-.player-text {
-  display: flex;
-  /* width: 10%; */
+.player-counter {
+  display: grid;
+  width: 7ch;
+  grid-template-columns: 2.5ch 1ch 2.5ch;
+  align-items: center;
   justify-content: center;
-  flex-direction: row;
+  justify-self: start;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-clock {
+  display: grid;
+  width: 11ch;
+  grid-template-columns: 5ch 1ch 5ch;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .player-current-item{

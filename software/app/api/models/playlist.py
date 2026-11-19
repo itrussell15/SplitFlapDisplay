@@ -14,6 +14,9 @@ class FrequencyModel(BaseModel):
     def to_update_frequency(self) -> UpdateFrequency:
         return UpdateFrequency(minutes=self.minutes, seconds=self.seconds)
 
+    def to_dict(self) -> Dict[str, int]:
+        return {"minutes": self.minutes, "seconds": self.seconds}
+
 
 class AddItemRequest(BaseModel):
     item_type: str
@@ -22,46 +25,44 @@ class AddItemRequest(BaseModel):
 
 class AddEntryRequest(BaseModel):
     item_type: str
-    duration: Optional[FrequencyModel]
     parameters: Dict[str, Any]
+    duration: FrequencyModel
 
 
 class ItemResponse(BaseModel):
     name: str
-    uuid: str
-    index: int
     frequency: Optional[FrequencyModel]
     params: Dict[str, Any]
 
 
 class EntryResponse(BaseModel):
+    index: int
     item: ItemResponse
-    frequency: Optional[FrequencyModel]
+    duration: Optional[FrequencyModel]
+    uuid: str
 
 
 class TimeData(BaseModel):
-    start: Optional[float]
-    end: Optional[float]
-    remaining: Optional[float]
-    elapsed: Optional[float]
+    start: Optional[float] = None
+    end: Optional[float] = None
+    remaining: Optional[float] = None
+    elapsed: Optional[float] = None
 
 
 class ActiveEntryResponse(BaseModel):
     entry: EntryResponse
-    time_data: Optional[TimeData]
+    time_data: Optional[TimeData] = None
 
 
 class PlaylistResponse(BaseModel):
-    current_index: int
+    current_index: Optional[int] = None
+    current_entry: Optional[EntryResponse] = None
     is_active: bool
-    frequency: FrequencyModel
     entries: List[EntryResponse]
 
 
 class StatusResponse(BaseModel):
     is_active: bool
     numItems: int
-    playlistFrequency: FrequencyModel
-    currentItem: Optional[ItemResponse]
-    playlistTime: Optional[TimeData]
-    currentItemTime: Optional[TimeData]
+    currentEntry: Optional[EntryResponse] = None
+    currentEntryTime: Optional[TimeData] = None

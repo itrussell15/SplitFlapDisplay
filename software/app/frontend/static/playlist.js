@@ -1,4 +1,3 @@
-
 let apps = [];
 let defaultApp = null;
 let selectedIndex = 0;
@@ -82,7 +81,11 @@ async function createItem() {
     if (validEntry){
         console.log("Submission is valid");
         console.log(entries);
-        const body = {"item_type": itemSelect.value, "parameters": entries};
+        const body = {
+            "item_type": itemSelect.value,
+            "parameters": entries,
+            "duration": {"minutes": 1, "seconds": 0} // TODO Hardcoded for now!
+        };
         const response = await fetch(`/api/v1/playlist/add`, {
             method: 'POST',
             headers: {"Content-Type": "application/json"},
@@ -95,7 +98,7 @@ async function createItem() {
 }
 
 async function updatePlaylistContainer() {
-    const playlistRequest = await fetch("/api/v1/playlist/list");
+    const playlistRequest = await fetch("/api/v1/playlist/playlist");
     if (!playlistRequest.ok) {
         throw new Error(`Request failed: ${playlistRequest.status}`);
     }
@@ -108,23 +111,33 @@ async function updatePlaylistContainer() {
     }
     playlistContainer.replaceChildren();
 
-    playlistItems.items.forEach(item => {
+    playlistItems.entries.forEach(entry => {
         const playlistItem = document.createElement('div');
         playlistItem.className = 'playlist-item';
-        playlistItem.id = item.uuid;
+        playlistItem.id = entry.item.uuid;
         playlistItem.innerHTML = `
             <div class="playlist-item-handle">☰</div>
-            <div class="playlist-item-name">${item.name}</div>
-            <div class="playlist-item-delete">
-                <i class="fa-regular fa-trash-can" onclick=deleteItem('${item.uuid}')></i>
+            <div class="playlist-item-name">${entry.item.name}</div>
+            <div class="playlist-item-delete" data-entry-uuid="${entry.uuid}" aria-label="Delete ${entry.item.name}">
+                <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
             </div>
         `;
+
+        const deleteButton = playlistItem.querySelector(".playlist-item-delete");
+        deleteButton.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            deleteItem(deleteButton.dataset.entryUuid);
+        });
+
         playlistContainer.appendChild(playlistItem);
     });
     Sortable.create(
         playlistContainer,
         {
             draggable: ".playlist-item",
+            filter: ".playlist-item-delete",
+            preventOnFilter: false,
             animation: 150,
             onUpdate: playlistItemChange,
             onStart: playlistDragStart,
@@ -133,8 +146,8 @@ async function updatePlaylistContainer() {
     );
 }
 
-function deleteItem() {
-    console.log("Delete item pressed");
+async function deleteItem(uuid) {
+    console.log(`Delete item pressed for ${uuid}`);
 }
 
 function loadAppParams(app_index) {

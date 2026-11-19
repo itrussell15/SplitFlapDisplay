@@ -1,6 +1,12 @@
-
 let playerUpdateInterval = null;
 let playlistStatus = null;
+
+function formatTime(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+}
 
 async function playPausePlaylist(){
     if (playlistStatus.is_active){
@@ -40,14 +46,16 @@ async function updatePlayerBar(){
     // Start symbol
     button.textContent = String.fromCodePoint(playlistStatus.is_active ? "9209" : "9658");
 
-    const currentItem = playlistStatus.currentItem;
-    playerItemName.textContent = currentItem.name;
-    playerCurrentIndex.textContent = currentItem.index + 1;
+    const currentEntry = playlistStatus.currentEntry;
+    playerItemName.textContent = currentEntry.item.name;
+    playerCurrentIndex.textContent = currentEntry.index + 1;
     playerTotalIndex.textContent = playlistStatus.numItems;
-    totalTime.textContent = `${currentItem.frequency.minutes}`.padStart(2, '0') + `:${currentItem.frequency.seconds}`.padStart(2, '0');
+    const durationSeconds =
+      currentEntry.duration.minutes * 60 + currentEntry.duration.seconds;
+    totalTime.textContent = formatTime(durationSeconds);
 
-    if (playlistStatus.currentItemTime != null){
-      timeElapsed.textContent = `00:` + `${Math.trunc(playlistStatus.currentItemTime.elapsed)}`.padStart(2, '0');
+    if (playlistStatus.currentEntryTime != null){
+      timeElapsed.textContent = formatTime(playlistStatus.currentEntryTime.elapsed);
     }
     
 }

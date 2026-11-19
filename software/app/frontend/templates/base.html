@@ -49,25 +49,24 @@
       </main>
 
       <footer class="bar bottom-bar">
-        <div class="player-text" id="player-current-num-items"> 
-          <div id="active-item">1</div>
-          <div>/</div>
-          <div id="total-items">1</div>
-        </div>  
-        <div class="player-current-item"> 
+        <div class="player-counter" id="player-current-num-items" aria-label="Playlist position">
+          <span id="active-item">1</span>
+          <span>/</span>
+          <span id="total-items">1</span>
+        </div>
+        <div class="player-current-item">
           Current Item
-        </div>  
+        </div>
         <div class="player-container">
           <div id="controls" class="controls">
             <button id="playpause-btn" onclick="playPausePlaylist()">&#9658</button>
-            <!-- <button id="next-btn">⏭</button> -->
           </div>
         </div>
-        <div class="player-text" id="player-current-time"> 
-          <div id="time-elapsed">-</div>
-          <div>/</div>
-          <div id="total-time">-</div>
-        </div>  
+        <div class="player-clock" id="player-current-time" aria-label="Playback time">
+          <span id="time-elapsed">-</span>
+          <span>/</span>
+          <span id="total-time">-</span>
+        </div>
       </footer>
     </div>
 
