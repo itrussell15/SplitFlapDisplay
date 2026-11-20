@@ -1,9 +1,10 @@
+import os
 import datetime
 import enum
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import requests
@@ -17,27 +18,39 @@ from app.components.display.display_item import (
     DisplayItemType,
     DisplayItemUpdate,
 )
+from app.components.display.display_helper import DisplayHelper
 from control.source.display_controller import DisplayInfo
+from utils import ApiKeyError
 
+API_KEY_NAME: str = "OPEN_WEATHER_API_KEY"
 
+@dataclass
 class WeatherData:
 
-    def __init__(
-        self,
-        temp: float,
-        feels_like: float,
-        wind_speed: float,
-        uvi: float,
-        clouds: float,
-        humidity: float,
-        sunrise: int,
-        sunset: int,
-        overview: str,
-        description: str,
-        timezone: str,
-        unit: str,
-        **kwargs,
-    ) -> None:
+    temp: float
+    feels_like: float
+    wind_speed: float
+    uvi: float
+    clouds: float
+    humidity: float
+    sunrise: int
+    sunset: int
+    overview: str
+    description: str
+    timezone: str
+    unit: str
+    extra: dict[str, Any] = None  # Optional: store leftover kwargs
+
+    @classmethod
+    def from_kwargs(cls, **kwargs):
+        known_fields = {f.name for f in fields(cls)}
+        known_args = {k: v for k, v in kwargs.items() if k in known_fields}
+        extra_args = {k: v for k, v in kwargs.items() if k not in known_fields}
+        
+        # Pass extra_args if you want to save them, or omit to ignore them
+        return cls(**known_args, extra=extra_args)
+
+    def __post_init__(self) -> None:
 
         for key, value in locals().items():
             if key != "kwargs":
@@ -67,11 +80,9 @@ class TemperatureApp(DisplayItem):
     def __init__(
         self,
         trigger_factory: Optional[Callable[[Callable[[], None]], Trigger]],
-        api_key: str,
         lat: str,
         lon: str,
         metric_units: bool = False,
-        start_location: List[int] = [1, 1],
     ) -> None:
         super().__init__(
             name="TempApp",
@@ -79,13 +90,14 @@ class TemperatureApp(DisplayItem):
             trigger_factory=trigger_factory,
             params=locals(),
         )
-        self._api_key = api_key
+        self._api_key = os.getenv(API_KEY_NAME, None)
+        if self._api_key is None:
+            raise ApiKeyError(API_KEY_NAME)
         self.lat_value = lat
         self.long_value = lon
         self._metric_units = metric_units
-        self._start_location = start_location
 
-    def get_data(self):
+    def get_data(self) -> WeatherData:
         units = "metric" if self._metric_units else "imperial"
         url = f"https://api.openweathermap.org/data/4.0/onecall/current?lat={self.lat_value}2&lon=-{self.long_value}&units={units}&appid={self._api_key}"
         r = requests.get(url)
@@ -94,7 +106,7 @@ class TemperatureApp(DisplayItem):
 
         body = r.json()
         data = body["data"][0]
-        return WeatherData(
+        return WeatherData.from_kwargs(
             **data,
             unit=units,
             timezone=body["timezone"],
@@ -102,16 +114,57 @@ class TemperatureApp(DisplayItem):
             description=data["weather"][0]["description"],
         )
 
+    def get_sun_times(
+        self,
+        helper: DisplayHelper,
+        sunrise: datetime.datetime,
+        sunset: datetime.datetime,
+        row: int = 1
+    ) -> Dict[Tuple[int, int], str]:
+        sunset = sunset.strftime("%I:%M") 
+        if sunset.startswith("0"):
+            sunset = sunset[1:]
+
+        sunrise = sunrise.strftime("%I:%M") 
+        if sunrise.startswith("0"):
+            sunrise = sunrise[1:]
+
+        sunrise = f"☀↑{sunrise}"
+        sunset = f"☀↓{sunset}"
+        final = sunrise + " " + sunset
+        self.logger.info(f"Sun times - {final}")
+
+        return helper.center_row(row_value=1, fill_value="BLANK", text=final)
+
+    def get_temperature_data(
+        self,
+        helper: DisplayHelper,
+        temp: float,
+        is_metric: bool,
+        row_value: int
+    ) -> Dict[Tuple[int, int], str]:
+
+        final = f"{temp}" + "F" if not is_metric else "C"
+        return helper.center_row(row_value=row_value, fill_value="BLANK", text=final)
+
+
     def update(self, display_info: DisplayInfo) -> DisplayItemUpdate:
+        helper = DisplayHelper(display_info)
         weather = self.get_data()
-        row, start_col = self._start_location
+        flaps = self.get_sun_times(
+            helper=helper,
+            sunset=weather.sunset,
+            sunrise=weather.sunrise,
+            row=1
+        )
+        temp_data = self.get_temperature_data(
+            helper,
+            weather.temp,
+            weather.unit == 'metric',
+            row_value = 2
+        )
+        flaps.update(temp_data)
+        description = helper.center_row(text=weather.overview.upper(), row_value=3, fill_value="BLANK")
+        flaps.update(description)
 
-        data = {}
-        temp = str(weather.temp)
-        if len(temp) > 1:
-            data[(row, start_col)] = temp[0]
-        data[(row, start_col + 1)] = temp[-1]
-        data[(row, start_col + 2)] = "DEGREE"
-        data[(row, start_col + 3)] = "F" if weather.unit == "imperial" else "C"
-
-        return DisplayItemUpdate(flaps=data)
+        return DisplayItemUpdate(flaps=flaps)

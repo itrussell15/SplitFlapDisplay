@@ -10,6 +10,10 @@ import serial
 
 TIMESTAMP_FORMAT = "%m/%d/%Y %H:%M:%S"
 
+class ApiKeyError(Exception):
+    def __init__(self, env_variable_name: str) -> None:
+        super().__init__(f"API Key not found with name {env_variable_name}")
+
 # Functions
 def create_logger(level=logging.DEBUG, spacing: int = 15):
     logging.basicConfig(

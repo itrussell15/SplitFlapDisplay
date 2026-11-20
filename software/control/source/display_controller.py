@@ -17,6 +17,14 @@ class DisplayInfo:
     modules: List[ModuleInfo]
 
     @property
+    def row_range(self) -> Range:
+        return Range(1, self.rows)
+
+    @property
+    def column_range(self) -> Range:
+        return Range(1, self.columns)
+
+    @property
     def module_locations(self) -> List[Tuple[int, int]]:
         return [i.location for i in self.modules]
 
