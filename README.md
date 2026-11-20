@@ -41,28 +41,28 @@ This will allow you to make multi module calls and orchestrate the whole board w
         "row": 1,
         "column": 1
       },
-      "flap": "A"
+      "position": 1
     },
     {
       location: {
         "row": 1,
         "column": 2
       },
-      "flap": "B"
+      "position": 2
     },
     {
       location: {
         "row": 1,
         "column": 3
       },
-      "flap": "C"
+      "position": 3
     },
     {
       location: {
         "row": 1,
         "column": 4
       },
-      "flap": "SMILEY"
+      "position": 4
     },
   ]
 }
@@ -160,10 +160,8 @@ I am storing ideas of things that I would like to do at some point here for refe
 - [ ] Create a dockerized app that is web-accessible and can control the display
 - [ ] Create "mock" hardware that will allow people to develop on the system without needing access to hardware
 
-
 ## App Integration Ideas
 - Sound Transit 
-- Sports Scores
 - Stock Tickers 
 
 ## License
