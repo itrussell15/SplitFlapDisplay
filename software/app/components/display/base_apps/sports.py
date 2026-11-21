@@ -129,7 +129,7 @@ class UpcomingGameApp(DisplayItem):
         team_data = self._handler.get_team(self._team)
 
         flaps = {}
-        event_desc = helper.center_row(row_value=1, text=team_data.nextEvent.shortName.strip())
+        event_desc = helper.center_row(row_value=1, text=team_data.nextEvent.shortName.strip().upper())
         flaps.update(event_desc)
 
         time = team_data.nextEvent.date.strftime("%I:%M%p")
@@ -144,14 +144,9 @@ class UpcomingGameApp(DisplayItem):
         flaps.update(game_time)
 
         if team_data.nextEvent.broadcast:
-            game_channel = helper.center_row(row_value=3, text=team_data.nextEvent.broadcast)
+            game_channel = helper.center_row(row_value=3, text=team_data.nextEvent.broadcast.upper())
             flaps.update(game_channel)
 
-        self.logger.info(event_desc)
-        self.logger.info(game_time)    
-        self.logger.info(game_channel)
-        
-        
         return DisplayItemUpdate(flaps=flaps, needs_resolving=True)
 
         

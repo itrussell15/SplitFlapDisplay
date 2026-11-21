@@ -83,8 +83,6 @@ class TemperatureApp(DisplayItem):
         lat: str,
         lon: str,
         metric_units: bool = False,
-        units: Optional[str] = None,
-        api_key: Optional[str] = None,
     ) -> None:
         super().__init__(
             name="TempApp",
@@ -92,25 +90,16 @@ class TemperatureApp(DisplayItem):
             trigger_factory=trigger_factory,
             params=locals(),
         )
-        print(f"Incoming Units: {units}")
-        self._api_key = api_key or os.getenv(API_KEY_NAME, None)
+        self._api_key = os.getenv(API_KEY_NAME, None)
         if self._api_key is None:
             raise ApiKeyError(API_KEY_NAME)
         self.lat_value = lat
         self.long_value = lon
 
-        if units is not None:
-            normalized_units = str(units).strip().lower()
-            if normalized_units in {"imperial", "fahrenheit", "f", "us"}:
-                self._unit_system = "imperial"
-            elif normalized_units in {"metric", "celsius", "c", "standard"}:
-                self._unit_system = "metric"
-            else:
-                raise ValueError(f"Unsupported weather units: {units}")
-        else:
-            if isinstance(metric_units, str):
-                metric_units = metric_units.strip().lower() in {"true", "1", "yes", "metric", "celsius", "c"}
-            self._unit_system = "metric" if bool(metric_units) else "imperial"
+        # TODO Fix unit parsing
+        if isinstance(metric_units, str):
+            metric_units = metric_units.strip().lower() in {"true", "1", "yes", "metric", "celsius", "c"}
+        self._unit_system = "metric" if bool(metric_units) else "imperial"
 
     def get_data(self) -> WeatherData:
         units = self._unit_system
