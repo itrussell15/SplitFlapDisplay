@@ -11,8 +11,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
-from munch import munchify
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from app.components.core.playlist import PlaylistItem
@@ -94,7 +92,7 @@ class DisplayItem(PlaylistItem):
         self._check_missing_display_info()
         output = {}
         for row in range(self._display_info.rows):
-            for column in self._display_info.columns:
+            for column in range(self._display_info.columns):
                 output[(row, column)] = self.default_flap
 
     def _execute_update(self) -> None:

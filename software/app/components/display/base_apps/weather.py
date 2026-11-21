@@ -62,7 +62,7 @@ class WeatherData:
         self.sunset = datetime.datetime.fromtimestamp(self.sunset, tz=self.timezone)
 
 
-REQUEST_URL = "https://api.openweathermap.org/data/4.0/onecall/current?lat={lat}2&lon=-{lon}&units={units}&appid={api_key}"
+REQUEST_URL = "https://api.openweathermap.org/data/4.0/onecall/current?lat={lat}&lon={lon}&units={units}&appid={api_key}"
 
 
 class TemperatureApp(DisplayItem):
@@ -83,6 +83,8 @@ class TemperatureApp(DisplayItem):
         lat: str,
         lon: str,
         metric_units: bool = False,
+        units: Optional[str] = None,
+        api_key: Optional[str] = None,
     ) -> None:
         super().__init__(
             name="TempApp",
@@ -90,17 +92,35 @@ class TemperatureApp(DisplayItem):
             trigger_factory=trigger_factory,
             params=locals(),
         )
-        self._api_key = os.getenv(API_KEY_NAME, None)
+        print(f"Incoming Units: {units}")
+        self._api_key = api_key or os.getenv(API_KEY_NAME, None)
         if self._api_key is None:
             raise ApiKeyError(API_KEY_NAME)
         self.lat_value = lat
         self.long_value = lon
-        self._metric_units = metric_units
+
+        if units is not None:
+            normalized_units = str(units).strip().lower()
+            if normalized_units in {"imperial", "fahrenheit", "f", "us"}:
+                self._unit_system = "imperial"
+            elif normalized_units in {"metric", "celsius", "c", "standard"}:
+                self._unit_system = "metric"
+            else:
+                raise ValueError(f"Unsupported weather units: {units}")
+        else:
+            if isinstance(metric_units, str):
+                metric_units = metric_units.strip().lower() in {"true", "1", "yes", "metric", "celsius", "c"}
+            self._unit_system = "metric" if bool(metric_units) else "imperial"
 
     def get_data(self) -> WeatherData:
-        units = "metric" if self._metric_units else "imperial"
-        url = f"https://api.openweathermap.org/data/4.0/onecall/current?lat={self.lat_value}2&lon=-{self.long_value}&units={units}&appid={self._api_key}"
-        r = requests.get(url)
+        units = self._unit_system
+        url = REQUEST_URL.format(
+            lat=self.lat_value,
+            lon=self.long_value,
+            units=units,
+            api_key=self._api_key,
+        )
+        r = requests.get(url, timeout=10)
         if r.status_code != 200:
             raise ConnectionError()
 
@@ -129,8 +149,8 @@ class TemperatureApp(DisplayItem):
         if sunrise.startswith("0"):
             sunrise = sunrise[1:]
 
-        sunrise = f"☀↑{sunrise}"
-        sunset = f"☀↓{sunset}"
+        sunrise = f"☀↑{sunrise.strip()}"
+        sunset = f"☀↓{sunset.strip()}"
         final = sunrise + " " + sunset
         self.logger.info(f"Sun times - {final}")
 
@@ -143,8 +163,12 @@ class TemperatureApp(DisplayItem):
         is_metric: bool,
         row_value: int
     ) -> Dict[Tuple[int, int], str]:
-
-        final = f"{temp}" + "F" if not is_metric else "C"
+        if isinstance(is_metric, str):
+            is_metric = is_metric.strip().lower() in {"true", "1", "yes", "metric", "celsius", "c"}
+        numeric_temp = int(temp)
+        unit = "C" if bool(is_metric) else "F"
+        final = f"{numeric_temp}°{unit}"
+        self.logger.info(f"Temp - {final}")
         return helper.center_row(row_value=row_value, fill_value="BLANK", text=final)
 
 

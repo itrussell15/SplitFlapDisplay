@@ -46,23 +46,25 @@ class DisplayHelper:
         return self.default_fill(self._default_key)
 
     def center_row(self, text: str, row_value: int, fill_value: str = "BLANK") -> Dict[Tuple[int, int], str]:
+        if not isinstance(text, str):
+            raise TypeError(f"Expected text to be str, got {type(text).__name__}")
+
         incoming_size = len(text)
         if incoming_size > self._info.columns:
             raise DisplayRenderError(f"Unable to render text of length {incoming_size}. Display width is {self._info.columns}")
 
         if row_value < 1 or row_value > self._info.rows:
             raise DisplayRenderError(f"Invalid Row {row_value}, Pick 1-{self._info.rows}")
-        
-        delta = self._info.columns - incoming_size
-        start_position = delta // 2
+
+        start_position = (self._info.columns - incoming_size) // 2 + 1
 
         output = {}
         for n, char in enumerate(text):
             output[(row_value, n + start_position)] = char
-            # print(f"Assigning {char} to {(row_value, n + start_position)}")
+
         infill = self._default_fill(
             value=fill_value,
-            skip_values=output,
+            skip_values=list(output.keys()),
             rows=Range(row_value, row_value),
             columns=self._info.column_range
         )
@@ -71,12 +73,16 @@ class DisplayHelper:
         return output
 
 
-    def center_rows(self, rows: List[str]) -> Dict[Tuple[int, int], str]:
+    def center_rows(self, rows: List[str], fill_value: str = "BLANK") -> Dict[Tuple[int, int], str]:
+        if not isinstance(rows, list):
+            raise TypeError(f"Expected rows to be list, got {type(rows).__name__}")
         if len(rows) != self._info.rows:
             raise ValueError(f"Num rows passed {len(rows)} doesn't match the {self._info.rows} found on display")
 
-        # for row in rows:
-
+        output: Dict[Tuple[int, int], str] = {}
+        for row_offset, text in enumerate(rows):
+            output.update(self.center_row(text, row_offset + 1, fill_value))
+        return output
 
     def center_text(self, text: str) -> Dict[Tuple[int, int], str]:
         if text is None:

@@ -135,7 +135,7 @@ class UpcomingGameApp(DisplayItem):
         time = team_data.nextEvent.date.strftime("%I:%M%p")
         if time.startswith("0"):
             time = time[1:]
-        date = team_data.nextEvent.date.strftime("%m/%d")
+        date = team_data.nextEvent.date.strftime("%m-%d")
         final = date + " " + time
         game_time = helper.center_row(
             text=final,
@@ -146,6 +146,11 @@ class UpcomingGameApp(DisplayItem):
         if team_data.nextEvent.broadcast:
             game_channel = helper.center_row(row_value=3, text=team_data.nextEvent.broadcast)
             flaps.update(game_channel)
+
+        self.logger.info(event_desc)
+        self.logger.info(game_time)    
+        self.logger.info(game_channel)
+        
         
         return DisplayItemUpdate(flaps=flaps, needs_resolving=True)
 
