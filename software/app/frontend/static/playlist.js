@@ -163,11 +163,11 @@ async function updatePlaylistContainer() {
     playlistItems.entries.forEach(entry => {
         const playlistItem = document.createElement('div');
         playlistItem.className = 'playlist-item';
-        playlistItem.id = entry.item.uuid;
+        playlistItem.id = entry.uuid;
         playlistItem.innerHTML = `
             <div class="playlist-item-handle">☰</div>
             <div class="playlist-item-name">${entry.item.name}</div>
-            <div class="playlist-item-delete" data-entry-uuid="${entry.uuid}" aria-label="Delete ${entry.item.name}">
+            <div class="playlist-item-delete" aria-label="Delete ${entry.item.name}">
                 <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
             </div>
         `;
@@ -181,7 +181,7 @@ async function updatePlaylistContainer() {
         deleteButton.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            deleteItem(deleteButton.dataset.entryUuid);
+            deleteItem(entry);
         });
 
         playlistContainer.appendChild(playlistItem);
@@ -200,8 +200,23 @@ async function updatePlaylistContainer() {
     );
 }
 
-async function deleteItem(uuid) {
-    console.log(`Delete item pressed for ${uuid}`);
+async function deleteItem(entry) {
+    console.log(`Delete item pressed for ${entry.uuid}`);
+    const response = await fetch(
+        `/api/v1/playlist/delete/${entry.uuid}`,
+         {method: 'DELETE'}
+    );
+    const data = await response.json();
+    if (!response.ok)
+    {
+        console.log(`Error during delete - ${data.detail}`);
+        showToast(data.detail, "error");
+        return;
+    }
+
+    showToast(`Deleted ${entry.item.name}`);
+    await updatePlaylistContainer();
+
 }
 
 function loadAppParams(app_index) {

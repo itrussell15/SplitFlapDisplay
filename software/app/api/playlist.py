@@ -166,10 +166,19 @@ def add_playlist_item(
 def remove_playlist_entry(entry_uuid: str, playlist=Depends(get_playlist)):
     for index, entry in enumerate(playlist.entries):
         if entry.uuid == entry_uuid:
-            playlist.remove_entry(index)
-            return {"status": "ok", "uuid": entry_uuid}
+            break
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Playlist entry not found",
+        )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Playlist entry not found",
-    )
+    logger.info("UUID found - deleteing item")
+    try:
+        playlist.remove_entry(index)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+    return {"status": "ok", "uuid": entry_uuid}

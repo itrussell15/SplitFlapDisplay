@@ -38,7 +38,6 @@ app.include_router(apps.router, prefix=f"/api/{API_VERSION}")
 app.include_router(playlist.router, prefix=f"/api/{API_VERSION}")
 app.include_router(static_items.router, prefix=f"/api/{API_VERSION}")
 app.include_router(flaps.router, prefix=f"/api/{API_VERSION}")
-# app.include_router(rate.router, prefix=f"/api/{API_VERSION}")
 app.mount("/static", StaticFiles(directory=os.path.join(base_dir, "frontend", "static")), name="static")
 app.mount("/", StaticFiles(directory=os.path.join(base_dir, "frontend"), html=True), name="frontend")
 
