@@ -17,6 +17,7 @@ from control.source.display_controller import DisplayInfo
 class StaticDisplayItem(DisplayItem):
 
     trigger_factory = None
+    description: str = "Dead simple display of a static message that has been set from the main Display page."
 
     def __init__(
         self,

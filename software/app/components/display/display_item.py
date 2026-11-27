@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from app.components.core.playlist import PlaylistItem
-from app.components.core.trigger import Trigger
+from app.components.core.trigger import Trigger, PollingTrigger
 from control.source.display_controller import DisplayInfo
 from control.source.flaps import Flap
 
@@ -49,9 +49,15 @@ class DisplayItem(PlaylistItem):
         self._display_data = {}
         self.params = self._filter_params(params)
 
+        if isinstance(self._trigger, PollingTrigger):
+            self._trigger.add_evaulation(self.should_update)
+
     @classmethod
     @abstractmethod
     def trigger_factory(cls, callback: Callable[[], None]) -> Trigger: ...
+
+    @abstractmethod
+    def should_update(self) -> bool: ... 
 
     def __repr__(self) -> str:
         return f"DisplayPlaylistItem({self._name})"

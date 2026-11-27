@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
 
-from app.components.core.trigger import IntervalTrigger, Trigger
+from app.components.core.trigger import IntervalTrigger, PollingTrigger, Trigger
 from app.components.core.updater import UpdateFrequency
 from app.components.display.display_helper import DisplayHelper
 from app.components.display.display_item import (
@@ -24,7 +24,7 @@ class DateTimeApp(DisplayItem):
 
     @classmethod
     def trigger_factory(cls, callback: Callable[[], None]) -> Trigger:
-        return IntervalTrigger(callback, frequency=UpdateFrequency(seconds=5))
+        return PollingTrigger(callback, frequency=UpdateFrequency(seconds=1))
 
     def __init__(
         self,
@@ -37,9 +37,30 @@ class DateTimeApp(DisplayItem):
             params=locals(),
         )
         self._previous_output = None
+        self._current_output = self._generate_display_text()
+
+    def should_update(self) -> bool:
+        """
+        Will update if the current output doesn't equal the previous output
+        """
+        self._current_output = self._generate_display_text()
+        return self._current_output != self._previous_output
 
     def update(self, display_info: DisplayInfo) -> DisplayItemUpdate:
+        """
+        This function only gets hit if `should_update` evaluates to True
+        """
+        self.logger("Update triggered")
         helper = DisplayHelper(display_info)
+        self.logger.info(f"Final display output - {self._current_output}")
+        flaps = helper.center_text(self._current_output.upper())
+        flaps = helper.default_fill(fill_value="BLANK", incoming_values=flaps)
+
+        self._previous_output = self._current_output
+        return DisplayItemUpdate(flaps=flaps, needs_resolving=True)
+
+    @staticmethod
+    def _generate_display_text() -> str:
         now = datetime.datetime.now()
         date = now.strftime("%b %d %Y")
         weekday = now.strftime("%A")
@@ -47,14 +68,4 @@ class DateTimeApp(DisplayItem):
         if time.startswith("0"):
             time = " " + time[1:]
 
-        final = date + "\n" + weekday + "\n" + time
-        self.logger.info(f"Final display output - {final}")
-        flaps = helper.center_text(final.upper())
-        flaps = helper.default_fill(fill_value="BLANK", incoming_values=flaps)
-
-        if time == self._previous_output:
-            self.logger.debug("Same time as last update")
-
-        self.logger.info(f"Showing {final}")
-        self._previous_output = final
-        return DisplayItemUpdate(flaps=flaps, needs_resolving=True)
+        return date + "\n" + weekday + "\n" + time

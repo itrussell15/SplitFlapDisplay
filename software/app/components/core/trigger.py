@@ -286,20 +286,22 @@ class PollingTrigger(IntervalTrigger):
         self,
         callback: Callable[[], None],
         frequency: UpdateFrequency,
-        evaluation: Callable[[], bool],
         cooldown: Optional[UpdateFrequency] = None,
     ) -> None:
         super().__init__(callback, frequency)
-        if not callable(evaluation):
-            raise TypeError("evaluation must be callable")
         if cooldown is not None:
             if not isinstance(cooldown, UpdateFrequency):
                 raise TypeError("cooldown must be an UpdateFrequency or None")
             if not math.isfinite(cooldown.interval) or cooldown.interval <= 0:
                 raise ValueError("cooldown interval must be positive and finite")
-        self._evaluation = evaluation
+        
         self._cooldown = cooldown
         self._cooldown_status: Optional[TimeStatus] = None
+
+    def add_evaulation(self, evaluation: Callable[[], bool]) -> None:
+        if not callable(evaluation):
+            raise TypeError("evaluation must be callable")
+        self._evaluation = evaluation
 
     @property
     def cooldown(self) -> Optional[UpdateFrequency]:

@@ -32,7 +32,7 @@ async function init()
         const selectedValue = event.target;
         const selectedOptions = selectedValue.selectedOptions;
         selectedIndex = selectedOptions[0].dataset.index;
-        loadAppParams(selectedIndex);
+        loadAppDetails(selectedIndex);
     });
 }
 
@@ -57,7 +57,7 @@ async function createSelectItems(){
     });
     container.appendChild(selector);
     console.log("Selector created");
-    loadAppParams(0);
+    loadAppDetails(0);
 }
 
 async function createItem() {
@@ -219,15 +219,19 @@ async function deleteItem(entry) {
 
 }
 
-function loadAppParams(app_index) {
+function loadAppDetails(app_index) {
 
     const app = apps[app_index];
 
     const popup = getPopup();
     const container = popup.querySelector(".parameter-container");
-    if (!container || !app || !app.parameters) return;
+    const description = popup.querySelector(".description-container");
+    if (!container || !description || !app || !app.parameters) return;
 
-    
+    if (!app.description) console.log(`No description set for ${app.name}`);
+
+    description.textContent = app.description;
+
     container.replaceChildren();
     console.log(app);
     if (app.name == "StaticDisplayItem") {
